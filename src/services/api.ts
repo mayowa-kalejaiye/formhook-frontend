@@ -125,8 +125,6 @@ export function useAuth() {
 }
 import axios from 'axios';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://formhook-backend.onrender.com';
-
 // Determine if we should use the proxy based on environment
 const isProduction = typeof window !== 'undefined' && window.location.hostname !== 'localhost';
 const shouldUseProxy = isProduction;

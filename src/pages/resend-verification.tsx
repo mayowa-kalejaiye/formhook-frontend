@@ -17,7 +17,6 @@ const ResendVerification = () => {
       // The backend might return success in different formats, let's handle them all
       const isSuccess = 
         response?.data?.success === true || 
-        response?.success === true ||
         (response?.status >= 200 && response?.status < 300);
       
       if (isSuccess) {

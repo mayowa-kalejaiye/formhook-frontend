@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Verification</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        .container {
+            max-width: 500px;
+            padding: 2rem;
+            background-color: white;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            text-align: center;
+        }
+        h1 {
+            margin-top: 0;
+            color: #333;
+        }
+        .loader {
+            display: inline-block;
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(0, 0, 0, 0.1);
+            border-radius: 50%;
+            border-top-color: #3498db;
+            animation: spin 1s ease-in-out infinite;
+            margin-bottom: 1rem;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="loader"></div>
+        <h1>Redirecting...</h1>
+        <p>You are being redirected to the verification page.</p>
+        <p>If you are not redirected automatically, <a href="#" id="redirect-link">click here</a>.</p>
+    </div>
+
+    <script>
+        // Extract the token from the URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const token = urlParams.get('token');
+        
+        // Frontend URL - replace with your actual frontend URL
+        const frontendUrl = 'https://formhook-frontend.vercel.app';
+        
+        // Construct the redirect URL
+        const redirectUrl = `${frontendUrl}/verify-email?token=${token}`;
+        
+        // Update the link href
+        document.getElementById('redirect-link').href = redirectUrl;
+        
+        // Redirect after a short delay
+        setTimeout(function() {
+            window.location.href = redirectUrl;
+        }, 1500);
+    </script>
+</body>
+</html>

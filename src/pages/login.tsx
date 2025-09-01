@@ -160,9 +160,17 @@ export default function Login() {
             {errors.email && <span className="text-xs text-red-500">{errors.email.message as string}</span>}
           </div>
           <div className="space-y-2">
-            <label htmlFor="password" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-zinc-900 dark:text-zinc-50">
-              Password
-            </label>
+            <div className="flex items-center justify-between">
+              <label htmlFor="password" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-zinc-900 dark:text-zinc-50">
+                Password
+              </label>
+              <a 
+                href="/forgot-password" 
+                className="text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+              >
+                Forgot password?
+              </a>
+            </div>
             <div className="relative">
               <input
                 type={showPassword ? "text" : "password"}

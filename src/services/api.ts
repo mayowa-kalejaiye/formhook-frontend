@@ -131,7 +131,7 @@ const shouldUseProxy = isProduction;
 
 // Create axios instance
 const API = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: API_BASE_URL, // Reusing the API_BASE_URL from above
   withCredentials: true, // Important for HTTP-only cookies
 });
 
@@ -226,16 +226,46 @@ export const signup = (data: { email: string; password: string }) => {
   }
 };
 
+// Flexible login function that supports multiple backend authentication endpoints
 export const login = (data: { email: string; password: string }) => {
+  // First try the standard login endpoint
+  const loginAtEndpoint = (endpoint: string) => {
+    if (shouldUseProxy) {
+      // Use the proxy in production to avoid CORS issues
+      return axios.post('/api/proxy', {
+        url: `${API_BASE_URL}${endpoint}`,
+        data: data
+      });
+    } else {
+      // Use direct API call in development
+      return API.post(endpoint, data);
+    }
+  };
+  
+  // Start with the primary login endpoint
+  return loginAtEndpoint('/auth/login')
+    .catch(error => {
+      // If the first endpoint fails specifically with a not found error (404),
+      // try the email login endpoint as fallback
+      if (error.response && error.response.status === 404) {
+        return loginAtEndpoint('/auth/email-login');
+      }
+      // For any other error, propagate it
+      throw error;
+    });
+};
+
+// Token-based login (for password reset links, etc.)
+export const loginWithToken = (token: string) => {
   if (shouldUseProxy) {
     // Use the proxy in production to avoid CORS issues
     return axios.post('/api/proxy', {
-      url: `${API_BASE_URL}/auth/login`,
-      data: data
+      url: `${API_BASE_URL}/auth/token`,
+      data: { token }
     });
   } else {
     // Use direct API call in development
-    return API.post('/auth/login', data);
+    return API.post('/auth/token', { token });
   }
 };
 

@@ -1,6 +1,6 @@
 "use client";
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { login as apiLogin, signup as apiSignup, isUsingHttpOnlyCookies } from '../services/api';
+import { login as apiLogin, signup as apiSignup, loginWithToken as apiLoginWithToken, isUsingHttpOnlyCookies } from '../services/api';
 
 // Check if we're using HTTP-only cookies
 const useHttpOnlyCookies = isUsingHttpOnlyCookies();
@@ -8,6 +8,7 @@ const useHttpOnlyCookies = isUsingHttpOnlyCookies();
 interface User {
   email: string;
   verified?: boolean;
+  userId?: string;
 }
 
 interface AuthContextType {
@@ -15,6 +16,7 @@ interface AuthContextType {
   loading: boolean;
   error: string | null;
   login: (data: { email: string; password: string }) => Promise<void>;
+  loginWithToken: (token: string) => Promise<void>;
   signup: (data: { email: string; password: string }) => Promise<any>;
   logout: () => Promise<void>;
   getCurrentUser: () => void;
@@ -48,6 +50,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           },
           body: JSON.stringify({
             url: `${process.env.NEXT_PUBLIC_API_BASE_URL || 'https://formhook-backend.onrender.com'}/auth/me`,
+            method: 'GET',
             data: {}
           })
         })
@@ -59,7 +62,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           if (data.email) {
             setUser({
               email: data.email,
-              verified: data.verified
+              verified: data.verified,
+              userId: data.id
             });
           } else {
             setUser(null);
@@ -80,7 +84,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .then(data => {
           setUser({
             email: data.email,
-            verified: data.verified
+            verified: data.verified,
+            userId: data.id
           });
         })
         .catch(() => {
@@ -96,7 +101,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           const payload = JSON.parse(atob(token.split('.')[1]));
           setUser({ 
             email: payload.email || '',
-            verified: payload.verified === undefined ? true : payload.verified // Default to true for backward compatibility
+            verified: payload.verified === undefined ? true : payload.verified, // Default to true for backward compatibility
+            userId: payload.sub || payload.id // sub is standard JWT field for subject/user ID
           });
         } catch (e) {
           // If token is invalid, remove it
@@ -135,7 +141,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             const payload = JSON.parse(atob(res.data.access_token.split('.')[1]));
             setUser({
               email: data.email,
-              verified: payload.verified === undefined ? true : payload.verified
+              verified: payload.verified === undefined ? true : payload.verified,
+              userId: payload.sub || payload.id
             });
           } catch (e) {
             // If token can't be decoded, set basic user info
@@ -153,6 +160,56 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         err?.response?.data?.message ||
         (typeof err?.response?.data === 'string' ? err.response.data : null) ||
         'Login failed'
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loginWithToken = async (token: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await apiLoginWithToken(token);
+      
+      if (useHttpOnlyCookies) {
+        // With HTTP-only cookies, we don't need to handle the token
+        if (res.data?.success) {
+          // Fetch user info to update the context
+          getCurrentUser();
+        } else {
+          setUser(null);
+          setError(res.data?.detail || res.data?.message || 'Login failed');
+        }
+      } else {
+        // Handle JWT token approach
+        if (res.data?.access_token) {
+          localStorage.setItem('token', res.data.access_token);
+          
+          // Get user info from token
+          try {
+            const payload = JSON.parse(atob(res.data.access_token.split('.')[1]));
+            setUser({
+              email: payload.email || '',
+              verified: payload.verified === undefined ? true : payload.verified,
+              userId: payload.sub || payload.id
+            });
+          } catch (e) {
+            // If token can't be decoded, fetch user info
+            getCurrentUser();
+          }
+        } else {
+          setUser(null);
+          setError(res.data?.detail || res.data?.message || 'Login failed');
+        }
+      }
+    } catch (err: any) {
+      setUser(null);
+      setError(
+        err?.response?.data?.detail ||
+        err?.response?.data?.message ||
+        (typeof err?.response?.data === 'string' ? err.response.data : null) ||
+        'Login with token failed'
       );
     } finally {
       setLoading(false);
@@ -203,6 +260,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             },
             body: JSON.stringify({
               url: `${process.env.NEXT_PUBLIC_API_BASE_URL || 'https://formhook-backend.onrender.com'}/auth/logout`,
+              method: 'POST',
               data: {}
             })
           });
@@ -226,10 +284,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, error, login, signup, logout, getCurrentUser }}>
-      {/* Optionally, you could provide info via context if needed */}
+    <AuthContext.Provider value={{ user, loading, error, login, loginWithToken, signup, logout, getCurrentUser }}>
       {children}
-      {/* Info state: {info} */}
     </AuthContext.Provider>
   );
 };

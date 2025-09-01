@@ -125,8 +125,15 @@ export function useAuth() {
 }
 import axios from 'axios';
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://formhook-backend.onrender.com';
+
+// Determine if we should use the proxy based on environment
+const isProduction = typeof window !== 'undefined' && window.location.hostname !== 'localhost';
+const shouldUseProxy = isProduction;
+
+// Create axios instance
 const API = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || 'https://formhook-backend.onrender.com',
+  baseURL: API_BASE_URL,
   withCredentials: true, // Important for HTTP-only cookies
 });
 
@@ -209,63 +216,55 @@ export const revokeApiToken = async () => {
 
 // Auth (public)
 export const signup = (data: { email: string; password: string }) => {
-  // Use proxy in production, direct call in development
-  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
-    return fetch('/api/proxy', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        url: `${API_BASE_URL}/auth/signup`,
-        data
-      })
-    }).then(res => res.json());
+  if (shouldUseProxy) {
+    // Use the proxy in production to avoid CORS issues
+    return axios.post('/api/proxy', {
+      url: `${API_BASE_URL}/auth/signup`,
+      data: data
+    });
+  } else {
+    // Use direct API call in development
+    return API.post('/auth/signup', data);
   }
-  return API.post('/auth/signup', data);
 };
 
 export const login = (data: { email: string; password: string }) => {
-  // Use proxy in production, direct call in development
-  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
-    return fetch('/api/proxy', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        url: `${API_BASE_URL}/auth/login`,
-        data
-      })
-    }).then(res => res.json());
+  if (shouldUseProxy) {
+    // Use the proxy in production to avoid CORS issues
+    return axios.post('/api/proxy', {
+      url: `${API_BASE_URL}/auth/login`,
+      data: data
+    });
+  } else {
+    // Use direct API call in development
+    return API.post('/auth/login', data);
   }
-  return API.post('/auth/login', data);
 };
 
 export const verifyEmail = (token: string) => {
-  // Use proxy in production, direct call in development
-  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
-    return fetch('/api/proxy', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        url: `${API_BASE_URL}/auth/verify-email`,
-        data: { token }
-      })
-    }).then(res => res.json());
+  if (shouldUseProxy) {
+    // Use the proxy in production to avoid CORS issues
+    return axios.post('/api/proxy', {
+      url: `${API_BASE_URL}/auth/verify-email`,
+      data: { token }
+    });
+  } else {
+    // Use direct API call in development
+    return API.post('/auth/verify-email', { token });
   }
-  return API.post('/auth/verify-email', { token });
 };
 
 export const requestEmailVerification = (email: string) => {
-  // Use proxy in production, direct call in development
-  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
-    return fetch('/api/proxy', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        url: `${API_BASE_URL}/auth/request-verification`,
-        data: { email }
-      })
-    }).then(res => res.json());
+  if (shouldUseProxy) {
+    // Use the proxy in production to avoid CORS issues
+    return axios.post('/api/proxy', {
+      url: `${API_BASE_URL}/auth/request-verification`,
+      data: { email }
+    });
+  } else {
+    // Use direct API call in development
+    return API.post('/auth/request-verification', { email });
   }
-  return API.post('/auth/request-verification', { email });
 };
 
 // Forms

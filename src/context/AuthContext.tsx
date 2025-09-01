@@ -33,25 +33,60 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const getCurrentUser = () => {
+    // Determine if we should use the proxy based on environment
+    const isProduction = typeof window !== 'undefined' && window.location.hostname !== 'localhost';
+    const shouldUseProxy = isProduction;
+    
     if (useHttpOnlyCookies) {
       // When using HTTP-only cookies, we need to make an API call to get the user info
-      // This would be a separate endpoint like /auth/me that returns user data based on the cookie
-      fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'https://formhook-backend.onrender.com'}/auth/me`, {
-        credentials: 'include'
-      })
-      .then(res => {
-        if (res.ok) return res.json();
-        throw new Error('Not authenticated');
-      })
-      .then(data => {
-        setUser({
-          email: data.email,
-          verified: data.verified
+      if (shouldUseProxy) {
+        // Use proxy in production
+        fetch('/api/proxy', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            url: `${process.env.NEXT_PUBLIC_API_BASE_URL || 'https://formhook-backend.onrender.com'}/auth/me`,
+            data: {}
+          })
+        })
+        .then(res => {
+          if (res.ok) return res.json();
+          throw new Error('Not authenticated');
+        })
+        .then(data => {
+          if (data.email) {
+            setUser({
+              email: data.email,
+              verified: data.verified
+            });
+          } else {
+            setUser(null);
+          }
+        })
+        .catch(() => {
+          setUser(null);
         });
-      })
-      .catch(() => {
-        setUser(null);
-      });
+      } else {
+        // Direct API call in development
+        fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'https://formhook-backend.onrender.com'}/auth/me`, {
+          credentials: 'include'
+        })
+        .then(res => {
+          if (res.ok) return res.json();
+          throw new Error('Not authenticated');
+        })
+        .then(data => {
+          setUser({
+            email: data.email,
+            verified: data.verified
+          });
+        })
+        .catch(() => {
+          setUser(null);
+        });
+      }
     } else {
       // JWT in localStorage approach
       const token = localStorage.getItem('token');
@@ -152,13 +187,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const logout = async () => {
+    // Determine if we should use the proxy based on environment
+    const isProduction = typeof window !== 'undefined' && window.location.hostname !== 'localhost';
+    const shouldUseProxy = isProduction;
+
     if (useHttpOnlyCookies) {
       // With HTTP-only cookies, we need to call a logout endpoint to clear the cookie
       try {
-        await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'https://formhook-backend.onrender.com'}/auth/logout`, { 
-          method: 'POST', 
-          credentials: 'include' 
-        });
+        if (shouldUseProxy) {
+          // Use proxy in production
+          await fetch('/api/proxy', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              url: `${process.env.NEXT_PUBLIC_API_BASE_URL || 'https://formhook-backend.onrender.com'}/auth/logout`,
+              data: {}
+            })
+          });
+        } else {
+          // Direct API call in development
+          await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'https://formhook-backend.onrender.com'}/auth/logout`, { 
+            method: 'POST', 
+            credentials: 'include' 
+          });
+        }
       } catch (e) {
         // Ignore errors
       }

@@ -208,14 +208,65 @@ export const revokeApiToken = async () => {
 };
 
 // Auth (public)
-export const signup = (data: { email: string; password: string }) =>
-  API.post('/auth/signup', data);
-export const login = (data: { email: string; password: string }) =>
-  API.post('/auth/login', data);
-export const verifyEmail = (token: string) =>
-  API.post('/auth/verify-email', { token });
-export const requestEmailVerification = (email: string) =>
-  API.post('/auth/request-verification', { email });
+export const signup = (data: { email: string; password: string }) => {
+  // Use proxy in production, direct call in development
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+    return fetch('/api/proxy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        url: `${API_BASE_URL}/auth/signup`,
+        data
+      })
+    }).then(res => res.json());
+  }
+  return API.post('/auth/signup', data);
+};
+
+export const login = (data: { email: string; password: string }) => {
+  // Use proxy in production, direct call in development
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+    return fetch('/api/proxy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        url: `${API_BASE_URL}/auth/login`,
+        data
+      })
+    }).then(res => res.json());
+  }
+  return API.post('/auth/login', data);
+};
+
+export const verifyEmail = (token: string) => {
+  // Use proxy in production, direct call in development
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+    return fetch('/api/proxy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        url: `${API_BASE_URL}/auth/verify-email`,
+        data: { token }
+      })
+    }).then(res => res.json());
+  }
+  return API.post('/auth/verify-email', { token });
+};
+
+export const requestEmailVerification = (email: string) => {
+  // Use proxy in production, direct call in development
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+    return fetch('/api/proxy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        url: `${API_BASE_URL}/auth/request-verification`,
+        data: { email }
+      })
+    }).then(res => res.json());
+  }
+  return API.post('/auth/request-verification', { email });
+};
 
 // Forms
 export const getForms = async () => {

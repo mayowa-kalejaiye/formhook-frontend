@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import DashboardNav from '../../../components/DashboardNav';
+import { useSidebar } from '../../../context/SidebarContext';
 import StickyDock from '../../../components/StickyDock';
 import Footer2 from '../../../components/Footer2';
 import BottomGradientRadial from '../../../components/BottomGradientRadial';
 import { Card, CardHeader, CardContent, CardTitle, CardDescription } from '../../../components/ui/card';
-import { Button } from '../../../components/ui/button';
+import { Button } from '../../../components/common/Button';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area, Legend } from 'recharts';
 import axios from 'axios';
 
@@ -28,6 +29,7 @@ function getDateRange(days) {
 export default function FormAnalytics() {
   const router = useRouter();
   const { formId } = router.query;
+  const { isCollapsed } = useSidebar();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -52,7 +54,7 @@ export default function FormAnalytics() {
 
   return (
     <BottomGradientRadial>
-      <div className="min-h-screen flex flex-col">
+      <div className={`min-h-screen flex flex-col ${isCollapsed ? 'md:ml-16' : 'md:ml-56'} transition-all duration-300 ease-in-out`}>
         <DashboardNav />
         <StickyDock />
         <main className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-8 pt-8">

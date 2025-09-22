@@ -16,29 +16,38 @@ interface MetricCardProps {
 
 export default function MetricCard({ icon: Icon, label, value, loading, tooltip, accent }: MetricCardProps) {
   return (
-    <Card className={`flex flex-col items-start justify-between p-6 min-w-[180px] h-32 bg-gradient-to-br from-[#0014FF]/70 to-[#0f172a]/80 dark:bg-[#0f172a] rounded-xl shadow-lg border-0 relative overflow-hidden ${accent || ''}`}>
-      {/* Subtle noise overlay */}
-      <div className="absolute inset-0 pointer-events-none" style={{ background: "url('/grain.svg')", opacity: 0.13 }} />
-      <div className="flex items-center gap-3 z-10">
-        <Icon className="w-6 h-6 text-[#6EE7B7] dark:text-[#6EE7B7]" />
-        <span className="text-sm text-slate-300 dark:text-slate-400 font-medium">{label}</span>
-        {tooltip && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="ml-1 cursor-pointer text-blue-400">?</span>
-              </TooltipTrigger>
-              <TooltipContent>{tooltip}</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
+    <Card className={`flex flex-col justify-between p-6 min-w-[180px] h-32 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-shadow duration-200 ${accent || ''}`}>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-900/30">
+            <Icon className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+          </div>
+          {tooltip && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="cursor-pointer text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+                    <span className="text-sm font-medium">?</span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-sm">{tooltip}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </div>
       </div>
-      <div className="mt-4 z-10">
-        {loading ? (
-          <Skeleton className="h-7 w-20 rounded bg-slate-700/40" />
-        ) : (
-          <span className="text-2xl font-bold text-white dark:text-white">{value}</span>
-        )}
+      
+      <div className="space-y-2">
+        <span className="text-sm font-medium text-gray-600 dark:text-gray-300 leading-tight">{label}</span>
+        <div>
+          {loading ? (
+            <Skeleton className="h-8 w-16 rounded bg-gray-200 dark:bg-gray-700" />
+          ) : (
+            <span className="text-2xl font-bold text-gray-900 dark:text-white">{value}</span>
+          )}
+        </div>
       </div>
     </Card>
   );

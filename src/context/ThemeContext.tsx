@@ -14,6 +14,9 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [theme, setThemeState] = useState<Theme>('system');
 
   useEffect(() => {
+    // Only run on client-side
+    if (typeof window === 'undefined') return;
+    
     // On mount, check localStorage or system
     const stored = localStorage.getItem('theme') as Theme | null;
     if (stored) {
@@ -26,12 +29,16 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, []);
 
   const setTheme = (t: Theme) => {
+    if (typeof window === 'undefined') return;
+    
     setThemeState(t);
     localStorage.setItem('theme', t);
     applyTheme(t);
   };
 
   const applyTheme = (t: Theme) => {
+    if (typeof window === 'undefined') return;
+    
     const root = window.document.documentElement;
     if (t === 'dark' || (t === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
       root.classList.add('dark');

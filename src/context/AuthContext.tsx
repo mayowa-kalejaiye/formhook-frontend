@@ -35,8 +35,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const getCurrentUser = () => {
+    // Only run on client-side
+    if (typeof window === 'undefined') return;
+    
     // Determine if we should use the proxy based on environment
-    const isProduction = typeof window !== 'undefined' && window.location.hostname !== 'localhost';
+    const isProduction = window.location.hostname !== 'localhost';
     const shouldUseProxy = isProduction;
     
     if (useHttpOnlyCookies) {
@@ -244,8 +247,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const logout = async () => {
+    // Only run on client-side
+    if (typeof window === 'undefined') return;
+    
     // Determine if we should use the proxy based on environment
-    const isProduction = typeof window !== 'undefined' && window.location.hostname !== 'localhost';
+    const isProduction = window.location.hostname !== 'localhost';
     const shouldUseProxy = isProduction;
 
     if (useHttpOnlyCookies) {

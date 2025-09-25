@@ -6,7 +6,6 @@ import { ThemeProvider } from '../context/ThemeContext';
 import { SidebarProvider } from '../context/SidebarContext';
 
 import Footer2 from '../components/Footer2';
-import StickyDock from '../components/StickyDock';
 import MenuBar from '../components/MenuBar';
 
 import { useEffect } from 'react';
@@ -26,7 +25,6 @@ function MyApp({ Component, pageProps }: AppProps) {
       <div className="flex-1">
         <Component {...pageProps} />
       </div>
-      <StickyDock />
       <Footer2 />
     </div>
   );

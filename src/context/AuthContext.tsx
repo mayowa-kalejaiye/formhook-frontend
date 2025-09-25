@@ -31,6 +31,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [info, setInfo] = useState<string | null>(null);
 
   useEffect(() => {
+    console.log('🔍 AuthContext: Initializing authentication check');
     getCurrentUser();
   }, []);
 
@@ -41,6 +42,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Determine if we should use the proxy based on environment
     const isProduction = window.location.hostname !== 'localhost';
     const shouldUseProxy = isProduction;
+    
+    console.log('🔍 AuthContext getCurrentUser:', {
+      hostname: window.location.hostname,
+      isProduction,
+      shouldUseProxy,
+      useHttpOnlyCookies,
+      path: window.location.pathname
+    });
     
     if (useHttpOnlyCookies) {
       // When using HTTP-only cookies, we need to make an API call to get the user info
@@ -62,17 +71,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           throw new Error('Not authenticated');
         })
         .then(data => {
+          console.log('🔍 AuthContext: Proxy auth response:', data);
           if (data.email) {
             setUser({
               email: data.email,
               verified: data.verified,
               userId: data.id
             });
+            console.log('✅ AuthContext: User authenticated via proxy');
           } else {
             setUser(null);
+            console.log('❌ AuthContext: No user data from proxy');
           }
         })
-        .catch(() => {
+        .catch((error) => {
+          console.log('❌ AuthContext: Proxy auth error:', error);
           setUser(null);
         });
       } else {
@@ -85,13 +98,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           throw new Error('Not authenticated');
         })
         .then(data => {
+          console.log('🔍 AuthContext: Direct auth response:', data);
           setUser({
             email: data.email,
             verified: data.verified,
             userId: data.id
           });
+          console.log('✅ AuthContext: User authenticated via direct API');
         })
-        .catch(() => {
+        .catch((error) => {
+          console.log('❌ AuthContext: Direct auth error:', error);
           setUser(null);
         });
       }

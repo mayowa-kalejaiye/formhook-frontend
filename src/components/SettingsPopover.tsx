@@ -1,18 +1,19 @@
 import React from 'react';
+import Link from 'next/link';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { generateApiToken, revokeApiToken } from '../services/api';
 import { Button } from './ui/button';
+import type { ButtonProps } from './ui/button';
 import { Dialog, DialogContent, DialogTrigger } from './ui/dialog';
-import { Sun, Moon, LogOut, KeyRound, User2 } from 'lucide-react';
+import { Sun, Moon, LogOut, KeyRound, User, Settings } from 'lucide-react';
 
 
 interface SettingsPopoverProps {
-  open?: boolean;
-  onOpenChange?: (open: boolean) => void;
+  // No external props needed - component manages its own state
 }
 
-const SettingsPopover: React.FC<SettingsPopoverProps> = ({ open, onOpenChange }) => {
+const SettingsPopover: React.FC<SettingsPopoverProps> = () => {
   const { user, logout } = useAuth();
   const { theme, setTheme } = useTheme();
   const [apiToken, setApiToken] = React.useState<string>('••••••••••••••••••••••••');
@@ -46,7 +47,15 @@ const SettingsPopover: React.FC<SettingsPopoverProps> = ({ open, onOpenChange })
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog>
+      <DialogTrigger asChild>
+        <button 
+          className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center justify-center" 
+          title="Settings"
+        >
+          <Settings className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+        </button>
+      </DialogTrigger>
       <DialogContent forceMount className="w-80 p-0 rounded-xl shadow-xl border-2 border-red-500 bg-white dark:bg-black z-[9999]">
         <div className="p-4">
           <div className="font-semibold text-lg mb-2">Settings</div>
@@ -92,6 +101,14 @@ const SettingsPopover: React.FC<SettingsPopoverProps> = ({ open, onOpenChange })
             <div className="text-xs font-medium text-muted-foreground mb-1">Profile Info</div>
             <div className="text-sm">{email}</div>
             <div className="text-xs text-muted-foreground">Free account</div>
+            
+            {/* Account Settings Link */}
+            <Link href="/account">
+              <Button className="w-full mt-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300">
+                <Settings className="w-4 h-4 mr-2" />
+                Account Settings
+              </Button>
+            </Link>
           </div>
           {/* Logout */}
           <Button variant="destructive" className="w-full" onClick={logout}>

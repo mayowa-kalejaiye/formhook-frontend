@@ -36,10 +36,13 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
   // Only check localStorage token if not using HTTP-only cookies
   if (!isUsingCookies) {
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    console.log('[fetchWithAuth] Token check:', { hasToken: !!token, url });
+    
     // Token expiry check (optional, UX improvement)
     if (token) {
       const payload = decodeJwt(token);
       if (payload && payload.exp && Date.now() / 1000 > payload.exp) {
+        console.log('[fetchWithAuth] Token expired, redirecting to login');
         localStorage.removeItem('token');
         showSessionExpiredToast();
         if (window.location.pathname !== '/login') {
@@ -48,7 +51,10 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
         return { ok: false, error: 'Session expired' };
       }
       // Add token to Authorization header
-      if (token) headers.set('Authorization', `Bearer ${token}`);
+      headers.set('Authorization', `Bearer ${token}`);
+      console.log('[fetchWithAuth] Added Authorization header for URL:', url);
+    } else {
+      console.warn('[fetchWithAuth] No token found for authenticated request to:', url);
     }
   }
   
@@ -75,6 +81,7 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
     return { ok: false, status: 0, error: 'No response from server' };
   }
   if (res.status === 401) {
+    console.error('[fetchWithAuth] 401 Unauthorized response for:', url);
     if (typeof window !== 'undefined') {
       localStorage.removeItem('token');
       showSessionExpiredToast();
@@ -85,12 +92,14 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
     return { ok: false, status: 401, error: 'Unauthorized' };
   }
   if (!res.ok) {
+    console.error(`[fetchWithAuth] ${res.status} error for:`, url);
     let errorMsg = 'API error';
     let errorDetail = '';
     const contentType = res.headers.get('content-type') || '';
     if (contentType.includes('application/json')) {
       try {
         const data = await res.json();
+        console.error('[fetchWithAuth] Error response data:', data);
         errorMsg = data?.detail || data?.message || errorMsg;
         errorDetail = typeof data === 'string' ? data : '';
       } catch {
@@ -390,4 +399,102 @@ export const exportSubmissions = async (
   const res = await fetchWithAuth(url);
   if (!res.ok) throw new Error('Failed to export submissions');
   return await res.blob();
+};
+
+// --- User Profile & Account Management ---
+export const getUserProfile = async () => {
+  const res = await fetchWithAuth('/user/profile');
+  if (!res.ok) throw new Error('Failed to get user profile');
+  return await res.json();
+};
+
+export const updateUserProfile = async (data: {
+  name?: string;
+  timezone?: string;
+  language?: string;
+  notification_preferences?: object;
+}) => {
+  const res = await fetchWithAuth('/user/profile', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) throw new Error('Failed to update user profile');
+  return await res.json();
+};
+
+export const changePassword = async (data: {
+  current_password: string;
+  new_password: string;
+}) => {
+  const res = await fetchWithAuth('/user/change-password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const errorData = await res.json();
+    throw new Error(errorData.detail || 'Failed to change password');
+  }
+  return await res.json();
+};
+
+export const toggle2FA = async (enabled: boolean) => {
+  const res = await fetchWithAuth('/user/2fa', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ enabled })
+  });
+  if (!res.ok) throw new Error('Failed to update 2FA settings');
+  return await res.json();
+};
+
+export const getSecurityLogs = async () => {
+  const res = await fetchWithAuth('/user/security-logs');
+  if (!res.ok) throw new Error('Failed to get security logs');
+  return await res.json();
+};
+
+export const deleteAccount = async (password: string) => {
+  const res = await fetchWithAuth('/user/delete-account', {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password })
+  });
+  if (!res.ok) {
+    const errorData = await res.json();
+    throw new Error(errorData.detail || 'Failed to delete account');
+  }
+  return await res.json();
+};
+
+export const exportUserData = async () => {
+  const res = await fetchWithAuth('/user/export-data');
+  if (!res.ok) throw new Error('Failed to export user data');
+  return await res.blob();
+};
+
+// --- Enhanced API Token Management ---
+export const getUserApiTokens = async () => {
+  const res = await fetchWithAuth('/user/api-tokens');
+  if (!res.ok) throw new Error('Failed to get API tokens');
+  return await res.json();
+};
+
+export const createApiToken = async (name: string, permissions?: string[]) => {
+  const res = await fetchWithAuth('/user/api-tokens', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, permissions: permissions || ['forms:read', 'submissions:read'] })
+  });
+  if (!res.ok) throw new Error('Failed to create API token');
+  return await res.json();
+};
+
+export const deleteApiToken = async (tokenId: string) => {
+  const res = await fetchWithAuth(`/user/api-tokens/${tokenId}`, {
+    method: 'DELETE'
+  });
+  if (!res.ok) throw new Error('Failed to delete API token');
+  return await res.json();
 };

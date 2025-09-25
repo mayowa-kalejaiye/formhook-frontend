@@ -4,9 +4,10 @@ import dynamic from 'next/dynamic';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, LineChart, Line, AreaChart, Area, CartesianGrid, Legend } from 'recharts';
 import { ChartBarStackedAnalytics } from '../components/ChartBarStackedAnalytics';
 import { ChartAreaInteractiveBackend } from '../components/ChartAreaInteractiveBackend';
-import { getDashboardAnalytics } from '../services/api';
+import { getDashboardAnalytics, getDashboardSummary, getSubmissions } from '../services/api';
 import MetricCard from '../components/dashboard/MetricCard';
 import WelcomeBlock from '../components/dashboard/WelcomeBlock';
+import DashboardSummaryWidget from '../components/dashboard/DashboardSummaryWidget';
 import DashboardNav from '../components/DashboardNav';
 import BottomGradientRadial from '../components/BottomGradientRadial';
 import { Card, CardHeader, CardContent, CardTitle, CardDescription, CardFooter } from '../components/ui/card';
@@ -463,37 +464,51 @@ function DashboardContent({
           }}
         />
 
-        {/* Metrics Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <MetricCard
-            icon={FileText}
-            label="Total Forms"
-            value={displayTotalForms}
-            loading={loading}
-            tooltip="Number of forms you have created"
-          />
-          <MetricCard
-            icon={BarChart3}
-            label="Total Submissions"
-            value={totalSubmissions.toLocaleString()}
-            loading={loading}
-            tooltip="All submissions received across your forms"
-          />
-          <MetricCard
-            icon={Target}
-            label="Success Rate"
-            value={`${webhookSuccessRate}%`}
-            loading={loading}
-            tooltip="Percentage of successful webhook deliveries"
-          />
-          <MetricCard
-            icon={Bell}
-            label="Notifications"
-            value={notificationCount}
-            loading={loading}
-            tooltip="Unread notifications and alerts"
-          />
-        </div>
+        {/* Dashboard Summary Widget */}
+        <DashboardSummaryWidget
+          totalForms={displayTotalForms}
+          totalSubmissions={totalSubmissions}
+          recentSubmissions={recentSubmissions}
+          webhookSuccessRate={webhookSuccessRate}
+          activeWebhooks={Math.floor(webhookSuccessRate * totalSubmissions / 100)}
+          failedWebhooks={Math.floor((100 - webhookSuccessRate) * totalSubmissions / 100)}
+          loading={loading}
+          onRefresh={handleRefresh}
+        />
+
+        {/* Metrics Overview - Legacy (can be removed if preferred) */}
+        {false && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <MetricCard
+              icon={FileText}
+              label="Total Forms"
+              value={displayTotalForms}
+              loading={loading}
+              tooltip="Number of forms you have created"
+            />
+            <MetricCard
+              icon={BarChart3}
+              label="Total Submissions"
+              value={totalSubmissions.toLocaleString()}
+              loading={loading}
+              tooltip="All submissions received across your forms"
+            />
+            <MetricCard
+              icon={Target}
+              label="Success Rate"
+              value={`${webhookSuccessRate}%`}
+              loading={loading}
+              tooltip="Percentage of successful webhook deliveries"
+            />
+            <MetricCard
+              icon={Bell}
+              label="Notifications"
+              value={notificationCount}
+              loading={loading}
+              tooltip="Unread notifications and alerts"
+            />
+          </div>
+        )}
 
         {/* Charts Section */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -693,61 +708,114 @@ function DashboardPageImpl() {
   }, [hydrated, user, router]);
 
   useEffect(() => {
-    async function fetchAnalytics() {
+    async function fetchDashboardData() {
       if (!user) return;
       
       try {
-        const res = await getDashboardAnalytics({ range: analyticsRange });
-        // If successful, use the real data
-        setAnalytics(res.analytics || []);
-        setTotalForms(res.total_forms || (Array.isArray(forms) ? forms.length : 0));
-        setTotalSubmissions(res.total_submissions || 0);
-        setWebhookSuccessRate(res.webhook_success_rate || 100);
-        setTrendData(res.trend_data || []);
-        setRecentSubmissions(res.recent_submissions || []);
+        console.log('[Dashboard] Fetching dashboard summary from /dashboard/summary endpoint...');
+        
+        // Use the actual dashboard summary endpoint
+        const summaryRes = await getDashboardSummary(30); // Get last 30 days
+        console.log('[Dashboard] Dashboard summary response:', summaryRes);
+        
+        if (summaryRes) {
+          // Update state with API response data
+          setTotalForms(summaryRes.total_forms || 0);
+          setTotalSubmissions(summaryRes.total_submissions || 0);
+          setRecentSubmissions(summaryRes.recent_submissions || []);
+          
+          // Set webhook success rate based on webhook stats
+          if (summaryRes.webhook_stats && summaryRes.webhook_stats.total > 0) {
+            const successRate = (summaryRes.webhook_stats.delivered / summaryRes.webhook_stats.total) * 100;
+            setWebhookSuccessRate(Math.round(successRate));
+          } else {
+            setWebhookSuccessRate(100); // Default if no webhook data
+          }
+          
+          // Set trend data from the summary
+          if (summaryRes.trend && Array.isArray(summaryRes.trend)) {
+            setTrendData(summaryRes.trend.map(item => ({
+              date: item.date,
+              count: item.count
+            })));
+          }
+          
+          console.log('[Dashboard] Successfully updated dashboard with API data:', {
+            totalForms: summaryRes.total_forms,
+            totalSubmissions: summaryRes.total_submissions,
+            recentSubmissions: summaryRes.recent_submissions?.length || 0,
+            webhookStats: summaryRes.webhook_stats
+          });
+        } else {
+          console.warn('[Dashboard] Dashboard summary returned empty response');
+          throw new Error('Empty response from dashboard summary');
+        }
+        
+        // Try to get additional analytics data (optional)
+        try {
+          const analyticsRes = await getDashboardAnalytics({ range: analyticsRange });
+          console.log('[Dashboard] Dashboard analytics response:', analyticsRes);
+          setAnalytics(analyticsRes.analytics || []);
+        } catch (analyticsErr) {
+          console.log('[Dashboard] Analytics data not available (this is ok):', analyticsErr);
+          setAnalytics([]);
+        }
+        
       } catch (err) {
-        // Silently fall back to mock data without showing error toast
-        console.log('Using mock data for dashboard analytics');
+        console.error('[Dashboard] Dashboard summary API error:', err);
         
-        // Generate realistic mock data based on current forms count
-        const formsCount = Array.isArray(forms) ? forms.length : 3;
-        const mockSubmissions = Math.max(formsCount * 12, 47);
-        // Using static timestamps to prevent hydration mismatches
-        setAnalytics([
-          { date: '2025-09-16T12:00:00.000Z', value1: 8, value2: 1, label1: 'Submissions', label2: 'Errors' },
-          { date: '2025-09-17T12:00:00.000Z', value1: 12, value2: 2, label1: 'Submissions', label2: 'Errors' },
-          { date: '2025-09-18T12:00:00.000Z', value1: 19, value2: 1, label1: 'Submissions', label2: 'Errors' },
-          { date: '2025-09-19T12:00:00.000Z', value1: 15, value2: 0, label1: 'Submissions', label2: 'Errors' },
-          { date: '2025-09-20T12:00:00.000Z', value1: 22, value2: 3, label1: 'Submissions', label2: 'Errors' },
-          { date: '2025-09-21T12:00:00.000Z', value1: 18, value2: 1, label1: 'Submissions', label2: 'Errors' },
-          { date: '2025-09-22T12:00:00.000Z', value1: 14, value2: 0, label1: 'Submissions', label2: 'Errors' },
-        ]);
+        // Show specific error message
+        toastViewRef.current?.addNotification(
+          'error',
+          'Dashboard Error',
+          `Failed to load dashboard data: ${err.message || 'Unknown error'}. Please check your authentication and try again.`,
+          true,
+          8000
+        );
         
-        setTotalForms(formsCount);
-        setTotalSubmissions(mockSubmissions);
-        setWebhookSuccessRate(94.5);
+        // Fallback: try to calculate from forms data if available
+        if (forms && Array.isArray(forms) && forms.length > 0) {
+          console.log('[Dashboard] Falling back to calculating from forms data...');
+          setTotalForms(forms.length);
+          
+          // Try to get submission count from individual forms
+          let totalSubmissionsCount = 0;
+          for (const form of forms) {
+            try {
+              const submissionsRes = await getSubmissions(form.id);
+              if (submissionsRes && submissionsRes.submissions) {
+                totalSubmissionsCount += submissionsRes.submissions.length;
+              } else if (Array.isArray(submissionsRes)) {
+                totalSubmissionsCount += submissionsRes.length;
+              }
+            } catch (submissionErr) {
+              console.warn(`[Dashboard] Could not fetch submissions for form ${form.id}:`, submissionErr);
+            }
+          }
+          
+          setTotalSubmissions(totalSubmissionsCount);
+          setWebhookSuccessRate(0);
+          setTrendData([]);
+          setRecentSubmissions([]);
+          
+          console.log('[Dashboard] Fallback calculation complete:', {
+            totalForms: forms.length,
+            totalSubmissions: totalSubmissionsCount
+          });
+        } else {
+          // Complete fallback
+          setTotalForms(0);
+          setTotalSubmissions(0);
+          setWebhookSuccessRate(0);
+          setTrendData([]);
+          setRecentSubmissions([]);
+        }
         
-        setTrendData([
-          { date: '2025-09-16T12:00:00.000Z', count: 8 },
-          { date: '2025-09-17T12:00:00.000Z', count: 12 },
-          { date: '2025-09-18T12:00:00.000Z', count: 19 },
-          { date: '2025-09-19T12:00:00.000Z', count: 15 },
-          { date: '2025-09-20T12:00:00.000Z', count: 22 },
-          { date: '2025-09-21T12:00:00.000Z', count: 18 },
-          { date: '2025-09-22T12:00:00.000Z', count: 14 },
-        ]);
-        
-        setRecentSubmissions([
-          { form_name: 'Contact Form', email: 'john@example.com', status: 'success', date: '2025-09-22T10:00:00.000Z' },
-          { form_name: 'Newsletter Signup', email: 'sarah@company.com', status: 'success', date: '2025-09-22T08:00:00.000Z' },
-          { form_name: 'Support Ticket', email: 'mike@startup.io', status: 'success', date: '2025-09-22T06:00:00.000Z' },
-          { form_name: 'Feedback Form', email: 'anna@tech.com', status: 'error', date: '2025-09-22T04:00:00.000Z' },
-          { form_name: 'Demo Request', email: 'alex@business.net', status: 'success', date: '2025-09-22T00:00:00.000Z' },
-        ]);
+        setAnalytics([]);
       }
     }
     
-    fetchAnalytics();
+    fetchDashboardData();
   }, [analyticsRange, user, forms]);
 
   useEffect(() => {

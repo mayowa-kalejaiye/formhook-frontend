@@ -3,7 +3,6 @@ import React, { useState, useMemo } from 'react';
 import useSWR from 'swr';
 import { getForms, createForm, deleteForm, getForm, updateFormWebhook } from '../../services/api';
 import DashboardNav from '../../components/DashboardNav';
-import { useSidebar } from '../../context/SidebarContext';
 import BottomGradientRadial from '../../components/BottomGradientRadial';
 import StickyDock from '../../components/StickyDock';
 import Footer2 from '../../components/Footer2';
@@ -153,7 +152,6 @@ function FormCard({ form, onEdit, onDelete, onView }: {
 function FormsPageContent() {
   const { data, error, isLoading, mutate } = useSWR('forms', async () => (await getForms()).data);
   const forms = data || [];
-  const { isCollapsed } = useSidebar();
   
   // UI State
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -257,7 +255,7 @@ function FormsPageContent() {
 
   return (
     <BottomGradientRadial>
-      <div className={`min-h-screen flex flex-col ${isCollapsed ? 'md:ml-16' : 'md:ml-56'} transition-all duration-300 ease-in-out`}>
+      <div className="min-h-screen flex flex-col md:ml-56 transition-all duration-300 ease-in-out">
         <DashboardNav />
         <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-8 pt-8 pb-4">
           <Toaster />

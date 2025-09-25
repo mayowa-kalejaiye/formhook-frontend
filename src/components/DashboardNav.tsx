@@ -10,7 +10,7 @@ import {
   ChevronLeft, 
   ChevronRight,
   Bell,
-  Settings
+  Key
 } from "lucide-react";
 
 const NotificationIcon = ({ count = 0 }: { count?: number }) => (
@@ -28,6 +28,7 @@ const navigationItems = [
   { href: "/forms", label: "Forms", icon: FileText },
   { href: "/submissions", label: "Submissions", icon: Inbox },
   { href: "/webhooks", label: "Webhooks", icon: Webhook },
+  { href: "/api-tokens", label: "API Tokens", icon: Key },
 ];
 
 export default function DashboardNav({ notificationCount = 0 }: { notificationCount?: number }) {
@@ -97,17 +98,24 @@ export default function DashboardNav({ notificationCount = 0 }: { notificationCo
           <div className={`flex ${isCollapsed ? 'flex-col items-center gap-3' : 'items-center justify-between'}`}>
             {isCollapsed ? (
               <>
-                <button className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" title="Settings">
-                  <Settings className="h-5 w-5 text-gray-500 dark:text-gray-400" />
-                </button>
-                <button className="relative focus:outline-none p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" aria-label="Notifications" title="Notifications">
+                <SettingsPopover />
+                <button 
+                  className="relative focus:outline-none p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" 
+                  aria-label="Notifications" 
+                  title="Notifications"
+                  onClick={() => alert(`You have ${notificationCount} notifications`)}
+                >
                   <NotificationIcon count={notificationCount} />
                 </button>
               </>
             ) : (
               <>
                 <SettingsPopover />
-                <button className="relative focus:outline-none" aria-label="Notifications">
+                <button 
+                  className="relative focus:outline-none" 
+                  aria-label="Notifications"
+                  onClick={() => alert(`You have ${notificationCount} notifications`)}
+                >
                   <NotificationIcon count={notificationCount} />
                 </button>
               </>
@@ -156,7 +164,11 @@ export default function DashboardNav({ notificationCount = 0 }: { notificationCo
             <div className="flex flex-col gap-2 px-4 py-6 border-t border-gray-100 dark:border-gray-800">
               <div className="flex items-center justify-between">
                 <SettingsPopover />
-                <button className="relative focus:outline-none" aria-label="Notifications">
+                <button 
+                  className="relative focus:outline-none" 
+                  aria-label="Notifications"
+                  onClick={() => alert(`You have ${notificationCount} notifications`)}
+                >
                   <NotificationIcon count={notificationCount} />
                 </button>
               </div>

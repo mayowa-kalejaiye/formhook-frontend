@@ -198,7 +198,7 @@ export default function FormSettingsPage() {
     const successRate = submissions.length > 0 ? successfulSubmissions / submissions.length : 1.0;
 
     // Group submissions by date for daily data
-    const dailyStats = submissions.reduce((acc, submission) => {
+    const dailyStats: { [key: string]: { date: string; count: number } } = submissions.reduce((acc, submission) => {
       let date;
       if (submission.created_at) {
         date = new Date(submission.created_at).toISOString().split('T')[0];

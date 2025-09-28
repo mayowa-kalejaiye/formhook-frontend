@@ -171,7 +171,7 @@ export default function WebhookLogs() {
                           {delivery.webhook_url}
                         </div>
                       </td>
-                      <td className="px-4 py-2">#{delivery.submission_id}</td>
+                      <td className="px-4 py-2" title={`Global database submission ID: ${delivery.submission_id}`}>#{delivery.submission_id}</td>
                       <td className="px-4 py-2">{delivery.attempts}/{delivery.max_attempts}</td>
                       <td className="px-4 py-2">
                         {delivery.response_code && (

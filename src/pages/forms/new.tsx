@@ -5,7 +5,7 @@ import { Input } from '../../components/ui/input';
 import { Button } from '../../components/ui/button';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '../../components/ui/select';
 import { Switch } from '../../components/ui/switch';
-import { Dialog, DialogContent, DialogClose } from '../../components/ui/dialog';
+import { Dialog, DialogContent } from '../../components/ui/dialog';
 import { Label } from '../../components/ui/label';
 import ToastView from '../../components/ToastView';
 import { fetchWithAuth } from '../../services/api';
@@ -20,7 +20,7 @@ import {
 } from '@dnd-kit/core';
 import { 
   arrayMove, 
-  SortableContext, 
+  SortableContext,  
   sortableKeyboardCoordinates, 
   useSortable,
   verticalListSortingStrategy,
@@ -28,15 +28,35 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 
 const FIELD_TYPES = [
-  { label: 'Text', value: 'text' },
-  { label: 'Email', value: 'email' },
-  { label: 'Textarea', value: 'textarea' },
-  { label: 'Checkbox', value: 'checkbox' },
-  { label: 'Select', value: 'select' },
+  { label: 'Text', value: 'text', description: 'Single line text input' },
+  { label: 'Email', value: 'email', description: 'Email address with validation' },
+  { label: 'Number', value: 'number', description: 'Numeric input with validation' },
+  { label: 'Phone', value: 'tel', description: 'Phone number input' },
+  { label: 'URL', value: 'url', description: 'Website URL with validation' },
+  { label: 'Date', value: 'date', description: 'Date picker' },
+  { label: 'Password', value: 'password', description: 'Password input (hidden text)' },
+  { label: 'Textarea', value: 'textarea', description: 'Multi-line text input' },
+  { label: 'Checkbox', value: 'checkbox', description: 'Single checkbox option' },
+  { label: 'Select', value: 'select', description: 'Dropdown menu with options' },
+  { label: 'File Upload', value: 'file', description: 'File upload field' },
 ];
 
 function emptyField() {
-  return { label: '', name: '', type: 'text', required: false, options: [''] };
+  return { 
+    label: '', 
+    name: '', 
+    type: 'text', 
+    required: false, 
+    options: [''],
+    validation: {
+      minLength: undefined,
+      maxLength: undefined,
+      pattern: '',
+      patternMessage: '',
+      min: undefined,
+      max: undefined,
+    }
+  };
 }
 
 
@@ -54,7 +74,9 @@ const defaultFormValues = {
 };
 
 // Sortable Field Item Component
-const SortableFieldItem = ({ id, field, idx, watchedFields, register, control, errors, handleFieldTypeChange, addFieldOption, removeFieldOption, setValue, remove }) => {
+const SortableFieldItem = ({ id, field, idx, watchedFields, register, control, errors, handleFieldTypeChange, addFieldOption, removeFieldOption, setValue, remove, duplicate }) => {
+  const [showValidation, setShowValidation] = React.useState(false);
+  
   const {
     attributes,
     listeners,
@@ -70,6 +92,10 @@ const SortableFieldItem = ({ id, field, idx, watchedFields, register, control, e
     zIndex: isDragging ? 10 : 1,
     opacity: isDragging ? 0.8 : 1,
   };
+
+  const fieldType = watchedFields[idx]?.type || 'text';
+  const isNumericField = ['number', 'date'].includes(fieldType);
+  const isTextualField = ['text', 'email', 'tel', 'url', 'password', 'textarea'].includes(fieldType);
 
   return (
     <Card 
@@ -117,7 +143,7 @@ const SortableFieldItem = ({ id, field, idx, watchedFields, register, control, e
             onChange={(e) => handleFieldTypeChange(idx, e.target.value)}
           >
             {FIELD_TYPES.map(ft => (
-              <option key={ft.value} value={ft.value}>{ft.label}</option>
+              <option key={ft.value} value={ft.value} title={ft.description}>{ft.label}</option>
             ))}
           </select>
         </div>
@@ -162,8 +188,114 @@ const SortableFieldItem = ({ id, field, idx, watchedFields, register, control, e
           <Button type="button" size="sm" variant="outline" className="mt-1" onClick={() => addFieldOption(idx)}>+ Add Option</Button>
         </div>
       )}
+      
+      {/* Field Validation Section */}
+      <div className="mt-4">
+        <Button 
+          type="button" 
+          variant="ghost" 
+          className="text-xs p-1" 
+          onClick={() => setShowValidation(!showValidation)}
+        >
+          {showValidation ? '▼' : '▶'} Validation Options
+        </Button>
+        
+        {showValidation && (
+          <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 space-y-3">
+            {isTextualField && (
+              <>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label htmlFor={`field-minlength-${idx}`} className="text-xs">Min Length</Label>
+                    <Input 
+                      id={`field-minlength-${idx}`}
+                      type="number" 
+                      {...register(`fields.${idx}.validation.minLength`)}
+                      placeholder="0"
+                      className="text-xs"
+                      min="0"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor={`field-maxlength-${idx}`} className="text-xs">Max Length</Label>
+                    <Input 
+                      id={`field-maxlength-${idx}`}
+                      type="number" 
+                      {...register(`fields.${idx}.validation.maxLength`)}
+                      placeholder="100"
+                      className="text-xs"
+                      min="0"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor={`field-pattern-${idx}`} className="text-xs">Pattern (RegEx)</Label>
+                  <Input 
+                    id={`field-pattern-${idx}`}
+                    {...register(`fields.${idx}.validation.pattern`)}
+                    placeholder="^[A-Za-z]+$"
+                    className="text-xs"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor={`field-pattern-message-${idx}`} className="text-xs">Custom Error Message</Label>
+                  <Input 
+                    id={`field-pattern-message-${idx}`}
+                    {...register(`fields.${idx}.validation.patternMessage`)}
+                    placeholder="Please enter a valid value"
+                    className="text-xs"
+                  />
+                </div>
+              </>
+            )}
+            
+            {isNumericField && (
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label htmlFor={`field-min-${idx}`} className="text-xs">Min Value</Label>
+                  <Input 
+                    id={`field-min-${idx}`}
+                    type="number" 
+                    {...register(`fields.${idx}.validation.min`)}
+                    className="text-xs"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor={`field-max-${idx}`} className="text-xs">Max Value</Label>
+                  <Input 
+                    id={`field-max-${idx}`}
+                    type="number" 
+                    {...register(`fields.${idx}.validation.max`)}
+                    className="text-xs"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+      
       <div className="flex justify-end mt-2">
-        <Button type="button" variant="destructive" className="text-xs px-3 py-1" onClick={() => remove(idx)} disabled={watchedFields.length <= 1}>Remove Field</Button>
+        <div className="flex gap-2">
+          <Button 
+            type="button" 
+            variant="outline" 
+            className="text-xs px-2 py-1" 
+            onClick={() => duplicate(idx)}
+            title="Duplicate this field"
+          >
+            Copy
+          </Button>
+          <Button 
+            type="button" 
+            variant="destructive" 
+            className="text-xs px-3 py-1" 
+            onClick={() => remove(idx)} 
+            disabled={watchedFields.length <= 1}
+          >
+            Remove Field
+          </Button>
+        </div>
       </div>
     </Card>
   );
@@ -176,6 +308,38 @@ export function FormBuilderModal({ open, onOpenChange, onSuccess, initial, submi
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   React.useEffect(() => { setHydrated(true); }, []);
+
+  // Common field templates
+  const fieldTemplates = [
+    {
+      name: 'Email Address',
+      template: { label: 'Email Address', name: 'email', type: 'email', required: true, options: [''], validation: { minLength: undefined, maxLength: undefined, pattern: '', patternMessage: '', min: undefined, max: undefined } }
+    },
+    {
+      name: 'Full Name',
+      template: { label: 'Full Name', name: 'name', type: 'text', required: true, options: [''], validation: { minLength: 2, maxLength: 50, pattern: '', patternMessage: '', min: undefined, max: undefined } }
+    },
+    {
+      name: 'Phone Number',
+      template: { label: 'Phone Number', name: 'phone', type: 'tel', required: false, options: [''], validation: { minLength: 10, maxLength: 15, pattern: '', patternMessage: '', min: undefined, max: undefined } }
+    },
+    {
+      name: 'Website URL',
+      template: { label: 'Website', name: 'website', type: 'url', required: false, options: [''], validation: { minLength: undefined, maxLength: undefined, pattern: '', patternMessage: '', min: undefined, max: undefined } }
+    },
+    {
+      name: 'Age',
+      template: { label: 'Age', name: 'age', type: 'number', required: false, options: [''], validation: { minLength: undefined, maxLength: undefined, pattern: '', patternMessage: '', min: 13, max: 120 } }
+    },
+    {
+      name: 'Message',
+      template: { label: 'Message', name: 'message', type: 'textarea', required: true, options: [''], validation: { minLength: 10, maxLength: 500, pattern: '', patternMessage: '', min: undefined, max: undefined } }
+    },
+    {
+      name: 'Country',
+      template: { label: 'Country', name: 'country', type: 'select', required: false, options: ['United States', 'Canada', 'United Kingdom', 'Australia', 'Germany', 'France', 'Other'], validation: { minLength: undefined, maxLength: undefined, pattern: '', patternMessage: '', min: undefined, max: undefined } }
+    },
+  ];
 
   // Merge initial values if editing
   // Audit: Only prefill webhook_secret if present in initial (never blank)
@@ -191,7 +355,15 @@ export function FormBuilderModal({ open, onOpenChange, onSuccess, initial, submi
           ? initial.fields.map(f => ({
               ...f,
               required: !!f.required,
-              options: f.type === 'select' ? (f.options && f.options.length > 0 ? f.options : ['']) : undefined
+              options: f.type === 'select' ? (f.options && f.options.length > 0 ? f.options : ['']) : undefined,
+              validation: {
+                minLength: f.validation?.minLength || undefined,
+                maxLength: f.validation?.maxLength || undefined,
+                pattern: f.validation?.pattern || '',
+                patternMessage: f.validation?.patternMessage || '',
+                min: f.validation?.min || undefined,
+                max: f.validation?.max || undefined,
+              }
             }))
           : [emptyField()],
       }
@@ -205,10 +377,16 @@ export function FormBuilderModal({ open, onOpenChange, onSuccess, initial, submi
     setValue,
     watch,
     getValues,
+    reset,
   } = useForm({
     defaultValues: initialValues,
     mode: 'onBlur',
   });
+
+  // Reset form when initial prop changes (for switching between create/edit modes)
+  React.useEffect(() => {
+    reset(initialValues);
+  }, [initial, reset, initialValues]);
 
   // Field array for fields
   const { fields, append, remove, update, move } = useFieldArray({
@@ -289,6 +467,15 @@ export function FormBuilderModal({ open, onOpenChange, onSuccess, initial, submi
     }, 100);
   };
 
+  // Duplicate a field
+  const duplicateField = (idx) => {
+    const fieldToDuplicate = { ...watchedFields[idx] };
+    // Modify the name to make it unique
+    fieldToDuplicate.name = fieldToDuplicate.name + '_copy';
+    fieldToDuplicate.label = fieldToDuplicate.label + ' (Copy)';
+    append(fieldToDuplicate);
+  };
+
   // Convert webhook_headers array to object
   const headersArrayToObject = (arr) => {
     const obj = {};
@@ -316,8 +503,19 @@ export function FormBuilderModal({ open, onOpenChange, onSuccess, initial, submi
           type: f.type,
           required: f.required,
           options: f.type === 'select' ? (f.options || []).filter(Boolean) : undefined,
+          validation: {
+            minLength: f.validation?.minLength || undefined,
+            maxLength: f.validation?.maxLength || undefined,
+            pattern: f.validation?.pattern || undefined,
+            patternMessage: f.validation?.patternMessage || undefined,
+            min: f.validation?.min || undefined,
+            max: f.validation?.max || undefined,
+          },
         })),
       };
+      
+      console.log('[FormBuilder] Submitting payload:', JSON.stringify(payload, null, 2));
+      
       if (onSubmit) {
         await onSubmit(payload);
         onSuccess?.();
@@ -341,41 +539,193 @@ export function FormBuilderModal({ open, onOpenChange, onSuccess, initial, submi
     }
   };
 
-  // Live preview HTML
-  const renderPreview = () => {
-    // Get the latest field values to ensure preview is up-to-date
+  // Code Integration Examples
+  const renderCodeExamples = () => {
     const currentFields = getValues('fields');
-    console.log('Rendering preview with fields:', currentFields);
+    const formName = getValues('name') || 'your-form';
+    const formId = 'YOUR_FORM_ID'; // Will be replaced with actual ID after creation
     
+    const htmlExample = `<form action="https://formhook-backend.onrender.com/forms/${formId}/submit" method="POST" enctype="multipart/form-data">
+  ${currentFields.map(f => {
+    const validationAttrs = [];
+    if (f.required) validationAttrs.push('required');
+    if (f.validation?.minLength) validationAttrs.push(`minlength="${f.validation.minLength}"`);
+    if (f.validation?.maxLength) validationAttrs.push(`maxlength="${f.validation.maxLength}"`);
+    if (f.validation?.pattern) validationAttrs.push(`pattern="${f.validation.pattern}"`);
+    if (f.validation?.min) validationAttrs.push(`min="${f.validation.min}"`);
+    if (f.validation?.max) validationAttrs.push(`max="${f.validation.max}"`);
+    const attrs = validationAttrs.length > 0 ? ' ' + validationAttrs.join(' ') : '';
+    
+    if (f.type === 'text' || f.type === 'email' || f.type === 'number' || f.type === 'tel' || f.type === 'url' || f.type === 'password' || f.type === 'date') {
+      return `  <label for="${f.name}">${f.label}${f.required ? ' *' : ''}</label>
+  <input type="${f.type}" id="${f.name}" name="data[${f.name}]" placeholder="${f.label}"${attrs} />`;
+    } else if (f.type === 'textarea') {
+      return `  <label for="${f.name}">${f.label}${f.required ? ' *' : ''}</label>
+  <textarea id="${f.name}" name="data[${f.name}]" placeholder="${f.label}"${attrs}></textarea>`;
+    } else if (f.type === 'checkbox') {
+      return `  <label>
+    <input type="checkbox" name="data[${f.name}]"${f.required ? ' required' : ''} />
+    ${f.label}${f.required ? ' *' : ''}
+  </label>`;
+    } else if (f.type === 'select') {
+      return `  <label for="${f.name}">${f.label}${f.required ? ' *' : ''}</label>
+  <select id="${f.name}" name="data[${f.name}]"${f.required ? ' required' : ''}>
+    <option value="">Choose an option...</option>
+    ${(f.options || []).filter(Boolean).map(opt => `    <option value="${opt}">${opt}</option>`).join('\n')}
+  </select>`;
+    } else if (f.type === 'file') {
+      return `  <label for="${f.name}">${f.label}${f.required ? ' *' : ''}</label>
+  <input type="file" id="${f.name}" name="data[${f.name}]"${f.required ? ' required' : ''} />`;
+    }
+    return '';
+  }).join('\n  ')}
+  <button type="submit">Submit</button>
+</form>`;
+
+    const reactExample = `// React Hook Form example
+import { useForm } from 'react-hook-form';
+
+export function ${formName.replace(/[^a-zA-Z0-9]/g, '')}Form() {
+  const { register, handleSubmit, formState: { errors } } = useForm();
+  
+  const onSubmit = async (data) => {
+    try {
+      const response = await fetch('https://formhook-backend.onrender.com/forms/${formId}/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data })
+      });
+      
+      if (response.ok) {
+        alert('Form submitted successfully!');
+      } else {
+        alert('Error submitting form');
+      }
+    } catch (error) {
+      alert('Network error');
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)}>
+${currentFields.map(f => {
+  const validation = [];
+  if (f.required) validation.push('required: true');
+  if (f.validation?.minLength) validation.push(`minLength: ${f.validation.minLength}`);
+  if (f.validation?.maxLength) validation.push(`maxLength: ${f.validation.maxLength}`);
+  if (f.validation?.pattern) validation.push(`pattern: /${f.validation.pattern}/`);
+  const validationStr = validation.length > 0 ? `, { ${validation.join(', ')} }` : '';
+  
+  if (f.type === 'textarea') {
+    return `      <textarea {...register('data.${f.name}'${validationStr})} placeholder="${f.label}" />
+      {errors.data?.${f.name} && <span>This field is required</span>}`;
+  } else if (f.type === 'select') {
+    return `      <select {...register('data.${f.name}'${validationStr})}>
+        <option value="">Choose an option...</option>
+        ${(f.options || []).filter(Boolean).map(opt => `        <option value="${opt}">${opt}</option>`).join('\n')}
+      </select>
+      {errors.data?.${f.name} && <span>This field is required</span>}`;
+  } else {
+    return `      <input type="${f.type}" {...register('data.${f.name}'${validationStr})} placeholder="${f.label}" />
+      {errors.data?.${f.name} && <span>This field is required</span>}`;
+  }
+}).join('\n')}
+      <button type="submit">Submit</button>
+    </form>
+  );
+}`;
+
+    const curlExample = `# Test your form with curl
+curl -X POST https://formhook-backend.onrender.com/forms/${formId}/submit \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "data": {
+${currentFields.map(f => {
+  if (f.type === 'email') return `      "${f.name}": "user@example.com"`;
+  if (f.type === 'number') return `      "${f.name}": 123`;
+  if (f.type === 'tel') return `      "${f.name}": "+1234567890"`;
+  if (f.type === 'url') return `      "${f.name}": "https://example.com"`;
+  if (f.type === 'date') return `      "${f.name}": "2024-01-01"`;
+  if (f.type === 'checkbox') return `      "${f.name}": true`;
+  if (f.type === 'select' && f.options?.[0]) return `      "${f.name}": "${f.options[0]}"`;
+  return `      "${f.name}": "Sample ${f.label}"`;
+}).join(',\n')}
+    }
+  }'`;
+
     return (
-      <form className="space-y-4 p-4 bg-white/80 dark:bg-black/80 rounded-lg border border-purple-100">
-        {currentFields.map((f, idx) => (
-          <div key={idx}>
-            <label className="block font-medium mb-1">{f.label || 'Field label'}</label>
-            {f.type === 'text' || f.type === 'email' ? (
-              <Input type={f.type} placeholder={f.label} required={f.required} />
-            ) : f.type === 'textarea' ? (
-              <textarea className="w-full rounded border border-purple-200 p-2" placeholder={f.label} required={f.required} />
-            ) : f.type === 'checkbox' ? (
-              <div className="flex items-center gap-2">
-                <input type="checkbox" id={`preview-cb-${idx}`} />
-                <label htmlFor={`preview-cb-${idx}`}>{f.label}</label>
-              </div>
-            ) : f.type === 'select' ? (
-              <select
-                className="w-full rounded border border-purple-200 p-2"
-                required={f.required}
-                aria-label={f.label || `Select field ${idx + 1}`}
-              >
-                {(f.options || []).filter(Boolean).map((opt, oi) => (
-                  <option key={oi}>{opt}</option>
-                ))}
-              </select>
-            ) : null}
+      <div className="space-y-6">
+        <div className="flex border-b border-gray-200 dark:border-gray-700">
+          <button
+            type="button"
+            className="px-4 py-2 text-sm font-medium border-b-2 border-purple-600 text-purple-600"
+          >
+            HTML
+          </button>
+        </div>
+        
+        {/* HTML Example */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="font-medium text-sm">Plain HTML Form</h4>
+            <button
+              type="button"
+              onClick={() => navigator.clipboard.writeText(htmlExample)}
+              className="text-xs bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 px-2 py-1 rounded"
+            >
+              Copy
+            </button>
           </div>
-        ))}
-        <Button type="submit" className="w-full">Submit</Button>
-      </form>
+          <pre className="text-xs bg-gray-50 dark:bg-gray-800 p-3 rounded border overflow-x-auto">
+            <code>{htmlExample}</code>
+          </pre>
+        </div>
+        
+        {/* React Example */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="font-medium text-sm">React Hook Form</h4>
+            <button
+              type="button"
+              onClick={() => navigator.clipboard.writeText(reactExample)}
+              className="text-xs bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 px-2 py-1 rounded"
+            >
+              Copy
+            </button>
+          </div>
+          <pre className="text-xs bg-gray-50 dark:bg-gray-800 p-3 rounded border overflow-x-auto">
+            <code>{reactExample}</code>
+          </pre>
+        </div>
+        
+        {/* cURL Example */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="font-medium text-sm">Test with cURL</h4>
+            <button
+              type="button"
+              onClick={() => navigator.clipboard.writeText(curlExample)}
+              className="text-xs bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 px-2 py-1 rounded"
+            >
+              Copy
+            </button>
+          </div>
+          <pre className="text-xs bg-gray-50 dark:bg-gray-800 p-3 rounded border overflow-x-auto">
+            <code>{curlExample}</code>
+          </pre>
+        </div>
+        
+        {/* API Info */}
+        <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+          <h4 className="font-medium text-sm mb-2 text-blue-800 dark:text-blue-200">API Endpoint Info</h4>
+          <div className="text-xs space-y-1 text-blue-700 dark:text-blue-300">
+            <div><strong>POST:</strong> https://formhook-backend.onrender.com/forms/{formId}/submit</div>
+            <div><strong>Content-Type:</strong> application/json or multipart/form-data</div>
+            <div><strong>Response:</strong> 200 OK with {"{ success: true, message: '...' }"}</div>
+            <div><strong>Webhook:</strong> {getValues('webhook_url') ? 'Configured ✓' : 'Not configured'}</div>
+          </div>
+        </div>
+      </div>
     );
   };
 
@@ -386,18 +736,29 @@ export function FormBuilderModal({ open, onOpenChange, onSuccess, initial, submi
     console.log('Rendering snippet with fields:', liveFields);
     
     const fieldsHtml = (liveFields || []).map(f => {
-      if (f.type === 'text' || f.type === 'email') {
-        return `<input name="data[${f.name}]" type="${f.type}" placeholder="${f.label}"${f.required ? ' required' : ''} />`;
+      const validationAttrs = [];
+      if (f.required) validationAttrs.push('required');
+      if (f.validation?.minLength) validationAttrs.push(`minlength="${f.validation.minLength}"`);
+      if (f.validation?.maxLength) validationAttrs.push(`maxlength="${f.validation.maxLength}"`);
+      if (f.validation?.pattern) validationAttrs.push(`pattern="${f.validation.pattern}"`);
+      if (f.validation?.min) validationAttrs.push(`min="${f.validation.min}"`);
+      if (f.validation?.max) validationAttrs.push(`max="${f.validation.max}"`);
+      const attrs = validationAttrs.length > 0 ? ' ' + validationAttrs.join(' ') : '';
+      
+      if (f.type === 'text' || f.type === 'email' || f.type === 'number' || f.type === 'tel' || f.type === 'url' || f.type === 'password' || f.type === 'date') {
+        return `<input name="data[${f.name}]" type="${f.type}" placeholder="${f.label}"${attrs} />`;
       } else if (f.type === 'textarea') {
-        return `<textarea name="data[${f.name}]" placeholder="${f.label}"${f.required ? ' required' : ''}></textarea>`;
+        return `<textarea name="data[${f.name}]" placeholder="${f.label}"${attrs}></textarea>`;
       } else if (f.type === 'checkbox') {
         return `<label><input type="checkbox" name="data[${f.name}]"${f.required ? ' required' : ''}/> ${f.label}</label>`;
       } else if (f.type === 'select') {
-        return `<select name="data[${f.name}]"${f.required ? ' required' : ''}>${(f.options || []).filter(Boolean).map(opt => `<option>${opt}</option>`).join('')}</select>`;
+        return `<select name="data[${f.name}]"${f.required ? ' required' : ''}><option value="">Choose an option...</option>${(f.options || []).filter(Boolean).map(opt => `<option value="${opt}">${opt}</option>`).join('')}</select>`;
+      } else if (f.type === 'file') {
+        return `<input name="data[${f.name}]" type="file"${f.required ? ' required' : ''} />`;
       }
       return '';
     }).join('\n  ');
-    return `<form action=\"https://formhook-backend.onrender.com/forms/${formId}/submit\" method=\"POST\">
+    return `<form action=\"https://formhook-backend.onrender.com/forms/${formId}/submit\" method=\"POST\" enctype=\"multipart/form-data\">
   ${fieldsHtml}
   <button type=\"submit\">Submit</button>
 </form>`;
@@ -409,15 +770,6 @@ export function FormBuilderModal({ open, onOpenChange, onSuccess, initial, submi
       <ToastView ref={toastRef} />
       <DialogContent className="max-w-4xl w-full p-0 bg-white dark:bg-zinc-900/95 rounded-2xl shadow-2xl border border-neutral-200 dark:border-zinc-800 backdrop-blur-md">
         <div className="relative">
-          <DialogClose asChild>
-            <button
-              aria-label="Close"
-              className="absolute top-4 right-4 text-zinc-400 hover:text-zinc-900 dark:hover:text-white focus:outline-none focus:ring-2 focus:ring-purple-400 rounded-full p-1"
-            >
-              <span className="sr-only">Close</span>
-              <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><path stroke="currentColor" strokeLinecap="round" strokeWidth="2" d="M6 6l8 8M6 14L14 6"/></svg>
-            </button>
-          </DialogClose>
           <Card className="bg-transparent shadow-none border-none p-0">
             <CardHeader className="pb-2 pt-8 px-12 border-b border-purple-100 dark:border-zinc-800">
               <h2 className="text-3xl font-extrabold text-purple-700 dark:text-purple-200 mb-2 tracking-tight">{initial ? 'Edit Form' : 'Create a New Form'}</h2>
@@ -536,6 +888,7 @@ export function FormBuilderModal({ open, onOpenChange, onSuccess, initial, submi
                                 removeFieldOption={removeFieldOption}
                                 setValue={setValue}
                                 remove={remove}
+                                duplicate={duplicateField}
                               />
                             ))}
                           </SortableContext>
@@ -543,6 +896,23 @@ export function FormBuilderModal({ open, onOpenChange, onSuccess, initial, submi
                       </div>
                       <div className="flex flex-col items-center mt-2">
                         <Button type="button" variant="default" className="w-full max-w-xs font-semibold py-3 text-base" onClick={() => append(emptyField())}>+ Add Field</Button>
+                        
+                        {/* Quick Templates */}
+                        <div className="mt-4 w-full max-w-2xl">
+                          <div className="text-sm font-medium text-gray-600 dark:text-gray-300 mb-2">Or add from templates:</div>
+                          <div className="flex flex-wrap gap-2">
+                            {fieldTemplates.map((template, idx) => (
+                              <button
+                                key={idx}
+                                type="button"
+                                className="px-3 py-1 text-xs bg-purple-100 hover:bg-purple-200 dark:bg-purple-900/30 dark:hover:bg-purple-900/50 text-purple-700 dark:text-purple-300 rounded-full transition-colors"
+                                onClick={() => append(template.template)}
+                              >
+                                + {template.name}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
                       </div>
                     </div>
                     <div className="flex justify-end mt-8">
@@ -551,12 +921,12 @@ export function FormBuilderModal({ open, onOpenChange, onSuccess, initial, submi
                       </Button>
                     </div>
                   </form>
-                  {/* Live Preview */}
+                  {/* Code Integration Examples */}
                   <div className="overflow-y-auto max-h-[60vh]">
                     <Card className="border border-purple-200 bg-white/90 dark:bg-zinc-900/80 rounded-xl p-4">
-                      <div className="font-semibold mb-2 text-lg">Live Preview</div>
-                      <div className="text-xs text-zinc-500 mb-4">This is how your form will appear to users.</div>
-                      {renderPreview()}
+                      <div className="font-semibold mb-2 text-lg">Integration Examples</div>
+                      <div className="text-xs text-zinc-500 mb-4">Copy-paste ready code to integrate your form.</div>
+                      {renderCodeExamples()}
                     </Card>
                   </div>
                 </div>

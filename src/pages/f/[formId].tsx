@@ -25,7 +25,7 @@ import {
 import Link from 'next/link';
 
 interface FormData {
-  [key: string]: string;
+  [key: string]: string | boolean;
 }
 
 export default function PublicFormPage() {
@@ -41,17 +41,52 @@ export default function PublicFormPage() {
   useEffect(() => {
     if (!router.isReady || !formId) return;
     
-    // Skip form loading since it requires auth - just set the form with the ID we have
-    console.log('Setting up form with ID:', formId);
-    setForm({
-      id: formId,
-      name: 'Contact Form',
-      created_at: new Date().toISOString()
-    });
-    setLoading(false);
+    const loadFormData = async () => {
+      try {
+        console.log('Loading form data for ID:', formId);
+        
+        // Load form data through our public API endpoint
+        const response = await fetch(`/api/public/forms/${formId}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (response.ok) {
+          const formData = await response.json();
+          console.log('Loaded form data:', formData);
+          
+          setForm(formData);
+          
+          // Initialize form data object with all field names
+          const initialFormData = {};
+          if (formData.fields && Array.isArray(formData.fields)) {
+            formData.fields.forEach(field => {
+              initialFormData[field.name] = '';
+            });
+          }
+          setFormData(initialFormData);
+        } else {
+          if (response.status === 404) {
+            setError('Form not found');
+          } else {
+            setError('Failed to load form');
+          }
+        }
+        
+        setLoading(false);
+      } catch (err) {
+        console.error('Error loading form:', err);
+        setError('Failed to load form');
+        setLoading(false);
+      }
+    };
+
+    loadFormData();
   }, [router.isReady, formId]);
 
-  const handleInputChange = (field: string, value: string) => {
+  const handleInputChange = (field: string, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
@@ -241,59 +276,85 @@ export default function PublicFormPage() {
             </CardHeader>
             <CardContent className="p-8">
               <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Email Field (always present as example) */}
-                <div className="space-y-2">
-                  <Label htmlFor="email" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Email Address *
-                  </Label>
-                  <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    placeholder="Enter your email address"
-                    value={formData.email || ''}
-                    onChange={(e) => handleInputChange('email', e.target.value)}
-                    required
-                    className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                  />
-                </div>
-
-                {/* Name Field */}
-                <div className="space-y-2">
-                  <Label htmlFor="name" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Name
-                  </Label>
-                  <Input
-                    id="name"
-                    name="name"
-                    type="text"
-                    placeholder="Enter your name"
-                    value={formData.name || ''}
-                    onChange={(e) => handleInputChange('name', e.target.value)}
-                    className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                  />
-                </div>
-
-                {/* Message Field */}
-                <div className="space-y-2">
-                  <Label htmlFor="message" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Message
-                  </Label>
-                  <textarea
-                    id="message"
-                    name="message"
-                    rows={4}
-                    placeholder="Enter your message"
-                    value={formData.message || ''}
-                    onChange={(e) => handleInputChange('message', e.target.value)}
-                    className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white resize-vertical"
-                  />
-                </div>
+                {/* Dynamic Fields based on form configuration */}
+                {form?.fields && Array.isArray(form.fields) ? (
+                  form.fields.map((field, index) => (
+                    <div key={field.name || index} className="space-y-2">
+                      <Label 
+                        htmlFor={field.name} 
+                        className="text-sm font-medium text-gray-700 dark:text-gray-300"
+                      >
+                        {field.label || field.name} {field.required && '*'}
+                      </Label>
+                      
+                      {field.type === 'textarea' ? (
+                        <textarea
+                          id={field.name}
+                          name={field.name}
+                          rows={4}
+                          placeholder={field.placeholder || `Enter ${field.label || field.name}`}
+                          value={String(formData[field.name] || '')}
+                          onChange={(e) => handleInputChange(field.name, e.target.value)}
+                          required={field.required}
+                          className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white resize-vertical"
+                        />
+                      ) : field.type === 'select' ? (
+                        <select
+                          id={field.name}
+                          name={field.name}
+                          value={String(formData[field.name] || '')}
+                          onChange={(e) => handleInputChange(field.name, e.target.value)}
+                          required={field.required}
+                          className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                        >
+                          <option value="">Select an option</option>
+                          {field.options && field.options.map((option, optIndex) => (
+                            <option key={optIndex} value={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </select>
+                      ) : field.type === 'checkbox' ? (
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            id={field.name}
+                            name={field.name}
+                            checked={Boolean(formData[field.name])}
+                            onChange={(e) => handleInputChange(field.name, e.target.checked)}
+                            required={field.required}
+                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                          />
+                          <span className="text-sm text-gray-700 dark:text-gray-300">
+                            {field.label || field.name}
+                          </span>
+                        </div>
+                      ) : (
+                        <Input
+                          id={field.name}
+                          name={field.name}
+                          type={field.type || 'text'}
+                          placeholder={field.placeholder || `Enter ${field.label || field.name}`}
+                          value={String(formData[field.name] || '')}
+                          onChange={(e) => handleInputChange(field.name, e.target.value)}
+                          required={field.required}
+                          className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                        />
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  // Fallback content if no fields are defined
+                  <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                    <p>This form has no fields configured.</p>
+                    <p className="text-sm mt-2">Please contact the form owner to set up the form fields.</p>
+                  </div>
+                )}
 
                 <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
                   <Button
                     type="submit"
-                    disabled={submitting || !formData.email}
+                    disabled={submitting || !form?.fields?.length}
                     className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-4 px-6 rounded-lg transition-all duration-200 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2 shadow-lg"
                   >
                     {submitting ? (

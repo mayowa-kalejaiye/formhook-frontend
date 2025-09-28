@@ -82,7 +82,12 @@ export default function SubmissionViewer({ submissions = [], loading = false }: 
               ) : (
                 submissions.slice(0, 10).map((submission, idx) => (
                   <tr key={submission.id || idx} className="hover:bg-white/5">
-                    <td className="px-4 py-2 font-mono text-xs">{submission.id || `sub_${idx}`}</td>
+                    <td className="px-4 py-2 font-mono text-xs">
+                      <div className="flex flex-col">
+                        <span className="text-blue-400 font-semibold">#{submission.id || `sub_${idx}`}</span>
+                        <span className="text-gray-500 text-xs">Global ID</span>
+                      </div>
+                    </td>
                     <td className="px-4 py-2">{submission.form_name || 'Unknown'}</td>
                     <td className="px-4 py-2">
                       <div className="flex items-center gap-1">

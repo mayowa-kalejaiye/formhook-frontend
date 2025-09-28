@@ -10,41 +10,56 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
+// Function to get initial theme without causing hydration issues
+const getInitialTheme = (): Theme => {
+  if (typeof window === 'undefined') return 'system';
+  
+  try {
+    const stored = localStorage.getItem('theme') as Theme | null;
+    return stored || 'system';
+  } catch {
+    return 'system';
+  }
+};
+
+// Function to apply theme immediately to prevent flashing
+const applyThemeImmediately = (theme: Theme) => {
+  if (typeof window === 'undefined') return;
+  
+  const root = document.documentElement;
+  
+  if (theme === 'dark') {
+    root.classList.add('dark');
+  } else if (theme === 'light') {
+    root.classList.remove('dark');
+  } else if (theme === 'system') {
+    // Check system preference
+    if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+  }
+};
+
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [theme, setThemeState] = useState<Theme>('system');
+  const [theme, setThemeState] = useState<Theme>(() => getInitialTheme());
 
   useEffect(() => {
-    // Only run on client-side
-    if (typeof window === 'undefined') return;
-    
-    // On mount, check localStorage or system
-    const stored = localStorage.getItem('theme') as Theme | null;
-    if (stored) {
-      setThemeState(stored);
-      applyTheme(stored);
-    } else {
-      setThemeState('system');
-      applyTheme('system');
-    }
+    // Apply theme immediately on mount to prevent flashing
+    applyThemeImmediately(theme);
   }, []);
 
   const setTheme = (t: Theme) => {
     if (typeof window === 'undefined') return;
     
     setThemeState(t);
-    localStorage.setItem('theme', t);
-    applyTheme(t);
-  };
-
-  const applyTheme = (t: Theme) => {
-    if (typeof window === 'undefined') return;
-    
-    const root = window.document.documentElement;
-    if (t === 'dark' || (t === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
+    try {
+      localStorage.setItem('theme', t);
+    } catch {
+      // Handle localStorage errors silently
     }
+    applyThemeImmediately(t);
   };
 
   return (

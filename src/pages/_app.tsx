@@ -4,8 +4,8 @@ import type { AppProps } from 'next/app';
 import { AuthProvider } from '../context/AuthContext';
 import { ThemeProvider } from '../context/ThemeContext';
 import { SidebarProvider } from '../context/SidebarContext';
+import { NotificationProvider } from '../context/NotificationContext';
 
-import Footer2 from '../components/Footer2';
 import MenuBar from '../components/MenuBar';
 
 import { useEffect } from 'react';
@@ -13,28 +13,24 @@ import { useEffect } from 'react';
 import { FormsProvider } from '../context/FormsContext';
 
 function MyApp({ Component, pageProps }: AppProps) {
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      document.documentElement.classList.add('dark');
-    }
-  }, []);
+  // Remove the automatic dark mode enforcement that causes flashing
+  // Let the ThemeProvider handle theme properly instead
 
   const content = (
-    <div className="flex flex-col min-h-screen">
+    <div className="min-h-screen">
       {/* <MenuBar /> */}
-      <div className="flex-1">
-        <Component {...pageProps} />
-      </div>
-      <Footer2 />
+      <Component {...pageProps} />
     </div>
   );
 
   return (
     <ThemeProvider>
       <AuthProvider>
-        <SidebarProvider>
-          <FormsProvider>{content}</FormsProvider>
-        </SidebarProvider>
+        <NotificationProvider>
+          <SidebarProvider>
+            <FormsProvider>{content}</FormsProvider>
+          </SidebarProvider>
+        </NotificationProvider>
       </AuthProvider>
     </ThemeProvider>
   );

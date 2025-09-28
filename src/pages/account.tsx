@@ -628,16 +628,15 @@ function UserAccountSettingsContent() {
                     
                     {/* Avatar */}
                     <div className="flex items-center gap-4">
-                      <div className="w-20 h-20 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center text-white text-2xl font-bold">
-                        {profile.name.charAt(0).toUpperCase()}
+                      <div className="w-20 h-20 rounded-full bg-blue-600 flex items-center justify-center text-white text-3xl font-black border-4 border-white shadow-lg" style={{ textShadow: '1px 1px 2px rgba(0,0,0,0.5)' }}>
+                        F
                       </div>
                       <div>
-                        <Button className="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 flex items-center gap-2">
-                          <Camera className="h-4 w-4" />
-                          Upload Photo
-                        </Button>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">
+                          <strong>FormHook Profile Avatar</strong>
+                        </div>
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                          JPG, PNG or GIF. Max size 2MB.
+                          Your FormHook branded profile identifier.
                         </p>
                       </div>
                     </div>

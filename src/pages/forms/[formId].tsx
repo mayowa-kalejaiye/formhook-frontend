@@ -96,7 +96,14 @@ export default function FormSettingsPage() {
         setWebhookEnabled(!!data.webhook_enabled);
       } catch (e) {
         console.error('[FormDetail] Error loading form:', e);
-        toast({ title: 'Error', description: 'Failed to load form', variant: 'destructive' });
+        const errorMessage = e instanceof Error ? e.message : 'Failed to load form';
+        if (errorMessage.includes('404') || errorMessage.includes('not found')) {
+          toast({ title: 'Form Not Found', description: 'This form does not exist or you do not have access to it.', variant: 'destructive' });
+        } else if (errorMessage.includes('401') || errorMessage.includes('unauthorized')) {
+          toast({ title: 'Authentication Required', description: 'Please log in to access this form.', variant: 'destructive' });
+        } else {
+          toast({ title: 'Error', description: errorMessage, variant: 'destructive' });
+        }
       } finally {
         setLoading(false);
       }
@@ -111,13 +118,117 @@ export default function FormSettingsPage() {
       console.log('[FormDetail] Loading analytics for form:', formId);
       const data = await getFormAnalytics(formId as string, { interval: 'day' });
       console.log('[FormDetail] Analytics data:', data);
-      setAnalytics(data);
+      console.log('[FormDetail] Analytics data type:', typeof data);
+      console.log('[FormDetail] Analytics data keys:', data ? Object.keys(data) : 'null');
+      
+      // Handle different response formats more flexibly
+      if (data !== null && data !== undefined) {
+        // Accept any data that's not null/undefined
+        if (typeof data === 'object' && Object.keys(data).length > 0) {
+          setAnalytics(data);
+          toast({ title: 'Success', description: 'Analytics loaded successfully', variant: 'default' });
+        } else if (Array.isArray(data) && data.length > 0) {
+          setAnalytics(data);
+          toast({ title: 'Success', description: 'Analytics loaded successfully', variant: 'default' });
+        } else {
+          // Empty object or array - create fallback analytics
+          setAnalytics(createFallbackAnalytics());
+          toast({ title: 'Limited Analytics', description: 'Using submission data for analytics', variant: 'default' });
+        }
+      } else {
+        // Null or undefined response - create fallback analytics
+        setAnalytics(createFallbackAnalytics());
+        toast({ title: 'Limited Analytics', description: 'Using submission data for analytics', variant: 'default' });
+      }
     } catch (e) {
       console.error('[FormDetail] Error loading analytics:', e);
-      toast({ title: 'Error', description: 'Failed to load analytics', variant: 'destructive' });
+      const errorMessage = e instanceof Error ? e.message : 'Failed to load analytics';
+      
+      if (errorMessage.includes('500')) {
+        // Server error - provide fallback analytics
+        setAnalytics(createFallbackAnalytics());
+        toast({ 
+          title: 'Analytics Unavailable', 
+          description: 'Backend analytics not available. Showing basic stats from submissions.', 
+          variant: 'default' 
+        });
+      } else if (errorMessage.includes('404')) {
+        // Not found - provide fallback analytics
+        setAnalytics(createFallbackAnalytics());
+        toast({ 
+          title: 'Analytics Not Implemented', 
+          description: 'Analytics endpoint not found. Showing basic stats from submissions.', 
+          variant: 'default' 
+        });
+      } else if (errorMessage.includes('401') || errorMessage.includes('403')) {
+        toast({ title: 'Authentication Error', description: 'Please log in again to view analytics.', variant: 'destructive' });
+        setAnalytics(null);
+      } else {
+        // Other errors - provide fallback
+        setAnalytics(createFallbackAnalytics());
+        toast({ 
+          title: 'Analytics Error', 
+          description: 'Analytics service error. Showing basic stats from submissions.', 
+          variant: 'default' 
+        });
+      }
     } finally {
       setAnalyticsLoading(false);
     }
+  };
+
+  // Create fallback analytics from submission data
+  const createFallbackAnalytics = () => {
+    if (!submissions || submissions.length === 0) {
+      return {
+        total_submissions: 0,
+        success_rate: 1.0,
+        avg_response_time: null,
+        daily_data: [],
+        fallback: true,
+        message: 'No submission data available'
+      };
+    }
+
+    // Calculate basic stats from submissions
+    const successfulSubmissions = submissions.filter(s => 
+      !s.status || s.status === 'success' || s.status === 'delivered' || s.status === 'received'
+    ).length;
+    
+    const successRate = submissions.length > 0 ? successfulSubmissions / submissions.length : 1.0;
+
+    // Group submissions by date for daily data
+    const dailyStats = submissions.reduce((acc, submission) => {
+      let date;
+      if (submission.created_at) {
+        date = new Date(submission.created_at).toISOString().split('T')[0];
+      } else if (submission.submitted_at) {
+        date = new Date(submission.submitted_at).toISOString().split('T')[0];
+      } else if (submission.date) {
+        date = new Date(submission.date).toISOString().split('T')[0];
+      } else {
+        date = new Date().toISOString().split('T')[0]; // fallback to today
+      }
+      
+      if (!acc[date]) {
+        acc[date] = { date, count: 0 };
+      }
+      acc[date].count++;
+      return acc;
+    }, {});
+
+    const daily_data = Object.values(dailyStats).sort((a, b) => 
+      new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+
+    return {
+      total_submissions: submissions.length,
+      success_rate: successRate,
+      avg_response_time: null, // Can't calculate from submission data
+      daily_data: daily_data,
+      fallback: true,
+      message: 'Generated from submission data'
+    };
   };
 
   // Load submissions with pagination
@@ -131,12 +242,42 @@ export default function FormSettingsPage() {
         offset: page * submissionsPerPage
       });
       console.log('[FormDetail] Submissions data:', data);
-      setSubmissions(data.submissions || []);
-      setTotalSubmissions(data.total || 0);
-      setCurrentPage(page);
+      
+      // Handle different response formats
+      if (Array.isArray(data)) {
+        // Backend returns submissions array directly
+        setSubmissions(data);
+        setTotalSubmissions(data.length); // We can't know total from this format, so use current length
+        setCurrentPage(page);
+        toast({ title: 'Success', description: `Loaded ${data.length} submissions`, variant: 'default' });
+      } else if (data && data.submissions && Array.isArray(data.submissions)) {
+        // Backend returns object with submissions property
+        setSubmissions(data.submissions || []);
+        setTotalSubmissions(data.total || 0);
+        setCurrentPage(page);
+        toast({ title: 'Success', description: `Loaded ${data.submissions.length} submissions`, variant: 'default' });
+      } else if (data && Array.isArray(data.results)) {
+        // Handle paginated results format
+        setSubmissions(data.results || []);
+        setTotalSubmissions(data.count || data.total || 0);
+        setCurrentPage(page);
+        toast({ title: 'Success', description: `Loaded ${data.results.length} submissions`, variant: 'default' });
+      } else {
+        setSubmissions([]);
+        setTotalSubmissions(0);
+        toast({ title: 'No Data', description: 'No submissions found for this form yet.', variant: 'default' });
+      }
     } catch (e) {
       console.error('[FormDetail] Error loading submissions:', e);
-      toast({ title: 'Error', description: 'Failed to load submissions', variant: 'destructive' });
+      const errorMessage = e instanceof Error ? e.message : 'Failed to load submissions';
+      
+      if (errorMessage.includes('404')) {
+        toast({ title: 'Submissions Not Available', description: 'Submissions endpoint not found.', variant: 'destructive' });
+      } else {
+        toast({ title: 'Submissions Error', description: errorMessage, variant: 'destructive' });
+      }
+      setSubmissions([]);
+      setTotalSubmissions(0);
     } finally {
       setSubmissionsLoading(false);
     }
@@ -214,29 +355,111 @@ export default function FormSettingsPage() {
 
   // --- Embed Snippet ---
   const embedSnippet = () => {
-    let snippet = `<form action="https://formhook-backend.onrender.com/forms/${form?.id}/submit" method="POST">\n`;
+    if (!form || !form.fields) {
+      return `<form action="https://formhook-backend.onrender.com/forms/${form?.id || 'FORM_ID'}/submit" method="POST">
+  <!-- No fields defined yet -->
+  <button type="submit">Submit</button>
+</form>`;
+    }
+
+    let snippet = `<form action="https://formhook-backend.onrender.com/forms/${form.id}/submit" method="POST">\n`;
+    
+    // Add authentication note if required
     if (requireToken && token) {
-      snippet += `  <!-- Add this header to your request -->\n  Authorization: Bearer <form_token>\n`;
+      snippet += `  <!-- IMPORTANT: Add Authorization header to your request -->\n`;
+      snippet += `  <!-- Authorization: Bearer ${token} -->\n\n`;
     }
     
     // Generate HTML for each field based on the form's actual fields
-    const fieldsHtml = (form?.fields || []).map(f => {
-      if (f.type === 'text' || f.type === 'email') {
-        return `  <input name="data[${f.name}]" type="${f.type}" placeholder="${f.label}"${f.required ? ' required' : ''} />`;
-      } else if (f.type === 'textarea') {
-        return `  <textarea name="data[${f.name}]" placeholder="${f.label}"${f.required ? ' required' : ''}></textarea>`;
-      } else if (f.type === 'checkbox') {
-        return `  <label><input type="checkbox" name="data[${f.name}]"${f.required ? ' required' : ''}/> ${f.label}</label>`;
-      } else if (f.type === 'select') {
-        return `  <select name="data[${f.name}]"${f.required ? ' required' : ''}>${(f.options || []).filter(Boolean).map(opt => `\n    <option>${opt}</option>`).join('')}\n  </select>`;
+    const fieldsHtml = form.fields.map(field => {
+      const commonAttrs = `name="data[${field.name}]"${field.required ? ' required' : ''}`;
+      const placeholder = field.label ? ` placeholder="${field.label}"` : '';
+      
+      switch (field.type) {
+        case 'text':
+          return `  <input ${commonAttrs} type="text"${placeholder} />`;
+        
+        case 'email':
+          return `  <input ${commonAttrs} type="email"${placeholder} />`;
+        
+        case 'number':
+          let numberAttrs = '';
+          if (field.validation?.min !== undefined) numberAttrs += ` min="${field.validation.min}"`;
+          if (field.validation?.max !== undefined) numberAttrs += ` max="${field.validation.max}"`;
+          return `  <input ${commonAttrs} type="number"${placeholder}${numberAttrs} />`;
+        
+        case 'textarea':
+          let textareaAttrs = '';
+          if (field.validation?.minLength) textareaAttrs += ` minlength="${field.validation.minLength}"`;
+          if (field.validation?.maxLength) textareaAttrs += ` maxlength="${field.validation.maxLength}"`;
+          return `  <textarea ${commonAttrs}${placeholder}${textareaAttrs}></textarea>`;
+        
+        case 'select':
+          const options = (field.options || []).filter(Boolean);
+          if (options.length === 0) {
+            return `  <select ${commonAttrs}>\n    <option value="">Select ${field.label}</option>\n  </select>`;
+          }
+          const optionsHtml = options.map(opt => `    <option value="${opt}">${opt}</option>`).join('\n');
+          return `  <select ${commonAttrs}>\n    <option value="">Select ${field.label}</option>\n${optionsHtml}\n  </select>`;
+        
+        case 'checkbox':
+          return `  <label>\n    <input ${commonAttrs} type="checkbox" value="true" />\n    ${field.label}\n  </label>`;
+        
+        case 'radio':
+          const radioOptions = (field.options || []).filter(Boolean);
+          if (radioOptions.length === 0) {
+            return `  <!-- Radio field "${field.name}" has no options defined -->`;
+          }
+          return radioOptions.map(opt => 
+            `  <label>\n    <input name="data[${field.name}]" type="radio" value="${opt}"${field.required ? ' required' : ''} />\n    ${opt}\n  </label>`
+          ).join('\n');
+        
+        case 'file':
+          let fileAttrs = '';
+          if (field.validation?.accept) fileAttrs += ` accept="${field.validation.accept}"`;
+          if (field.validation?.multiple) fileAttrs += ' multiple';
+          return `  <input ${commonAttrs} type="file"${fileAttrs} />`;
+        
+        case 'tel':
+          return `  <input ${commonAttrs} type="tel"${placeholder} />`;
+        
+        case 'url':
+          return `  <input ${commonAttrs} type="url"${placeholder} />`;
+        
+        case 'date':
+          return `  <input ${commonAttrs} type="date" />`;
+        
+        case 'time':
+          return `  <input ${commonAttrs} type="time" />`;
+        
+        case 'datetime-local':
+          return `  <input ${commonAttrs} type="datetime-local" />`;
+        
+        default:
+          return `  <!-- Unsupported field type: ${field.type} for field: ${field.name} -->`;
       }
-      return '';
-    }).join('\n');
+    }).filter(Boolean);
     
-    snippet += fieldsHtml ? `\n${fieldsHtml}\n` : '\n  <!-- No fields defined -->\n';
-    snippet += '  <button type="submit">Submit</button>\n</form>';
+    if (fieldsHtml.length > 0) {
+      snippet += fieldsHtml.join('\n') + '\n\n';
+    } else {
+      snippet += '  <!-- No valid fields defined -->\n\n';
+    }
+    
+    // Add submit button
+    snippet += '  <button type="submit">Submit</button>\n';
+    snippet += '</form>';
+    
     return snippet;
   };
+
+  // Auto-load submissions when form is loaded
+  useEffect(() => {
+    if (form && formId && !submissionsLoading) {
+      console.log('[FormDetail] Auto-loading submissions after form loaded...');
+      loadSubmissions(0);
+    }
+  }, [form]);
 
   if (loading) {
     return (
@@ -369,13 +592,44 @@ export default function FormSettingsPage() {
                   </div>
                 ) : analytics ? (
                   <div className="space-y-6">
+                    {/* Show fallback notice if using submission data */}
+                    {analytics.fallback && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Activity className="h-4 w-4 text-blue-600" />
+                          <span className="font-medium text-blue-900">Basic Analytics</span>
+                        </div>
+                        <p className="text-sm text-blue-700">
+                          Backend analytics service unavailable. Showing basic statistics calculated from submission data.
+                        </p>
+                      </div>
+                    )}
+                    
+                    {/* Debug info - only show if not fallback */}
+                    {!analytics.fallback && (
+                      <div className="bg-gray-100 p-3 rounded text-xs">
+                        <strong>Debug - Available Analytics Data:</strong>
+                        <pre className="mt-2 text-xs">{JSON.stringify(analytics, null, 2)}</pre>
+                      </div>
+                    )}
+                    
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200">
                         <div className="flex items-center gap-2 mb-2">
                           <TrendingUp className="h-4 w-4 text-blue-600" />
                           <h3 className="font-semibold text-blue-900">Total Submissions</h3>
                         </div>
-                        <p className="text-2xl font-bold text-blue-700">{analytics.total_submissions || 0}</p>
+                        <p className="text-2xl font-bold text-blue-700">
+                          {analytics.total_submissions || 
+                           analytics.totalSubmissions || 
+                           analytics.submission_count || 
+                           analytics.count || 
+                           totalSubmissions || 
+                           '0'}
+                        </p>
+                        {analytics.fallback && (
+                          <p className="text-xs text-blue-500 mt-1">From {submissions.length} submissions</p>
+                        )}
                       </div>
                       <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-4 rounded-lg border border-green-200">
                         <div className="flex items-center gap-2 mb-2">
@@ -383,8 +637,13 @@ export default function FormSettingsPage() {
                           <h3 className="font-semibold text-green-900">Success Rate</h3>
                         </div>
                         <p className="text-2xl font-bold text-green-700">
-                          {analytics.success_rate ? `${(analytics.success_rate * 100).toFixed(1)}%` : '100%'}
+                          {analytics.success_rate ? `${(analytics.success_rate * 100).toFixed(1)}%` : 
+                           analytics.successRate ? `${(analytics.successRate * 100).toFixed(1)}%` : 
+                           '100%'}
                         </p>
+                        {analytics.fallback && (
+                          <p className="text-xs text-green-500 mt-1">Estimated from submissions</p>
+                        )}
                       </div>
                       <div className="bg-gradient-to-br from-purple-50 to-violet-50 p-4 rounded-lg border border-purple-200">
                         <div className="flex items-center gap-2 mb-2">
@@ -392,30 +651,49 @@ export default function FormSettingsPage() {
                           <h3 className="font-semibold text-purple-900">Avg Response Time</h3>
                         </div>
                         <p className="text-2xl font-bold text-purple-700">
-                          {analytics.avg_response_time ? `${analytics.avg_response_time}ms` : 'N/A'}
+                          {analytics.avg_response_time ? `${analytics.avg_response_time}ms` : 
+                           analytics.avgResponseTime ? `${analytics.avgResponseTime}ms` : 
+                           analytics.response_time ? `${analytics.response_time}ms` : 
+                           'N/A'}
                         </p>
+                        {analytics.fallback && (
+                          <p className="text-xs text-purple-500 mt-1">Not available in basic mode</p>
+                        )}
                       </div>
                     </div>
-                    {analytics.daily_data && analytics.daily_data.length > 0 && (
+                    
+                    {/* Show any available time-series data */}
+                    {(analytics.daily_data && analytics.daily_data.length > 0) || 
+                     (analytics.dailyData && analytics.dailyData.length > 0) ||
+                     (analytics.data && analytics.data.length > 0) ? (
                       <div>
-                        <h3 className="font-semibold mb-3">Daily Submissions (Last 30 days)</h3>
+                        <h3 className="font-semibold mb-3">
+                          Daily Submissions (Recent days)
+                          {analytics.fallback && <span className="text-sm font-normal text-gray-500 ml-2">(from submission data)</span>}
+                        </h3>
                         <div className="bg-gray-50 p-4 rounded-lg">
                           <div className="text-xs text-gray-500 mb-2">Daily submission counts:</div>
                           <div className="space-y-1">
-                            {analytics.daily_data.slice(-7).map((day, idx) => (
+                            {(analytics.daily_data || analytics.dailyData || analytics.data || []).slice(-7).map((day, idx) => (
                               <div key={idx} className="flex justify-between text-sm">
-                                <span>{day.date || `Day ${idx + 1}`}</span>
-                                <span className="font-medium">{day.count || 0} submissions</span>
+                                <span>{day.date || day.day || `Day ${idx + 1}`}</span>
+                                <span className="font-medium">{day.count || day.submissions || 0} submissions</span>
                               </div>
                             ))}
                           </div>
                         </div>
                       </div>
-                    )}
+                    ) : null}
+                    
                     <div className="flex gap-2">
                       <Button onClick={loadAnalytics} disabled={analyticsLoading}>
                         {analyticsLoading ? 'Refreshing...' : 'Refresh Analytics'}
                       </Button>
+                      {analytics.fallback && (
+                        <div className="text-xs text-gray-500 flex items-center">
+                          <span>⚠️ Backend analytics unavailable - using submission data</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ) : (
@@ -617,7 +895,7 @@ export default function FormSettingsPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Submission ID</TableHead>
+                          <TableHead>Form Submission #</TableHead>
                           <TableHead>Data</TableHead>
                           <TableHead>IP Address</TableHead>
                           <TableHead>Status</TableHead>
@@ -628,7 +906,12 @@ export default function FormSettingsPage() {
                         {submissions.map((submission, idx) => (
                           <TableRow key={submission.id || idx}>
                             <TableCell className="font-mono text-xs">
-                              {submission.id || `sub_${idx}`}
+                              <div className="flex items-center gap-2">
+                                <Badge className="text-xs px-2 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300" title={`Form submission #${idx + 1} (Global database ID: ${submission.id || `sub_${idx}`})`}>
+                                  #{idx + 1}
+                                </Badge>
+                                <span className="text-gray-500 text-xs">({submission.id || `sub_${idx}`})</span>
+                              </div>
                             </TableCell>
                             <TableCell className="max-w-md">
                               <div className="space-y-1">

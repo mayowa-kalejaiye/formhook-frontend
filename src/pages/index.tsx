@@ -9,6 +9,7 @@ import { ChartLineInteractive } from '../components/ChartLineInteractive';
 import Testimonial2 from '../components/Testimonial2';
 import PricingSection from '../components/PricingSection';
 import DebugAuthState from '../components/DebugAuthState';
+import Footer2 from '../components/Footer2';
 // Dynamically import VerticalTabsDemo for client-side rendering
 const VerticalTabsDemo = dynamic(() => import("../components/VerticalTabsDemo").then(mod => mod.VerticalTabsDemo), { ssr: false });
 
@@ -28,6 +29,7 @@ export default function Home() {
       </div>
       <PricingSection />
       <Testimonial2 />
+      <Footer2 />
     </>
   );
 }

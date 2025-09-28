@@ -8,9 +8,15 @@ import { Switch } from './ui/switch';
 const FIELD_TYPES = [
   { label: 'Text', value: 'text' },
   { label: 'Email', value: 'email' },
+  { label: 'Number', value: 'number' },
+  { label: 'Phone', value: 'tel' },
+  { label: 'URL', value: 'url' },
+  { label: 'Date', value: 'date' },
+  { label: 'Password', value: 'password' },
   { label: 'Textarea', value: 'textarea' },
   { label: 'Checkbox', value: 'checkbox' },
   { label: 'Select', value: 'select' },
+  { label: 'File Upload', value: 'file' },
 ];
 
 function emptyField() {

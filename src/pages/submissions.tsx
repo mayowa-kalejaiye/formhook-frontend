@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import DashboardNav from '../components/DashboardNav';
 import { useSidebar } from '../context/SidebarContext';
+import { useNotifications } from '../context/NotificationContext';
 import BottomGradientRadial from '../components/BottomGradientRadial';
 import { Card, CardHeader, CardContent, CardTitle, CardDescription } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -32,7 +33,8 @@ import {
   MapPin,
   Shield,
   AlertTriangle,
-  Globe
+  Globe,
+  BellRing
 } from 'lucide-react';
 import AuthLayout from '../components/AuthLayout';
 
@@ -40,7 +42,7 @@ interface Submission {
   id: string;
   form_name?: string;
   form_id?: string;
-  email: string;
+  email?: string;
   submitted_at?: string;
   date?: string;
   created_at?: string;
@@ -55,7 +57,6 @@ interface Submission {
   latitude?: string;
   longitude?: string;
   threat_score?: number;
-  created_at?: string;
 }
 
 interface Form {
@@ -63,40 +64,118 @@ interface Form {
   name: string;
 }
 
-// Email Avatar Component
-function EmailAvatar({ email }: { email: string }) {
-  const getInitials = (email: string) => {
-    if (!email) return '?';
-    return email.charAt(0).toUpperCase();
+// Form Color Legend Component
+function FormColorLegend({ forms }: { forms: Form[] }) {
+  // Generate form initial and color (matching EmailAvatar logic)
+  const getFormInitial = (name: string) => {
+    return (name || 'F')[0].toUpperCase();
   };
 
-  const getAvatarColor = (email: string) => {
-    if (!email) return 'from-gray-400 to-gray-600';
+  const getFormColor = (name: string) => {
+    if (!name) return 'bg-blue-600';
+    
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+      hash = ((hash << 5) - hash + name.charCodeAt(i)) & 0xffffffff;
+    }
+    
     const colors = [
-      'from-blue-400 to-blue-600',
-      'from-green-400 to-green-600', 
-      'from-purple-400 to-purple-600',
-      'from-pink-400 to-pink-600',
-      'from-indigo-400 to-indigo-600',
-      'from-teal-400 to-teal-600',
-      'from-orange-400 to-orange-600',
-      'from-red-400 to-red-600'
+      'bg-blue-600', 'bg-green-600', 'bg-purple-600', 'bg-red-600', 'bg-yellow-600', 
+      'bg-indigo-600', 'bg-pink-600', 'bg-teal-600', 'bg-orange-600', 'bg-cyan-600', 
+      'bg-emerald-600', 'bg-rose-600', 'bg-violet-600', 'bg-amber-600', 'bg-lime-600', 
+      'bg-sky-600', 'bg-fuchsia-600', 'bg-slate-600'
     ];
-    const index = email.charCodeAt(0) % colors.length;
-    return colors[index];
+    
+    const colorIndex = Math.abs(hash) % colors.length;
+    return colors[colorIndex];
   };
+
+  if (forms.length <= 1) return null;
 
   return (
-    <div className={`h-8 w-8 rounded-full bg-gradient-to-r ${getAvatarColor(email)} flex items-center justify-center shadow-sm flex-shrink-0`}>
-      <span className="text-white font-semibold text-xs">
-        {getInitials(email)}
+    <Card className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 mb-4">
+      <CardContent className="p-4">
+        <div className="flex items-center gap-2 mb-2">
+          <h3 className="text-sm font-medium text-gray-900 dark:text-white">Form Color Guide</h3>
+          <span className="text-xs text-gray-500">Each form has a unique color and initial</span>
+        </div>
+        <div className="flex items-center gap-3 flex-wrap">
+          {forms.map(form => (
+            <div key={form.id} className="flex items-center gap-2">
+              <div className={`h-6 w-6 rounded-full ${getFormColor(form.name)} flex items-center justify-center shadow-sm border border-gray-200`}>
+                <span className="text-white font-bold text-xs" style={{ textShadow: '0 0 4px rgba(0, 0, 0, 0.5)' }}>
+                  {getFormInitial(form.name)}
+                </span>
+              </div>
+              <span className="text-sm text-gray-700 dark:text-gray-300 truncate max-w-32" title={form.name}>
+                {form.name.length > 20 ? form.name.substring(0, 20) + '...' : form.name}
+              </span>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Email Avatar Component
+function EmailAvatar({ formName }: { formName: string }) {
+  // Generate form initial
+  const getFormInitial = (name: string) => {
+    return (name || 'F')[0].toUpperCase();
+  };
+
+  // Generate consistent color based on form name
+  const getFormColor = (name: string) => {
+    if (!name) return 'bg-blue-600';
+    
+    // Create a hash from the entire form name for better distribution
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+      hash = ((hash << 5) - hash + name.charCodeAt(i)) & 0xffffffff;
+    }
+    
+    // Define a comprehensive set of distinct colors
+    const colors = [
+      'bg-blue-600',     // Blue
+      'bg-green-600',    // Green  
+      'bg-purple-600',   // Purple
+      'bg-red-600',      // Red
+      'bg-yellow-600',   // Yellow/Amber
+      'bg-indigo-600',   // Indigo
+      'bg-pink-600',     // Pink
+      'bg-teal-600',     // Teal
+      'bg-orange-600',   // Orange
+      'bg-cyan-600',     // Cyan
+      'bg-emerald-600',  // Emerald
+      'bg-rose-600',     // Rose
+      'bg-violet-600',   // Violet
+      'bg-amber-600',    // Amber
+      'bg-lime-600',     // Lime
+      'bg-sky-600',      // Sky
+      'bg-fuchsia-600',  // Fuchsia
+      'bg-slate-600',    // Slate
+    ];
+    
+    // Use absolute value to ensure positive index
+    const colorIndex = Math.abs(hash) % colors.length;
+    return colors[colorIndex];
+  };
+
+  const initial = getFormInitial(formName);
+  const colorClass = getFormColor(formName);
+
+  return (
+    <div className={`h-8 w-8 rounded-full ${colorClass} flex items-center justify-center shadow-sm flex-shrink-0 border-2 border-white`} title={`Form: ${formName || 'Unknown Form'}`}>
+      <span className="text-white font-black text-sm" style={{ textShadow: '0 0 4px rgba(0, 0, 0, 0.5)' }}>
+        {initial}
       </span>
     </div>
   );
 }
 
 // Submission Card Component
-function SubmissionCard({ submission }: { submission: Submission }) {
+function SubmissionCard({ submission, formSequenceNumber }: { submission: Submission; formSequenceNumber?: number }) {
   // Enhanced date formatting with better fallback handling
   const formatDate = (submission: Submission) => {
     // Check for various date field names the API might use
@@ -181,12 +260,17 @@ function SubmissionCard({ submission }: { submission: Submission }) {
       <CardContent className="p-4">
         <div className="flex items-start justify-between">
           <div className="flex items-start space-x-3 flex-1">
-            <EmailAvatar email={submission.email} />
+            <EmailAvatar formName={submission.form_name || 'Unknown Form'} />
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
                 <h3 className="text-sm font-medium text-gray-900 dark:text-white truncate">
                   {submission.form_name || 'Unknown Form'}
                 </h3>
+                {formSequenceNumber && (
+                  <Badge className="text-xs px-2 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300" title={`This is submission #${formSequenceNumber} for this specific form (Global database ID: ${submission.id})`}>
+                    #{formSequenceNumber}
+                  </Badge>
+                )}
                 <Badge className={`text-xs px-2 py-1 ${getStatusColor(submission.status)}`}>
                   <div className="flex items-center gap-1">
                     {getStatusIcon(submission.status)}
@@ -194,7 +278,7 @@ function SubmissionCard({ submission }: { submission: Submission }) {
                   </div>
                 </Badge>
               </div>
-              <p className="text-sm text-gray-600 dark:text-gray-300 mb-1">{submission.email}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-300 mb-1">{submission.email || 'No email provided'}</p>
               <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400 mb-2">
                 <span>{formatDate(submission)}</span>
                 {submission.ip_address && (
@@ -238,7 +322,8 @@ function SubmissionCard({ submission }: { submission: Submission }) {
                 // View submission details with all the enhanced information
                 const details = [
                   `Form: ${submission.form_name || 'Unknown'}`,
-                  `Email: ${submission.email}`,
+                  `Form Submission #${formSequenceNumber || 'Unknown'} (Global ID: ${submission.id})`,
+                  `Email: ${submission.email || 'No email provided'}`,
                   `Status: ${submission.status || 'unknown'}`,
                   `Date: ${formatDate(submission)}`,
                   `IP Address: ${submission.ip_address || 'N/A'}`,
@@ -421,10 +506,31 @@ function SubmissionsPageContent() {
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [selectedCountry, setSelectedCountry] = useState<string>('all');
   const [selectedThreatLevel, setSelectedThreatLevel] = useState<string>('all');
+  const [selectedTimeRange, setSelectedTimeRange] = useState<string>('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const { isCollapsed } = useSidebar();
+  const { markAsRead, unreadCount, lastChecked } = useNotifications();
+
+  // Mark notifications as read when page is visited
+  useEffect(() => {
+    if (unreadCount > 0) {
+      console.log('[SubmissionsPage] Marking notifications as read...');
+      markAsRead();
+    }
+  }, [markAsRead, unreadCount]);
+
+  // Show notification when page loads with unread count
+  useEffect(() => {
+    if (mounted && unreadCount > 0) {
+      toast({
+        title: 'New Submissions',
+        description: `You have ${unreadCount} new submission${unreadCount === 1 ? '' : 's'} to review.`,
+        variant: 'default'
+      });
+    }
+  }, [mounted, unreadCount]);
 
   // Prevent hydration mismatch by ensuring client-side only rendering for dynamic content
   useEffect(() => {
@@ -545,9 +651,9 @@ function SubmissionsPageContent() {
     // Text search (email, form name, or IP address)
     if (searchTerm) {
       filtered = filtered.filter(sub => 
-        sub.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        sub.form_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        sub.ip_address?.toLowerCase().includes(searchTerm.toLowerCase())
+        (sub.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (sub.form_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (sub.ip_address || '').toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
@@ -577,7 +683,41 @@ function SubmissionsPageContent() {
       });
     }
 
-    // Date range filter
+    // Time range filter (Recent submissions)
+    if (selectedTimeRange !== 'all') {
+      const now = new Date();
+      let cutoffDate = new Date();
+      
+      switch (selectedTimeRange) {
+        case '1hour':
+          cutoffDate.setHours(now.getHours() - 1);
+          break;
+        case '24hours':
+          cutoffDate.setDate(now.getDate() - 1);
+          break;
+        case '7days':
+          cutoffDate.setDate(now.getDate() - 7);
+          break;
+        case '30days':
+          cutoffDate.setDate(now.getDate() - 30);
+          break;
+        case 'since_last_check':
+          cutoffDate = lastChecked || new Date(Date.now() - 24 * 60 * 60 * 1000); // Default to 24 hours ago
+          break;
+      }
+      
+      filtered = filtered.filter(sub => {
+        const dateStr = sub.submitted_at || sub.date || sub.created_at || sub.timestamp || null;
+        if (!dateStr) return false;
+        
+        const subDate = new Date(dateStr);
+        if (isNaN(subDate.getTime())) return false;
+        
+        return subDate >= cutoffDate;
+      });
+    }
+
+    // Date range filter (overrides time range filter)
     if (dateFrom || dateTo) {
       filtered = filtered.filter(sub => {
         // Use the same date field priority as formatDate function
@@ -594,7 +734,7 @@ function SubmissionsPageContent() {
     }
 
     setFilteredSubmissions(filtered);
-  }, [submissions, searchTerm, selectedForm, selectedStatus, selectedCountry, selectedThreatLevel, dateFrom, dateTo]);
+  }, [submissions, searchTerm, selectedForm, selectedStatus, selectedCountry, selectedThreatLevel, selectedTimeRange, dateFrom, dateTo, lastChecked]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -675,7 +815,7 @@ function SubmissionsPageContent() {
       ['Form', 'Email', 'Status', 'Date', 'IP Address', 'Country', 'City', 'Threat Score'],
       ...filteredSubmissions.map(sub => [
         sub.form_name || 'Unknown Form',
-        sub.email,
+        sub.email || 'No email provided',
         sub.status,
         sub.submitted_at || sub.date || '',
         sub.ip_address || '',
@@ -731,6 +871,7 @@ function SubmissionsPageContent() {
     setSelectedStatus('all');
     setSelectedCountry('all');
     setSelectedThreatLevel('all');
+    setSelectedTimeRange('all');
     setDateFrom('');
     setDateTo('');
   };
@@ -750,8 +891,19 @@ function SubmissionsPageContent() {
                   </Link>
                 </Button>
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Form Submissions</h1>
-                  <p className="text-gray-600 dark:text-gray-300">Track and manage all your form submissions</p>
+                  <div className="flex items-center gap-2">
+                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Form Submissions</h1>
+                    <Button
+                      onClick={() => {
+                        alert(`Form Numbering System:\n\n• Blue badges (#1, #2, #3...) show form-specific sequence numbers\n• Each form has its own counting sequence starting from #1\n• Global database IDs are shown in tooltips and detailed views\n• This gives you both user-friendly numbering and technical precision\n\nHover over any blue # badge to see the global database ID.`);
+                      }}
+                      className="bg-transparent hover:bg-gray-100 dark:hover:bg-gray-700 text-blue-600 dark:text-blue-400 p-1 h-6 w-6 text-xs"
+                      title="Learn about form numbering system"
+                    >
+                      ?
+                    </Button>
+                  </div>
+                  <p className="text-gray-600 dark:text-gray-300">Track and manage all your form submissions. Each form has its own numbering sequence (#1, #2, #3...)</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -789,6 +941,32 @@ function SubmissionsPageContent() {
                           {Array.from(new Set(submissions.map(s => s.form_name).filter(Boolean))).map(formName => (
                             <SelectItem key={formName} value={formName!}>{formName}</SelectItem>
                           ))}
+                        </SelectContent>
+                      </Select>
+                      
+                      <Select value={selectedTimeRange} onValueChange={setSelectedTimeRange}>
+                        <SelectTrigger className="w-40">
+                          <SelectValue placeholder="Time Range" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Time</SelectItem>
+                          <SelectItem value="1hour">
+                            <div className="flex items-center gap-2">
+                              <BellRing className="h-3 w-3" />
+                              Last Hour
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="24hours">Last 24 Hours</SelectItem>
+                          <SelectItem value="7days">Last 7 Days</SelectItem>
+                          <SelectItem value="30days">Last 30 Days</SelectItem>
+                          {lastChecked && (
+                            <SelectItem value="since_last_check">
+                              <div className="flex items-center gap-2">
+                                <BellRing className="h-3 w-3 text-blue-500" />
+                                Since Last Visit
+                              </div>
+                            </SelectItem>
+                          )}
                         </SelectContent>
                       </Select>
                       
@@ -886,7 +1064,7 @@ function SubmissionsPageContent() {
                   </div>
 
                   {/* Filter Summary and Clear */}
-                  {(searchTerm || selectedForm !== 'all' || selectedStatus !== 'all' || selectedCountry !== 'all' || selectedThreatLevel !== 'all' || dateFrom || dateTo) && (
+                  {(searchTerm || selectedForm !== 'all' || selectedStatus !== 'all' || selectedCountry !== 'all' || selectedThreatLevel !== 'all' || selectedTimeRange !== 'all' || dateFrom || dateTo) && (
                     <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-gray-700">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-sm text-gray-600 dark:text-gray-300">Active filters:</span>
@@ -898,6 +1076,16 @@ function SubmissionsPageContent() {
                         {selectedForm !== 'all' && (
                           <Badge variant="secondary" className="text-xs">
                             Form: {selectedForm}
+                          </Badge>
+                        )}
+                        {selectedTimeRange !== 'all' && (
+                          <Badge variant="secondary" className="text-xs flex items-center gap-1">
+                            <BellRing className="h-3 w-3" />
+                            Time: {selectedTimeRange === 'since_last_check' ? 'Since Last Visit' : 
+                                   selectedTimeRange === '1hour' ? 'Last Hour' :
+                                   selectedTimeRange === '24hours' ? 'Last 24 Hours' :
+                                   selectedTimeRange === '7days' ? 'Last 7 Days' :
+                                   selectedTimeRange === '30days' ? 'Last 30 Days' : selectedTimeRange}
                           </Badge>
                         )}
                         {selectedStatus !== 'all' && (
@@ -944,11 +1132,30 @@ function SubmissionsPageContent() {
             <EmptyState />
           ) : (
             <>
+              <FormColorLegend forms={forms} />
               <SubmissionStats submissions={filteredSubmissions} />
               <div className="space-y-4">
-                {filteredSubmissions.map((submission) => (
-                  <SubmissionCard key={submission.id} submission={submission} />
-                ))}
+                {filteredSubmissions.map((submission, index) => {
+                  // Calculate form-specific sequence number
+                  // Find all submissions for this form and determine the sequence number
+                  const formSubmissions = submissions
+                    .filter(s => s.form_id === submission.form_id)
+                    .sort((a, b) => {
+                      const dateA = new Date(a.submitted_at || a.date || a.created_at || a.timestamp || 0).getTime();
+                      const dateB = new Date(b.submitted_at || b.date || b.created_at || b.timestamp || 0).getTime();
+                      return dateA - dateB; // Oldest first
+                    });
+                  
+                  const formSequenceNumber = formSubmissions.findIndex(s => s.id === submission.id) + 1;
+                  
+                  return (
+                    <SubmissionCard 
+                      key={submission.id} 
+                      submission={submission} 
+                      formSequenceNumber={formSequenceNumber}
+                    />
+                  );
+                })}
               </div>
             </>
           )}

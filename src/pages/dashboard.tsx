@@ -44,39 +44,23 @@ import {
   Zap
 } from 'lucide-react';
 
-// Simple avatar component for email initials
+// Professional avatar component for email initials
 function EmailAvatar({ email }: { email: string }) {
-  const getInitials = (email: string) => {
-    if (!email) return '?';
-    return email.charAt(0).toUpperCase();
-  };
-
-  const getAvatarColor = (email: string) => {
-    if (!email) return 'from-gray-400 to-gray-600';
-    const colors = [
-      'from-blue-400 to-blue-600',
-      'from-green-400 to-green-600', 
-      'from-purple-400 to-purple-600',
-      'from-pink-400 to-pink-600',
-      'from-indigo-400 to-indigo-600',
-      'from-teal-400 to-teal-600',
-      'from-orange-400 to-orange-600',
-      'from-red-400 to-red-600'
-    ];
-    const index = email.charCodeAt(0) % colors.length;
-    return colors[index];
+  const getInitials = (email: string, name: string) => {
+    // Always return "F" for FormHook branding
+    return "F";
   };
 
   return (
-    <div className={`h-10 w-10 rounded-full bg-gradient-to-r ${getAvatarColor(email)} flex items-center justify-center shadow-sm`}>
+    <div className="h-10 w-10 rounded-md bg-slate-600 dark:bg-slate-700 flex items-center justify-center border border-slate-300 dark:border-slate-600">
       <span className="text-white font-semibold text-sm">
-        {getInitials(email)}
+        F
       </span>
     </div>
   );
 }
 
-// Simple avatar component for form names
+// Professional avatar component for form names
 function FormAvatar({ name }: { name: string }) {
   const getInitials = (name: string) => {
     if (!name) return '?';
@@ -88,23 +72,24 @@ function FormAvatar({ name }: { name: string }) {
   };
 
   const getAvatarColor = (name: string) => {
-    if (!name) return 'from-gray-400 to-gray-600';
+    if (!name) return 'bg-slate-400 dark:bg-slate-600';
+    // Professional slate-based colors only
     const colors = [
-      'from-blue-400 to-blue-600',
-      'from-green-400 to-green-600', 
-      'from-purple-400 to-purple-600',
-      'from-pink-400 to-pink-600',
-      'from-indigo-400 to-indigo-600',
-      'from-teal-400 to-teal-600',
-      'from-orange-400 to-orange-600',
-      'from-red-400 to-red-600'
+      'bg-slate-500 dark:bg-slate-600',
+      'bg-slate-600 dark:bg-slate-700', 
+      'bg-slate-700 dark:bg-slate-800',
+      'bg-slate-500 dark:bg-slate-600',
+      'bg-slate-600 dark:bg-slate-700',
+      'bg-slate-700 dark:bg-slate-800',
+      'bg-slate-500 dark:bg-slate-600',
+      'bg-slate-600 dark:bg-slate-700'
     ];
     const index = name.charCodeAt(0) % colors.length;
     return colors[index];
   };
 
   return (
-    <div className={`h-10 w-10 rounded-lg bg-gradient-to-r ${getAvatarColor(name)} flex items-center justify-center shadow-sm`}>
+    <div className={`h-10 w-10 rounded-md ${getAvatarColor(name)} flex items-center justify-center border border-slate-300 dark:border-slate-600`}>
       <span className="text-white font-semibold text-sm">
         {getInitials(name)}
       </span>
@@ -131,14 +116,14 @@ function ModernTrendChart({ data, trendRange, chartType, onChartTypeChange, onTr
   const hasData = Array.isArray(data) && data.length > 0;
   
   return (
-    <Card className="w-full bg-white/95 dark:bg-gray-900/95 border-0 shadow-xl rounded-2xl backdrop-blur-sm">
+    <Card className="pro-card">
       <CardHeader className="pb-6">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div className="space-y-2">
-            <CardTitle className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            <CardTitle className="text-xl font-semibold text-slate-900 dark:text-slate-100">
               Submissions Trend
             </CardTitle>
-            <CardDescription className="text-gray-600 dark:text-gray-400">
+            <CardDescription className="text-slate-600 dark:text-slate-400">
               {trendRange === 'today' && 'Track your form submissions for today'}
               {trendRange === 'yesterday' && 'Yesterday\'s form submission activity'}
               {trendRange === '7d' && 'Submission trends over the last week'}
@@ -191,22 +176,15 @@ function ModernTrendChart({ data, trendRange, chartType, onChartTypeChange, onTr
                     tickLine={false} 
                   />
                   <Tooltip 
-                    cursor={{ fill: 'rgba(99, 102, 241, 0.1)' }} 
+                    cursor={{ fill: 'rgba(71, 85, 105, 0.1)' }} 
                     contentStyle={{ 
                       background: '#fff', 
-                      borderRadius: 12, 
+                      borderRadius: 8, 
                       border: '1px solid #e2e8f0',
-                      boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
+                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
                     }} 
                   />
-                  <Bar dataKey="count" fill="url(#barGradient)" radius={[4, 4, 0, 0]}>
-                    <defs>
-                      <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#6366f1" />
-                        <stop offset="100%" stopColor="#8b5cf6" />
-                      </linearGradient>
-                    </defs>
-                  </Bar>
+                  <Bar dataKey="count" fill="#64748b" radius={[4, 4, 0, 0]} />
                 </BarChart>
               ) : chartType === 'line' ? (
                 <LineChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
@@ -227,18 +205,18 @@ function ModernTrendChart({ data, trendRange, chartType, onChartTypeChange, onTr
                   <Tooltip 
                     contentStyle={{ 
                       background: '#fff', 
-                      borderRadius: 12, 
+                      borderRadius: 8, 
                       border: '1px solid #e2e8f0',
-                      boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
+                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
                     }} 
                   />
                   <Line 
                     type="monotone" 
                     dataKey="count" 
-                    stroke="#6366f1" 
-                    strokeWidth={3} 
-                    dot={{ r: 6, fill: '#6366f1' }}
-                    activeDot={{ r: 8, fill: '#8b5cf6' }}
+                    stroke="#64748b" 
+                    strokeWidth={2} 
+                    dot={{ r: 4, fill: '#64748b' }}
+                    activeDot={{ r: 6, fill: '#475569' }}
                   />
                 </LineChart>
               ) : (
@@ -260,36 +238,29 @@ function ModernTrendChart({ data, trendRange, chartType, onChartTypeChange, onTr
                   <Tooltip 
                     contentStyle={{ 
                       background: '#fff', 
-                      borderRadius: 12, 
+                      borderRadius: 8, 
                       border: '1px solid #e2e8f0',
-                      boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
+                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
                     }} 
                   />
                   <Area 
                     type="monotone" 
                     dataKey="count" 
-                    stroke="#6366f1" 
-                    fill="url(#areaGradient)" 
-                    strokeWidth={3} 
-                  >
-                    <defs>
-                      <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#6366f1" stopOpacity={0.3} />
-                        <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0.1} />
-                      </linearGradient>
-                    </defs>
-                  </Area>
+                    stroke="#64748b" 
+                    fill="rgba(100, 116, 139, 0.1)" 
+                    strokeWidth={2} 
+                  />
                 </AreaChart>
               )
             ) : (
               <div className="w-full h-full flex items-center justify-center">
                 <div className="text-center space-y-4">
-                  <div className="bg-gray-100 dark:bg-gray-800 rounded-full p-6 w-20 h-20 flex items-center justify-center mx-auto">
-                    <BarChart3 className="h-10 w-10 text-gray-400 dark:text-gray-500" />
+                  <div className="bg-slate-100 dark:bg-slate-800 rounded-md p-6 w-20 h-20 flex items-center justify-center mx-auto">
+                    <BarChart3 className="h-10 w-10 text-slate-400 dark:text-slate-500" />
                   </div>
                   <div>
-                    <p className="text-gray-900 dark:text-white text-lg font-semibold mb-1">No data available</p>
-                    <p className="text-gray-600 dark:text-gray-300 text-sm">Data will appear here once you have form submissions</p>
+                    <p className="text-slate-900 dark:text-slate-100 text-lg font-semibold mb-1">No data available</p>
+                    <p className="text-slate-600 dark:text-slate-400 text-sm">Data will appear here once you have form submissions</p>
                   </div>
                 </div>
               </div>
@@ -325,18 +296,18 @@ function RecentSubmissionsCard({ submissions, loading }: { submissions: any[]; l
   }
 
   return (
-    <Card className="bg-white/95 dark:bg-gray-900/95 border-0 shadow-xl rounded-2xl backdrop-blur-sm">
+    <Card className="pro-card">
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="text-xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent">
+            <CardTitle className="text-xl font-semibold text-slate-900 dark:text-slate-100">
               Recent Submissions
             </CardTitle>
-            <CardDescription className="text-gray-600 dark:text-gray-400">
+            <CardDescription className="text-slate-600 dark:text-slate-400">
               Latest form submissions from your users
             </CardDescription>
           </div>
-          <Button asChild className="border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 bg-transparent flex items-center gap-2 text-sm px-3 py-2 h-8">
+          <Button asChild className="pro-btn-secondary flex items-center gap-2 text-sm px-3 py-2 h-8">
             <Link href="/submissions">
               <ExternalLink className="h-4 w-4" />
               View All
@@ -348,19 +319,19 @@ function RecentSubmissionsCard({ submissions, loading }: { submissions: any[]; l
         {submissions && submissions.length > 0 ? (
           <div className="space-y-4">
             {submissions.slice(0, 5).map((sub, i) => (
-              <div key={i} className="flex items-center justify-between p-4 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm">
+              <div key={i} className="flex items-center justify-between p-4 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-750 transition-colors">
                 <div className="flex items-center space-x-4">
                   <EmailAvatar email={sub.email || ''} />
                   <div>
-                    <p className="font-medium text-gray-900 dark:text-white">{sub.form_name || 'Untitled Form'}</p>
-                    <p className="text-sm text-gray-600 dark:text-gray-300">{sub.email || 'No email'}</p>
+                    <p className="font-medium text-slate-900 dark:text-slate-100">{sub.form_name || 'Untitled Form'}</p>
+                    <p className="text-sm text-slate-600 dark:text-slate-400">{sub.email || 'No email'}</p>
                   </div>
                 </div>
                 <div className="text-right">
                   <Badge variant={sub.status === 'success' ? 'default' : 'destructive'} className="mb-1">
                     {sub.status || 'unknown'}
                   </Badge>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
                     {sub.date ? new Date(sub.date).toLocaleDateString() : '-'}
                   </p>
                 </div>
@@ -369,12 +340,12 @@ function RecentSubmissionsCard({ submissions, loading }: { submissions: any[]; l
           </div>
         ) : (
           <div className="text-center py-12 space-y-4">
-            <div className="bg-gray-100 dark:bg-gray-800 rounded-full p-6 w-24 h-24 flex items-center justify-center mx-auto">
-              <Activity className="h-12 w-12 text-gray-400 dark:text-gray-500" />
+            <div className="bg-slate-100 dark:bg-slate-800 rounded-md p-6 w-24 h-24 flex items-center justify-center mx-auto">
+              <Activity className="h-12 w-12 text-slate-400 dark:text-slate-500" />
             </div>
             <div>
-              <p className="text-gray-900 dark:text-white text-lg font-semibold mb-1">No submissions yet</p>
-              <p className="text-gray-600 dark:text-gray-300 text-sm">Form submissions will appear here once users start filling out your forms</p>
+              <p className="text-slate-900 dark:text-slate-100 text-lg font-semibold mb-1">No submissions yet</p>
+              <p className="text-slate-600 dark:text-slate-400 text-sm">Form submissions will appear here once users start filling out your forms</p>
             </div>
           </div>
         )}
@@ -385,27 +356,27 @@ function RecentSubmissionsCard({ submissions, loading }: { submissions: any[]; l
 
 function QuickActionsCard() {
   return (
-    <Card className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-xl rounded-2xl">
-      <CardHeader className="border-b border-gray-200 dark:border-gray-700">
-        <CardTitle className="text-xl font-bold text-gray-900 dark:text-white">Quick Actions</CardTitle>
-        <CardDescription className="text-gray-600 dark:text-gray-300">
+    <Card className="pro-card">
+      <CardHeader className="border-b border-slate-200 dark:border-slate-700">
+        <CardTitle className="text-xl font-semibold text-slate-900 dark:text-slate-100">Quick Actions</CardTitle>
+        <CardDescription className="text-slate-600 dark:text-slate-400">
           Common tasks to manage your forms
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3 pt-6">
-        <Button asChild className="w-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm">
+        <Button asChild className="pro-btn-primary w-full">
           <Link href="/forms/new" className="flex items-center gap-2 justify-center">
             <Plus className="h-4 w-4" />
             Create New Form
           </Link>
         </Button>
-        <Button asChild className="w-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-900 dark:text-white border-0">
+        <Button asChild className="pro-btn-secondary w-full">
           <Link href="/forms" className="flex items-center gap-2 justify-center">
             <FileText className="h-4 w-4" />
             Manage Forms
           </Link>
         </Button>
-        <Button asChild className="w-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-900 dark:text-white border-0">
+        <Button asChild className="pro-btn-secondary w-full">
           <Link href="/webhooks" className="flex items-center gap-2 justify-center">
             <Webhook className="h-4 w-4" />
             Configure Webhooks
@@ -451,7 +422,7 @@ function DashboardContent({
 
   return (
     <>
-      <DashboardNav notificationCount={notificationCount} />
+      <DashboardNav />
       
       <div className="space-y-8">
         {/* Welcome Section */}
@@ -526,14 +497,14 @@ function DashboardContent({
           </div>
         </div>
 
-        {/* Analytics Charts */}
+        {/* Professional Analytics Charts */}
         <div className="space-y-6">
-          <Card className="bg-white/95 dark:bg-gray-900/95 border-0 shadow-xl rounded-2xl backdrop-blur-sm">
+          <Card className="pro-card">
             <CardHeader>
-              <CardTitle className="text-xl font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
+              <CardTitle className="text-xl font-semibold text-slate-900 dark:text-slate-100">
                 Submissions vs Errors Analytics
               </CardTitle>
-              <CardDescription className="text-gray-600 dark:text-gray-400">
+              <CardDescription className="text-slate-600 dark:text-slate-400">
                 Detailed breakdown of successful submissions and errors over time
               </CardDescription>
             </CardHeader>
@@ -550,18 +521,18 @@ function DashboardContent({
                 description="Stacked bar chart of submissions and errors by day."
                 label1="Submissions"
                 label2="Errors"
-                color1="#6366f1"
-                color2="#f43f5e"
+                color1="#64748b"
+                color2="#ef4444"
               />
             </CardContent>
           </Card>
 
-          <Card className="bg-white/95 dark:bg-gray-900/95 border-0 shadow-xl rounded-2xl backdrop-blur-sm">
+          <Card className="pro-card">
             <CardHeader>
-              <CardTitle className="text-xl font-bold bg-gradient-to-r from-teal-600 to-green-600 bg-clip-text text-transparent">
+              <CardTitle className="text-xl font-semibold text-slate-900 dark:text-slate-100">
                 Interactive Analytics Dashboard
               </CardTitle>
-              <CardDescription className="text-gray-600 dark:text-gray-400">
+              <CardDescription className="text-slate-600 dark:text-slate-400">
                 Advanced analytics with customizable time ranges and metrics
               </CardDescription>
             </CardHeader>
@@ -575,22 +546,22 @@ function DashboardContent({
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <RecentSubmissionsCard submissions={recentSubmissions} loading={loading} />
           
-          <Card className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-xl rounded-2xl">
-            <CardHeader className="border-b border-gray-200 dark:border-gray-700">
+          <Card className="pro-card">
+            <CardHeader className="border-b border-slate-200 dark:border-slate-700">
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="text-xl font-bold text-gray-900 dark:text-white">
+                  <CardTitle className="text-xl font-semibold text-slate-900 dark:text-slate-100">
                     Your Forms
                   </CardTitle>
-                  <CardDescription className="text-gray-600 dark:text-gray-300">
+                  <CardDescription className="text-slate-600 dark:text-slate-400">
                     Quick overview of your active forms
                   </CardDescription>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button className="border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 bg-transparent text-sm px-3 py-2 h-8" onClick={handleRefresh} disabled={refreshing}>
+                  <Button className="pro-btn-secondary text-sm px-3 py-2 h-8" onClick={handleRefresh} disabled={refreshing}>
                     <RefreshCcw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
                   </Button>
-                  <Button asChild className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm px-3 py-2 h-8">
+                  <Button asChild className="pro-btn-primary text-sm px-3 py-2 h-8">
                     <Link href="/forms">View All</Link>
                   </Button>
                 </div>
@@ -601,7 +572,7 @@ function DashboardContent({
                 <div className="space-y-4">
                   {[...Array(3)].map((_, i) => (
                     <div key={i} className="flex items-center space-x-4">
-                      <Skeleton className="h-12 w-12 rounded-lg" />
+                      <Skeleton className="h-12 w-12 rounded-md" />
                       <div className="space-y-2 flex-1">
                         <Skeleton className="h-4 w-3/4" />
                         <Skeleton className="h-3 w-1/2" />
@@ -612,17 +583,17 @@ function DashboardContent({
               ) : forms && forms.length > 0 ? (
                 <div className="space-y-4">
                   {forms.slice(0, 4).map((form, i) => (
-                    <div key={form.id} className="flex items-center justify-between p-4 rounded-lg bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <div key={form.id} className="flex items-center justify-between p-4 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-750 transition-colors">
                       <div className="flex items-center space-x-4">
                         <FormAvatar name={form.name} />
                         <div>
-                          <p className="font-medium text-gray-900 dark:text-white">{form.name}</p>
-                          <p className="text-sm text-gray-600 dark:text-gray-300">
+                          <p className="font-medium text-slate-900 dark:text-slate-100">{form.name}</p>
+                          <p className="text-sm text-slate-600 dark:text-slate-400">
                             {form.created_at ? new Date(form.created_at).toLocaleDateString() : 'Recently created'}
                           </p>
                         </div>
                       </div>
-                      <Button asChild className="bg-transparent hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white border-0 text-sm px-3 py-2 h-8">
+                      <Button asChild className="pro-btn-secondary text-sm px-3 py-2 h-8">
                         <Link href={`/forms/${form.id}`} className="flex items-center gap-1">
                           <ExternalLink className="h-3 w-3" />
                           View
@@ -633,13 +604,13 @@ function DashboardContent({
                 </div>
               ) : (
                 <div className="text-center py-12 space-y-4">
-                  <div className="bg-indigo-100 dark:bg-indigo-900/30 rounded-full p-8 w-20 h-20 flex items-center justify-center mx-auto border border-indigo-200 dark:border-indigo-800">
-                    <FileText className="h-10 w-10 text-indigo-600 dark:text-indigo-400" />
+                  <div className="bg-slate-100 dark:bg-slate-800 rounded-md p-8 w-20 h-20 flex items-center justify-center mx-auto">
+                    <FileText className="h-10 w-10 text-slate-400 dark:text-slate-500" />
                   </div>
                   <div>
-                    <p className="text-gray-900 dark:text-white text-lg font-semibold mb-2">No forms yet</p>
-                    <p className="text-gray-600 dark:text-gray-300 text-sm mb-4">Create your first form to get started</p>
-                    <Button asChild className="bg-indigo-600 hover:bg-indigo-700 text-white">
+                    <p className="text-slate-900 dark:text-slate-100 text-lg font-semibold mb-2">No forms yet</p>
+                    <p className="text-slate-600 dark:text-slate-400 text-sm mb-4">Create your first form to get started</p>
+                    <Button asChild className="pro-btn-primary">
                       <Link href="/forms/new" className="flex items-center gap-2">
                         <Plus className="h-4 w-4" />
                         Create Form
@@ -680,6 +651,7 @@ function DashboardPageImpl() {
   const [analyticsRange, setAnalyticsRange] = useState('7d');
 
   useEffect(() => {
+    // Set hydrated immediately to reduce flashing
     setHydrated(true);
     
     // Suppress annoying browser extension errors in console
@@ -832,20 +804,19 @@ function DashboardPageImpl() {
 
   return (
     <AuthLayout>
-      <BottomGradientRadial>
-        <div className={`min-h-screen flex flex-col ${isCollapsed ? 'md:ml-16' : 'md:ml-56'} transition-all duration-300 ease-in-out`}>
-          <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-12">
-            {(!hydrated || !user) ? (
-              <div className="flex items-center justify-center h-full min-h-[60vh]">
-                <div className="text-center space-y-4">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
-                  <span className="text-gray-600 text-lg font-medium">
-                    {!hydrated ? 'Loading dashboard...' : 'Redirecting to login...'}
-                  </span>
-                </div>
+      <div className={`min-h-screen flex flex-col bg-slate-50 dark:bg-slate-900 ${isCollapsed ? 'md:ml-16' : 'md:ml-56'} transition-all duration-300 ease-in-out`}>
+        <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-12">
+          {(!hydrated || !user) ? (
+            <div className="flex items-center justify-center h-full min-h-[60vh]">
+              <div className="text-center space-y-4">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-600 mx-auto"></div>
+                <span className="text-slate-600 text-lg font-medium">
+                  {!hydrated ? 'Loading dashboard...' : 'Redirecting to login...'}
+                </span>
               </div>
-            ) : (
-              <DashboardContent
+            </div>
+          ) : (
+            <DashboardContent
                 user={user}
                 forms={forms}
                 loading={loading}
@@ -873,7 +844,6 @@ function DashboardPageImpl() {
             )}
           </main>
         </div>
-      </BottomGradientRadial>
     </AuthLayout>
   );
 }

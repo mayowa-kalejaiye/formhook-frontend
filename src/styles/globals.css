@@ -6,6 +6,31 @@ body {
   @apply bg-gray-50 text-gray-900;
 }
 
+/* Prevent flash of invisible content */
+.dashboard-button, .dashboard-title, .create-form-button {
+  opacity: 1 !important;
+  visibility: visible !important;
+  color: inherit !important;
+}
+
+/* Ensure buttons are always visible */
+button[class*="bg-gradient"], 
+button[class*="bg-blue"], 
+button[class*="bg-purple"],
+a[class*="bg-gradient"],
+a[class*="bg-blue"], 
+a[class*="bg-purple"] {
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* Ensure text visibility */
+h1, h2, h3, h4, h5, h6,
+[class*="text-"],
+[class*="font-"] {
+  opacity: 1 !important;
+  visibility: visible !important;
+}
 
 @layer base {
   :root {

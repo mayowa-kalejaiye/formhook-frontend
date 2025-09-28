@@ -139,7 +139,7 @@ export function ChartBarStackedAnalytics({
               <BarChart3 className="h-5 w-5" />
             </div>
             <div>
-              <CardTitle className="text-xl font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
+              <CardTitle className="text-xl font-bold text-orange-800 dark:text-orange-200">
                 {title}
               </CardTitle>
               {description && (

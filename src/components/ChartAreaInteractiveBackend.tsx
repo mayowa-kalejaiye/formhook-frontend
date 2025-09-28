@@ -4,6 +4,7 @@ import { Area, AreaChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer, Tool
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { TrendingUp, Monitor, Smartphone, Calendar } from "lucide-react";
+import { getDashboardAnalytics } from "../services/api";
 
 const chartConfig = {
   desktop: {
@@ -79,24 +80,41 @@ function CustomAreaTooltip({ active, payload, label }: any) {
 export function ChartAreaInteractiveBackend({ range, setRange }: { range: string; setRange: (v: string) => void }) {
   const [data, setData] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    setLoading(true);
-    // Generate mock data for demonstration
-    const mockData = [
-      { date: '2025-09-16T12:00:00.000Z', desktop: 186, mobile: 80 },
-      { date: '2025-09-17T12:00:00.000Z', desktop: 305, mobile: 200 },
-      { date: '2025-09-18T12:00:00.000Z', desktop: 237, mobile: 120 },
-      { date: '2025-09-19T12:00:00.000Z', desktop: 73, mobile: 190 },
-      { date: '2025-09-20T12:00:00.000Z', desktop: 209, mobile: 130 },
-      { date: '2025-09-21T12:00:00.000Z', desktop: 214, mobile: 140 },
-      { date: '2025-09-22T12:00:00.000Z', desktop: 178, mobile: 98 },
-    ];
-    
-    setTimeout(() => {
-      setData(mockData);
-      setLoading(false);
-    }, 800);
+    const fetchAnalytics = async () => {
+      setLoading(true);
+      setError(null);
+      
+      try {
+        console.log('[ChartAreaInteractiveBackend] Fetching analytics for range:', range);
+        const response = await getDashboardAnalytics({ range });
+        
+        if (response && response.analytics && Array.isArray(response.analytics)) {
+          // Transform the analytics data to match chart format
+          const chartData = response.analytics.map((item: any) => ({
+            date: item.date || item.timestamp || new Date().toISOString(),
+            desktop: Math.floor((item.value1 || item.submissions || 0) * 0.6), // Assume 60% desktop
+            mobile: Math.floor((item.value1 || item.submissions || 0) * 0.4), // Assume 40% mobile
+          }));
+          
+          console.log('[ChartAreaInteractiveBackend] Transformed data:', chartData);
+          setData(chartData);
+        } else {
+          console.log('[ChartAreaInteractiveBackend] No analytics data available');
+          setData([]);
+        }
+      } catch (err) {
+        console.error('[ChartAreaInteractiveBackend] Error fetching analytics:', err);
+        setError('Failed to load analytics data');
+        setData([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAnalytics();
   }, [range]);
 
   // Calculate summary stats
@@ -162,7 +180,7 @@ export function ChartAreaInteractiveBackend({ range, setRange }: { range: string
               <div className="p-2 rounded-lg bg-gradient-to-r from-teal-500 to-green-500 text-white">
                 <TrendingUp className="h-5 w-5" />
               </div>
-              <CardTitle className="text-xl font-bold bg-gradient-to-r from-teal-600 to-green-600 bg-clip-text text-transparent">
+              <CardTitle className="text-xl font-bold text-teal-800 dark:text-teal-200">
                 Interactive Analytics Dashboard
               </CardTitle>
             </div>
@@ -188,6 +206,18 @@ export function ChartAreaInteractiveBackend({ range, setRange }: { range: string
                 <div className="text-center space-y-4">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mx-auto"></div>
                   <p className="text-teal-600 dark:text-teal-400 font-medium">Loading analytics...</p>
+                </div>
+              </div>
+            ) : error ? (
+              <div className="h-full flex items-center justify-center">
+                <div className="text-center space-y-4">
+                  <div className="bg-red-100 dark:bg-red-900/20 rounded-full p-6 w-16 h-16 flex items-center justify-center mx-auto">
+                    <TrendingUp className="h-8 w-8 text-red-500" />
+                  </div>
+                  <div>
+                    <p className="text-red-900 dark:text-red-100 text-lg font-semibold mb-1">Error Loading Data</p>
+                    <p className="text-red-600 dark:text-red-300 text-sm">{error}</p>
+                  </div>
                 </div>
               </div>
             ) : data.length === 0 ? (

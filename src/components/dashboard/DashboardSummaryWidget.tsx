@@ -196,10 +196,10 @@ export default function DashboardSummaryWidget({
         <CardHeader>
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div>
-              <CardTitle className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              <CardTitle className="text-2xl font-bold text-blue-800 dark:text-blue-200 text-opacity-100">
                 Dashboard Overview
               </CardTitle>
-              <CardDescription className="text-gray-600 dark:text-gray-400 mt-1">
+              <CardDescription className="text-gray-600 dark:text-gray-400 mt-1 opacity-100">
                 Real-time insights and quick actions for your forms and submissions
               </CardDescription>
             </div>
@@ -212,10 +212,20 @@ export default function DashboardSummaryWidget({
                 <RefreshCcw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
                 Refresh
               </Button>
-              <Button asChild className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white">
-                <Link href="/forms/new" className="flex items-center gap-2">
-                  <Plus className="h-4 w-4" />
-                  Create Form
+              <Button 
+                asChild 
+                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg border border-blue-500 font-bold px-4 py-2 min-w-[140px] opacity-100"
+                style={{ 
+                  background: 'linear-gradient(to right, #2563eb, #9333ea)',
+                  color: 'white',
+                  visibility: 'visible',
+                  opacity: 1,
+                  display: 'flex'
+                }}
+              >
+                <Link href="/forms/new" className="flex items-center gap-2 font-semibold text-white no-underline">
+                  <Plus className="h-4 w-4 text-white flex-shrink-0" />
+                  <span className="text-white font-semibold">Create Form</span>
                 </Link>
               </Button>
             </div>

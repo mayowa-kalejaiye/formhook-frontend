@@ -15,9 +15,8 @@ interface WelcomeBlockProps {
 
 export default function WelcomeBlock({ username, userEmail, stats }: WelcomeBlockProps) {
   const getInitials = (email: string, name: string) => {
-    if (email) return email.charAt(0).toUpperCase();
-    if (name) return name.charAt(0).toUpperCase();
-    return 'U';
+    // Always return 'F' for FormHook
+    return 'F';
   };
 
   const handleExportCSV = () => {
@@ -42,23 +41,23 @@ export default function WelcomeBlock({ username, userEmail, stats }: WelcomeBloc
   };
 
   return (
-    <Card className="w-full bg-white dark:bg-gray-800 shadow-xl rounded-2xl p-8 flex flex-col md:flex-row items-center justify-between border border-gray-200 dark:border-gray-700 relative overflow-hidden">
-      {/* Subtle accent border */}
-      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 to-purple-500"></div>
+    <Card className="w-full bg-white dark:bg-gray-800 shadow-xl rounded-2xl p-8 flex flex-col md:flex-row items-center justify-between border border-gray-200 dark:border-gray-700 relative overflow-hidden opacity-100" style={{ visibility: 'visible', opacity: 1 }}>
+      {/* Enhanced FormHook blue accent border */}
+      <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-blue-600 to-blue-400 rounded-t-2xl"></div>
       
       <div className="flex items-center gap-6 z-10">
-        <div className="h-16 w-16 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center shadow-lg">
-          <span className="text-2xl font-bold text-white">
-            {getInitials(userEmail || '', username)}
+        <div className="h-16 w-16 rounded-full bg-blue-600 flex items-center justify-center shadow-lg border-4 border-white" style={{ visibility: 'visible', opacity: 1 }}>
+          <span className="text-3xl font-black text-white dashboard-title" style={{ textShadow: '1px 1px 2px rgba(0,0,0,0.5)', visibility: 'visible', opacity: 1 }}>
+            F
           </span>
         </div>
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-2">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-2 dashboard-title" style={{ visibility: 'visible', opacity: 1 }}>
             Welcome back, {username}!
           </h1>
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-6">
             <span className="text-gray-600 dark:text-gray-300 font-medium flex items-center gap-1">
-              <span className="text-indigo-600 dark:text-indigo-400 font-bold">{stats.submissions}</span> 
+              <span className="text-blue-600 dark:text-blue-400 font-bold">{stats.submissions}</span> 
               submissions this week
             </span>
             {stats.failedWebhooks > 0 && (
@@ -90,7 +89,7 @@ export default function WelcomeBlock({ username, userEmail, stats }: WelcomeBloc
           <Download className="w-4 h-4" />
           Export CSV
         </Button>
-        <Button asChild className="flex gap-2 bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg">
+        <Button asChild className="flex gap-2 bg-blue-600 hover:bg-blue-700 text-white shadow-lg">
           <Link href="/forms">
             <ArrowRight className="w-4 h-4" />
             Manage Forms

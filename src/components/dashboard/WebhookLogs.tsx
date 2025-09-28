@@ -177,7 +177,7 @@ export default function WebhookLogs() {
                           {delivery.status}
                         </div>
                       </Badge>
-                      <span className="text-sm text-gray-600 dark:text-gray-400">
+                      <span className="text-sm text-gray-600 dark:text-gray-400" title={`Global database submission ID: ${delivery.submission_id}`}>
                         Submission #{delivery.submission_id}
                       </span>
                     </div>

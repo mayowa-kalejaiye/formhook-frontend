@@ -1,8 +1,5 @@
-"use client";
+'use client'
 import React from 'react';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "./ui/card";
-import { Button } from "./ui/button";
-
 
 // TypeScript interfaces
 interface PricingFeature {
@@ -61,8 +58,8 @@ const pricingPlans: PricingPlan[] = [
   {
     name: 'Free Tier',
     price: 'Free',
-    pricePeriod: '',
-    description: 'For devs and hobbyists',
+    pricePeriod: null,
+    description: 'For devs and hobbyists getting started with form handling.',
     features: [
       { text: '100 monthly submissions', included: true },
       { text: '1-2 concurrent requests', included: true },
@@ -71,6 +68,7 @@ const pricingPlans: PricingPlan[] = [
       { text: 'Cold starts apply (Render free tier)', included: true },
       { text: 'Manual token generation', included: true },
       { text: 'Community support', included: true },
+      { text: 'Priority support', included: false },
     ],
     buttonText: 'Get Started',
     isPopular: false,
@@ -78,8 +76,8 @@ const pricingPlans: PricingPlan[] = [
   {
     name: 'Starter Tier',
     price: '$15',
-    pricePeriod: '/mo',
-    description: 'For MVPs/indie makers',
+    pricePeriod: '/month',
+    description: 'For MVPs and indie makers building real products.',
     features: [
       { text: '2,000 monthly submissions', included: true },
       { text: '5 concurrent requests', included: true },
@@ -88,15 +86,16 @@ const pricingPlans: PricingPlan[] = [
       { text: 'Priority email notifications', included: true },
       { text: 'Always-on (no cold start)', included: true },
       { text: 'Email support (48h)', included: true },
+      { text: '24/7 dedicated support', included: false },
     ],
-    buttonText: 'Upgrade Now',
+    buttonText: 'Start Free Trial',
     isPopular: true,
   },
   {
     name: 'Pro Tier',
     price: '$99',
-    pricePeriod: '/mo',
-    description: 'For teams/marketers',
+    pricePeriod: '/month',
+    description: 'For teams and marketers with high-volume needs.',
     features: [
       { text: '20,000+ monthly submissions', included: true },
       { text: '20+ concurrent requests', included: true },
@@ -105,64 +104,137 @@ const pricingPlans: PricingPlan[] = [
       { text: 'Custom SMTP email delivery', included: true },
       { text: 'Multiple tokens with audit logs', included: true },
       { text: 'Dedicated support (24h SLA)', included: true },
+      { text: 'White-label options', included: true },
     ],
-    buttonText: 'Upgrade Now',
+    buttonText: 'Contact Sales',
     isPopular: false,
   },
 ];
 
-// Individual Pricing Card Component using shadcn/ui
+// Individual Pricing Card Component
 const PricingCard: React.FC<PricingCardProps> = ({ plan }) => {
+  const cardClasses = `
+    pricing-card bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl
+    border rounded-2xl p-6 md:p-8 flex flex-col transition-all duration-300
+    hover:-translate-y-1 hover:shadow-xl dark:hover:shadow-2xl
+    ${plan.isPopular
+      ? 'border-2 border-indigo-500 dark:border-indigo-400 relative shadow-lg shadow-indigo-500/20 dark:shadow-indigo-400/20'
+      : 'border-gray-200 dark:border-zinc-700 hover:border-gray-300 dark:hover:border-zinc-600'
+    }
+  `;
+
+  const buttonClasses = `
+    w-full py-3 px-6 rounded-lg font-medium mt-auto transition-all duration-300
+    border border-transparent focus:outline-none focus:ring-2 focus:ring-offset-2
+    ${plan.isPopular
+      ? 'bg-indigo-500 dark:bg-indigo-600 text-white shadow-lg shadow-indigo-500/30 dark:shadow-indigo-600/30 hover:bg-indigo-600 dark:hover:bg-indigo-700 focus:ring-indigo-500 dark:focus:ring-indigo-400'
+      : `
+        bg-white/70 dark:bg-zinc-800/70 hover:bg-white dark:hover:bg-zinc-800
+        text-slate-800 dark:text-zinc-200
+        border border-slate-200 dark:border-zinc-600
+        backdrop-blur-sm hover:shadow-md dark:hover:shadow-lg
+        focus:ring-slate-500 dark:focus:ring-zinc-400
+       `
+    }
+  `;
+
   return (
-    <Card className={`relative flex flex-col h-full ${plan.isPopular ? 'border-2 border-purple-700 dark:border-purple-400 shadow-lg' : ''}`}>
+    <div className={cardClasses}>
       {plan.isPopular && (
-        <div className="absolute top-0 right-4 -mt-3 bg-purple-700 dark:bg-purple-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md z-10">
+        <div className="absolute top-0 right-4 -mt-3 bg-indigo-500 dark:bg-indigo-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md">
           MOST POPULAR
         </div>
       )}
-      <CardHeader>
-        <CardTitle className="text-2xl font-bold text-gray-800 dark:text-zinc-100 mb-2 text-center">{plan.name}</CardTitle>
-        <div className="text-center">
-          <span className="text-4xl font-extrabold text-gray-900 dark:text-white">{plan.price}</span>
-          {plan.pricePeriod && (
-            <span className="text-lg text-gray-500 dark:text-zinc-400 font-medium ml-1">{plan.pricePeriod}</span>
-          )}
-        </div>
-        <CardDescription className="text-center text-gray-600 dark:text-gray-300 mb-2">{plan.description}</CardDescription>
-      </CardHeader>
-      <CardContent className="flex-1">
-        <ul className="space-y-3 mb-6">
-          {plan.features.map((feature: PricingFeature, index: number) => (
-            <li
-              key={index}
-              className="flex items-center text-sm text-gray-700 dark:text-zinc-300"
-            >
-              <CheckIcon />
-              <span>{feature.text}</span>
-            </li>
-          ))}
-        </ul>
-      </CardContent>
-      <CardFooter>
-        <Button asChild className={`w-full ${plan.isPopular ? 'bg-purple-700 hover:bg-purple-800 dark:bg-purple-600 dark:hover:bg-purple-700' : 'bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600'} text-white font-semibold`}>
-          <a href="/signup">{plan.buttonText}</a>
-        </Button>
-      </CardFooter>
-    </Card>
+      <h3 className="text-2xl font-bold text-gray-800 dark:text-zinc-100 mb-4">{plan.name}</h3>
+      <p className="text-gray-800 dark:text-zinc-100 text-4xl font-bold mb-2">
+        {plan.price}
+        {plan.pricePeriod && (
+          <span className="text-lg text-gray-500 dark:text-zinc-400 font-medium">{plan.pricePeriod}</span>
+        )}
+      </p>
+      <p className="text-gray-600 dark:text-zinc-400 mb-8 text-sm h-10">{plan.description}</p>
+      <ul className="space-y-4 mb-8">
+        {plan.features.map((feature: PricingFeature, index: number) => (
+          <li
+            key={index}
+            className={`flex items-center ${
+              feature.included
+                ? 'text-gray-700 dark:text-zinc-300'
+                : 'text-gray-400 dark:text-zinc-500'
+            }`}
+          >
+            {feature.included ? <CheckIcon /> : <TimesIcon />}
+            <span>{feature.text}</span>
+          </li>
+        ))}
+      </ul>
+      <button className={buttonClasses}>
+        {plan.buttonText}
+      </button>
+    </div>
   );
 };
 
 
+// Main Pricing Section Component
 const PricingSection: React.FC = () => {
   return (
-    <section id="pricing" className="relative py-16 sm:py-24 overflow-hidden bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-950 dark:to-purple-900">
-      <div className="max-w-5xl mx-auto px-2">
-        <h2 className="text-3xl sm:text-4xl font-bold text-center mb-4 text-blue-900 dark:text-blue-100">Pricing</h2>
-        <p className="text-center text-lg text-gray-600 dark:text-gray-300 mb-10">Simple, transparent plans for every stage.</p>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+    <section id="pricing" className="relative py-16 sm:py-24 overflow-hidden">
+      {/* Subtle pattern overlay */}
+      <div className="absolute inset-0 opacity-30 dark:opacity-20">
+        <div
+          className="absolute inset-0"
+          style={{
+            backgroundImage: `
+              radial-gradient(circle at 25% 25%, rgba(99, 102, 241, 0.1) 0%, transparent 50%),
+              radial-gradient(circle at 75% 75%, rgba(168, 85, 247, 0.1) 0%, transparent 50%)
+            `
+          }}
+        />
+      </div>
+
+      <div className="relative container mx-auto px-4">
+        <div className="text-center max-w-4xl mx-auto mb-12 md:mb-16">
+          <h2 className="text-3xl md:text-5xl font-bold text-gray-900 dark:text-zinc-100 mb-6 tracking-tight">
+            Simple, Transparent Pricing
+          </h2>
+          <p className="text-lg md:text-xl text-gray-600 dark:text-zinc-400 max-w-2xl mx-auto">
+            Choose the plan that works best for your forms. No hidden fees, no surprises.
+            Start free and scale as you grow.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
           {pricingPlans.map((plan: PricingPlan, index: number) => (
             <PricingCard key={index} plan={plan} />
           ))}
+        </div>
+
+        {/* Additional info section */}
+        <div className="text-center mt-16 max-w-3xl mx-auto">
+          <p className="text-sm text-gray-500 dark:text-zinc-500 mb-4">
+            All paid plans include a 14-day free trial. No credit card required.
+          </p>
+          <div className="flex flex-wrap justify-center gap-6 text-sm text-gray-600 dark:text-zinc-400">
+            <span className="flex items-center">
+              <svg className="h-4 w-4 text-green-500 dark:text-green-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
+              Cancel anytime
+            </span>
+            <span className="flex items-center">
+              <svg className="h-4 w-4 text-green-500 dark:text-green-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
+              Email support
+            </span>
+            <span className="flex items-center">
+              <svg className="h-4 w-4 text-green-500 dark:text-green-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
+              99.9% uptime SLA
+            </span>
+          </div>
         </div>
       </div>
     </section>
@@ -170,20 +242,3 @@ const PricingSection: React.FC = () => {
 };
 
 export default PricingSection;
-
-// --- How it Works Section (VerticalTabsDemo) ---
-import dynamic from "next/dynamic";
-const VerticalTabsDemo = dynamic(() => import("./VerticalTabsDemo").then(mod => mod.VerticalTabsDemo), { ssr: false });
-
-// Optional: Export a combined section for easy drop-in
-export function PricingAndHowItWorks() {
-  return (
-    <>
-      <PricingSection />
-      <section className="mt-20 flex flex-col items-center">
-        <h2 className="text-3xl sm:text-4xl font-bold text-center mb-8 text-blue-900 dark:text-blue-100">How it Works</h2>
-        <VerticalTabsDemo />
-      </section>
-    </>
-  );
-}

@@ -95,13 +95,14 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
     console.error(`[fetchWithAuth] ${res.status} error for:`, url);
     let errorMsg = 'API error';
     let errorDetail = '';
+    let errorData = null;
     const contentType = res.headers.get('content-type') || '';
     if (contentType.includes('application/json')) {
       try {
-        const data = await res.json();
-        console.error('[fetchWithAuth] Error response data:', data);
-        errorMsg = data?.detail || data?.message || errorMsg;
-        errorDetail = typeof data === 'string' ? data : '';
+        errorData = await res.json();
+        console.error('[fetchWithAuth] Error response data:', errorData);
+        errorMsg = errorData?.detail || errorData?.message || errorMsg;
+        errorDetail = typeof errorData === 'string' ? errorData : '';
       } catch {
         errorDetail = 'Invalid JSON response.';
       }
@@ -114,7 +115,12 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
       } catch {}
     }
     showToast('Error', errorMsg, 'destructive');
-    return { ok: false, status: res.status, error: errorMsg + (errorDetail ? ': ' + errorDetail : '') };
+    return { 
+      ok: false, 
+      status: res.status, 
+      error: errorMsg + (errorDetail ? ': ' + errorDetail : ''),
+      errorData: errorData // Include the full error data for downstream use
+    };
   }
   return res;
 }
@@ -207,6 +213,14 @@ export const getDashboardSummary = async (days?: number) => {
   const url = '/dashboard/summary' + (days ? `?days=${days}` : '');
   const res = await fetchWithAuth(url);
   if (!res.ok) throw new Error('Failed to fetch dashboard summary');
+  return await res.json();
+};
+
+// Recent Submissions (across all forms)
+export const getRecentSubmissions = async (params?: { limit?: number }) => {
+  const url = '/dashboard/recent-submissions' + (params?.limit ? `?limit=${params.limit}` : '');
+  const res = await fetchWithAuth(url);
+  if (!res.ok) throw new Error('Failed to fetch recent submissions');
   return await res.json();
 };
 // API Token
@@ -336,27 +350,52 @@ export const createForm = async (data: {
   description?: string;
   webhook_url?: string;
   notification_email?: string;
+  fields?: Array<{
+    name: string;
+    label: string;
+    type: string;
+    required: boolean;
+    options?: string[];
+    validation?: any;
+  }>;
 }) => {
+  console.log('[API] Creating form with data:', data);
   const res = await fetchWithAuth('/forms/', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
   if (!res.ok) {
-    // Try to extract a meaningful error message from the response
+    // Extract detailed error message from fetchWithAuth response
     let errorMsg = 'Failed to create form';
-    try {
-      const data = await res.json();
-      errorMsg = data?.detail || data?.message || JSON.stringify(data);
-    } catch {
-      // fallback: try text
-      try {
-        errorMsg = await res.text();
-      } catch {}
+    
+    if (res.errorData) {
+      console.error('[API] Create form error response:', res.errorData);
+      
+      // Handle FastAPI validation errors specifically
+      if (res.errorData.detail && Array.isArray(res.errorData.detail)) {
+        // FastAPI validation errors are arrays
+        console.error('[API] FastAPI validation errors:', res.errorData.detail);
+        const validationErrors = res.errorData.detail.map(err => {
+          console.error('[API] Individual validation error:', err);
+          return `${err.loc ? err.loc.join('.') : 'field'}: ${err.msg}`;
+        }).join('; ');
+        errorMsg = `Validation error: ${validationErrors}`;
+      } else if (res.errorData.detail) {
+        errorMsg = res.errorData.detail;
+      } else if (res.errorData.message) {
+        errorMsg = res.errorData.message;
+      } else {
+        errorMsg = JSON.stringify(res.errorData);
+      }
+    } else if (res.error) {
+      errorMsg = res.error;
     }
+    
     return { ok: false, error: errorMsg };
   }
-  return await res.json();
+  const result = await res.json();
+  return { ok: true, data: result };
 };
 export const getForm = async (formId: string) => {
   const res = await fetchWithAuth(`/forms/${formId}`);

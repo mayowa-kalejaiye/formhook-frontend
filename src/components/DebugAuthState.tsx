@@ -3,6 +3,7 @@
  * Insert this right after the Hero3 component in src/pages/index.tsx
  */
 
+import React from 'react';
 import { useAuth } from '../context/AuthContext';
 
 function DebugAuthState() {

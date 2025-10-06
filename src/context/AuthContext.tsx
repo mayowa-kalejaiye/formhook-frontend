@@ -32,7 +32,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     console.log('🔍 AuthContext: Initializing authentication check');
-    getCurrentUser();
+    
+    // Only check authentication on protected pages, not on public pages like landing page
+    if (typeof window !== 'undefined') {
+      const pathname = window.location.pathname;
+      const isPublicPage = pathname === '/' || pathname === '/login' || pathname === '/signup' || 
+                          pathname === '/forgot-password' || pathname === '/reset-password' || 
+                          pathname === '/verify-email' || pathname === '/verification-required' ||
+                          pathname === '/pricing';
+      
+      if (!isPublicPage) {
+        console.log('🔍 AuthContext: Checking auth for protected page:', pathname);
+        getCurrentUser();
+      } else {
+        console.log('🔍 AuthContext: Skipping auth check for public page:', pathname);
+        setLoading(false); // Make sure loading is false for public pages
+        setUser(null); // Explicitly set user to null for public pages
+      }
+    }
   }, []);
 
   const getCurrentUser = () => {

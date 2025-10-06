@@ -45,7 +45,15 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
         console.log('[fetchWithAuth] Token expired, redirecting to login');
         localStorage.removeItem('token');
         showSessionExpiredToast();
-        if (window.location.pathname !== '/login') {
+        
+        // Don't redirect to login on public pages
+        const pathname = window.location.pathname;
+        const isPublicPage = pathname === '/' || pathname === '/login' || pathname === '/signup' || 
+                            pathname === '/forgot-password' || pathname === '/reset-password' || 
+                            pathname === '/verify-email' || pathname === '/verification-required' ||
+                            pathname === '/pricing';
+        
+        if (!isPublicPage && window.location.pathname !== '/login') {
           window.location.href = '/login';
         }
         return { ok: false, error: 'Session expired' };
@@ -83,9 +91,17 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
   if (res.status === 401) {
     console.error('[fetchWithAuth] 401 Unauthorized response for:', url);
     if (typeof window !== 'undefined') {
+      // Don't redirect to login on public pages
+      const pathname = window.location.pathname;
+      const isPublicPage = pathname === '/' || pathname === '/login' || pathname === '/signup' || 
+                          pathname === '/forgot-password' || pathname === '/reset-password' || 
+                          pathname === '/verify-email' || pathname === '/verification-required' ||
+                          pathname === '/pricing';
+      
       localStorage.removeItem('token');
       showSessionExpiredToast();
-      if (window.location.pathname !== '/login') {
+      
+      if (!isPublicPage && window.location.pathname !== '/login') {
         window.location.href = '/login';
       }
     }

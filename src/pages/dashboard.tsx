@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, LineChart, Line, AreaChart, Area, CartesianGrid, Legend } from 'recharts';
 import { ChartBarStackedAnalytics } from '../components/ChartBarStackedAnalytics';
 import { ChartAreaInteractiveBackend } from '../components/ChartAreaInteractiveBackend';
+import FormHookAPIShowcase from '../components/FormHookAPIShowcase';
 import { getDashboardAnalytics, getDashboardSummary, getSubmissions } from '../services/api';
 import MetricCard from '../components/dashboard/MetricCard';
 import WelcomeBlock from '../components/dashboard/WelcomeBlock';
@@ -495,6 +496,11 @@ function DashboardContent({
           <div>
             <QuickActionsCard />
           </div>
+        </div>
+
+        {/* FormHook API Integration Showcase */}
+        <div className="space-y-6">
+          <FormHookAPIShowcase />
         </div>
 
         {/* Professional Analytics Charts */}

@@ -52,9 +52,9 @@ export default function VerticalTabs({ tabs, className }: VerticalTabsProps) {
   const [activeTab, setActiveTab] = useState(tabs[0].id);
 
   return (
-    <div className={`flex h-80 w-full max-w-4xl rounded-lg border border-slate-200/20 bg-white/80 shadow-lg backdrop-blur-md dark:border-slate-700/30 dark:bg-black/40 ${className || ''}`}>
+    <div className={`flex flex-col md:flex-row h-auto md:h-80 w-full max-w-4xl rounded-lg border border-slate-200/20 bg-white/80 shadow-lg backdrop-blur-md dark:border-slate-700/30 dark:bg-black/40 ${className || ''}`}>
       {/* Sidebar */}
-      <div className="w-64 border-r border-slate-200/20 bg-slate-50/50 p-4 backdrop-blur-sm dark:border-slate-700/30 dark:bg-black/20">
+  <div className="w-full md:w-64 border-b md:border-b-0 md:border-r border-slate-200/20 bg-slate-50/50 p-4 backdrop-blur-sm dark:border-slate-700/30 dark:bg-black/20">
         <div className="space-y-2">
           {tabs.map((tab) => {
             const Icon = tab.icon;
@@ -96,7 +96,7 @@ export default function VerticalTabs({ tabs, className }: VerticalTabsProps) {
       </div>
 
       {/* Content */}
-      <div className="flex-1 p-6">
+  <div className="flex-1 p-6 overflow-auto">
         <AnimatePresence mode="wait">
           {tabs.map((tab) => {
             if (activeTab !== tab.id) return null;
@@ -110,10 +110,10 @@ export default function VerticalTabs({ tabs, className }: VerticalTabsProps) {
                 transition={{ duration: 0.2 }}
                 className="h-full"
               >
-                <h2 className="mb-4 text-2xl font-bold text-slate-900 dark:text-slate-100">
+                <h2 className="mb-4 text-2xl font-bold text-slate-900 dark:text-slate-100 break-words">
                   {tab.title}
                 </h2>
-                <p className="text-slate-600 dark:text-slate-300">
+                <p className="text-slate-600 dark:text-slate-300 break-words whitespace-normal">
                   {tab.content}
                 </p>
               </motion.div>

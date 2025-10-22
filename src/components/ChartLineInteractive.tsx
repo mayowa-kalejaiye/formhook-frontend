@@ -1,6 +1,6 @@
 "use client";
 import * as React from "react";
-import { CartesianGrid, Line, LineChart, XAxis, Tooltip } from "recharts";
+import { CartesianGrid, Line, LineChart, XAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 
 const chartData = [
@@ -135,13 +135,13 @@ export function ChartLineInteractive() {
           ))}
         </div>
       </CardHeader>
-      <CardContent className="px-2 sm:p-6">
-        <LineChart
-          width={600}
-          height={250}
-          data={chartData}
-          margin={{ left: 12, right: 12 }}
-        >
+      <CardContent className="px-2 sm:p-6 overflow-x-auto">
+        <div style={{ width: '100%', minHeight: 250 }}>
+          <ResponsiveContainer width="100%" height={250}>
+            <LineChart
+              data={chartData}
+              margin={{ left: 12, right: 12 }}
+            >
           <CartesianGrid vertical={false} />
           <XAxis
             dataKey="date"
@@ -173,7 +173,9 @@ export function ChartLineInteractive() {
             strokeWidth={2}
             dot={false}
           />
-        </LineChart>
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
       </CardContent>
     </Card>
   );

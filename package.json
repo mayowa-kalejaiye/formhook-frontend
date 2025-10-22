@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "generate-og-rasters": "node scripts/generate-og-rasters.js",
+    "prebuild": "npm run generate-og-rasters",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
@@ -37,6 +39,7 @@
     "tailwind-merge": "^3.3.1"
   },
   "devDependencies": {
+    "sharp": "^0.33.0",
     "@types/d3-array": "^3.2.1",
     "@types/node": "24.1.0",
     "@types/react": "19.1.8",

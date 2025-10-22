@@ -15,7 +15,41 @@ type SEOProps = {
 
 const DEFAULT_SITE = process.env.NEXT_PUBLIC_SITE_NAME || 'FormHook';
 const DEFAULT_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://formhook-frontend.vercel.app').replace(/\/$/, '');
-const DEFAULT_IMAGE = process.env.NEXT_PUBLIC_OG_IMAGE || `${DEFAULT_URL}/og-image.svg`;
+
+// Prefer raster images if generated in /public
+function findDefaultImage() {
+  // If author set an override, use it
+  if (process.env.NEXT_PUBLIC_OG_IMAGE) return process.env.NEXT_PUBLIC_OG_IMAGE;
+
+  const candidates = ['og-image.png', 'og-image.jpg', 'og-image-2.png', 'og-image-2.jpg', 'og-image.svg', 'og-image-2.svg'];
+
+  // Only attempt to access the filesystem on the server side
+  if (typeof window !== 'undefined') {
+    return `${DEFAULT_URL}/og-image.svg`;
+  }
+
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const publicDir = path.join(process.cwd(), 'public');
+
+    for (const c of candidates) {
+      try {
+        if (fs.existsSync(path.join(publicDir, c))) {
+          return `${DEFAULT_URL}/${c}`;
+        }
+      } catch (e) {
+        // ignore and continue
+      }
+    }
+  } catch (err) {
+    // if require fails or other errors, fall back
+  }
+
+  return `${DEFAULT_URL}/og-image.svg`;
+}
+
+const DEFAULT_IMAGE = findDefaultImage();
 
 export default function SEO({
   title,

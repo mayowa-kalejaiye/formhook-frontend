@@ -4,10 +4,13 @@ export async function getStaticPaths() {
 }
 
 export async function getStaticProps() {
+  // For better previews, you could fetch form metadata here using your backend API
+  // and return it so the page can render form-specific OG tags server-side.
   return { props: {} };
 }
 
 import React, { useEffect, useState } from 'react';
+import SEO from '../../components/SEO';
 import { useRouter } from 'next/router';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -152,6 +155,12 @@ export default function PublicFormPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
+        <SEO
+          title={form?.name || 'Form • FormHook'}
+          description={form?.description || 'Submit to this form powered by FormHook.'}
+          image={`${(process.env.NEXT_PUBLIC_SITE_URL || 'https://formhook-frontend.vercel.app').replace(/\/$/, '')}/og-image-2.svg`}
+          url={`${(process.env.NEXT_PUBLIC_SITE_URL || 'https://formhook-frontend.vercel.app').replace(/\/$/, '')}/f/${formId || ''}`}
+        />
         <div className="container mx-auto px-4 py-16">
           <div className="max-w-2xl mx-auto">
             <Card className="bg-white/95 dark:bg-gray-900/95 border-0 shadow-2xl backdrop-blur-sm">

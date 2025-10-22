@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useMemo } from 'react';
+import SEO from '../../components/SEO';
 import useSWR from 'swr';
 import { getForms, createForm, deleteForm, getForm, updateFormWebhook } from '../../services/api';
 import DashboardNav from '../../components/DashboardNav';
@@ -363,6 +364,12 @@ function FormsPageContent() {
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-900 md:ml-56 transition-all duration-300 ease-in-out">
+      <SEO
+        title="Your Forms — FormHook"
+        description="Manage all your forms in one place. Create forms, configure webhooks, and view submission analytics."
+        image={`${(process.env.NEXT_PUBLIC_SITE_URL || 'https://formhook-frontend.vercel.app').replace(/\/$/, '')}/og-image-2.svg`}
+        url={`${(process.env.NEXT_PUBLIC_SITE_URL || 'https://formhook-frontend.vercel.app').replace(/\/$/, '')}/forms`}
+      />
       <DashboardNav />
       <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-8 pt-8 pb-4">
         <Toaster />

@@ -53,6 +53,7 @@ import {
   TrendingUp
 } from 'lucide-react';
 import Link from 'next/link';
+import SEO from '../../components/SEO';
 
 export default function FormSettingsPage() {
   const router = useRouter();
@@ -483,6 +484,12 @@ export default function FormSettingsPage() {
 
   return (
     <AuthLayout>
+      <SEO
+        title={form?.name ? `${form.name} · Settings` : 'Form Settings'}
+        description={form?.description || 'Configure and manage your form settings.'}
+        url={`${(process.env.NEXT_PUBLIC_SITE_URL || '').replace(/\/$/, '')}/forms/${form?.id || ''}`}
+        image={`${(process.env.NEXT_PUBLIC_SITE_URL || '').replace(/\/$/, '')}/og-image-2.svg`}
+      />
       <BottomGradientRadial>
         <div className="min-h-screen flex flex-col md:ml-56 transition-all duration-300 ease-in-out">
           <DashboardNav />

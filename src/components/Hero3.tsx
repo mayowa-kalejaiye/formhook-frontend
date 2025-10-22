@@ -170,9 +170,9 @@ const featureBullets = [
 
 const Hero3: React.FC = () => {
   return (
-    <div className="bg-white dark:bg-black w-full">
+    <div className="bg-white dark:bg-black w-full overflow-x-hidden">
+      {/* Keep nav constrained but make hero full-bleed */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Navigation */}
         <header className="py-6">
           <nav className="flex items-center justify-between">
             <div className="text-2xl font-bold text-black dark:text-white">
@@ -186,9 +186,14 @@ const Hero3: React.FC = () => {
             </div>
           </nav>
         </header>
+      </div>
 
-        {/* Hero Content */}
-        <main className="py-20 lg:py-32 flex flex-col items-center justify-center">
+      {/* Full-bleed hero so it spans the full viewport width on mobile */}
+      <section className="w-full min-h-screen flex items-center justify-center py-20 lg:py-32">
+        <div className="w-full px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto" style={{ maxWidth: '72rem' }}>
+            {/* Hero Content */}
+            <main className="flex flex-col items-center justify-center">
           {/* Headline */}
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-center text-black dark:text-white leading-tight max-w-4xl mx-auto">
             Collect form submissions. <span className="text-blue-600 dark:text-blue-400">Without building a backend.</span>
@@ -236,7 +241,9 @@ const Hero3: React.FC = () => {
             ))}
           </div>
         </main>
-      </div>
+          </div>
+        </div>
+      </section>
     </div>
   );
 };

@@ -17,11 +17,11 @@ export default function Home() {
   return (
     <>
       <SEO
-        title="FormHook — Simple, secure form handling"
-        description="Collect, route, and manage form submissions in minutes. Integrate with webhooks, Slack, Google Sheets, email, and more. No server required."
-        image={`${(process.env.NEXT_PUBLIC_SITE_URL || 'https://formhook-frontend.vercel.app').replace(/\/$/, '')}/og-image.svg`}
-        url={(process.env.NEXT_PUBLIC_SITE_URL || 'https://formhook-frontend.vercel.app').replace(/\/$/, '')}
-        keywords={["forms","webhooks","slack","google sheets","form handling","formhook"]}
+        title="FormHook: Form Submissions Without a Backend"
+        description="Collect form submissions without a backend. FormHook handles storage, emails, webhooks, retries, and analytics. Try it free!"
+        image={`${(process.env.NEXT_PUBLIC_SITE_URL || 'https://formhook-frontend.vercel.app').replace(/\/$/, '')}/og-image.png`}
+        url="https://formhook-frontend.vercel.app"
+        type="website"
       />
       <Hero3 />
       <HowItWorks />

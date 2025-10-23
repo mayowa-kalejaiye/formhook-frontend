@@ -15,6 +15,17 @@ type SEOProps = {
 
 const DEFAULT_SITE = process.env.NEXT_PUBLIC_SITE_NAME || 'FormHook';
 const DEFAULT_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://formhook-frontend.vercel.app').replace(/\/$/, '');
+const DEFAULT_TITLE = 'FormHook: Form Submissions Without a Backend';
+const DEFAULT_DESCRIPTION = 'Collect form submissions without a backend. FormHook handles storage, emails, webhooks, retries, and analytics. Try it free!';
+const DEFAULT_KEYWORDS = [
+  'form backend',
+  'form submissions',
+  'webhooks',
+  'form API',
+  'no backend',
+  'form handling',
+  'serverless forms'
+];
 
 // Prefer raster images if generated in /public
 function findDefaultImage() {
@@ -60,29 +71,32 @@ export default function SEO({
   author,
   publishedTime,
   modifiedTime,
-  keywords = [],
+  keywords = DEFAULT_KEYWORDS,
   jsonLd = null,
 }: SEOProps) {
-  const fullTitle = title ? `${title} · ${DEFAULT_SITE}` : DEFAULT_SITE;
+  const fullTitle = title || DEFAULT_TITLE;
+  const fullDescription = description || DEFAULT_DESCRIPTION;
 
   const ld = jsonLd || {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
-    name: DEFAULT_SITE,
+    name: 'FormHook',
+    description: fullDescription,
     url,
+    keywords: keywords.join(', ')
   };
 
   return (
     <Head>
       <title>{fullTitle}</title>
-      <meta name="description" content={description} />
+      <meta name="description" content={fullDescription} />
       <meta name="robots" content="index, follow" />
       {keywords.length > 0 && <meta name="keywords" content={keywords.join(', ')} />}
 
       {/* Open Graph */}
       <meta property="og:site_name" content={DEFAULT_SITE} />
       <meta property="og:title" content={fullTitle} />
-      <meta property="og:description" content={description} />
+      <meta property="og:description" content={fullDescription} />
       <meta property="og:type" content={type} />
       <meta property="og:url" content={url} />
       {image && <meta property="og:image" content={image} />}
@@ -90,8 +104,9 @@ export default function SEO({
       {/* Twitter */}
       <meta name="twitter:card" content={image ? 'summary_large_image' : 'summary'} />
       <meta name="twitter:title" content={fullTitle} />
-      <meta name="twitter:description" content={description} />
+      <meta name="twitter:description" content={fullDescription} />
       {image && <meta name="twitter:image" content={image} />}
+      <meta name="twitter:url" content={url} />
 
       {/* Article times and author (optional) */}
       {publishedTime && <meta property="article:published_time" content={publishedTime} />}

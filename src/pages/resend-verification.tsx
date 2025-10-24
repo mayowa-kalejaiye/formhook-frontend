@@ -13,39 +13,30 @@ const ResendVerification = () => {
     setStatus('loading');
     try {
       const response = await requestEmailVerification(data.email);
-      
+      console.log('[ResendVerification] API response:', response);
       // The backend might return success in different formats, let's handle them all
       const isSuccess = 
         response?.data?.success === true || 
         (response?.status >= 200 && response?.status < 300);
-      
       if (isSuccess) {
         setStatus('success');
         setMessage('Verification email sent successfully! Please check your inbox.');
         console.log('Verification email sent successfully');
       } else {
         setStatus('error');
-        setMessage(response?.data?.message || 'Failed to send verification email. Please try again.');
+        setMessage(response?.data?.message || response?.data?.detail || 'Failed to send verification email. Please try again.');
         console.error('Failed to send verification email', response);
       }
     } catch (err: any) {
-      console.error('Error sending verification email:', err);
-      
-      // Check if this is a CORS error (which typically won't have response data)
-      const isCorsError = !err.response && err.message?.includes('Network Error');
-      
-      if (isCorsError) {
-        // If it's a CORS error but we know the email might still be sent, show success
-        setStatus('success');
-        setMessage('Verification email has been requested. Please check your inbox in a few minutes.');
-      } else {
-        setStatus('error');
-        setMessage(
-          err?.response?.data?.detail || 
-          err?.response?.data?.message || 
-          'An error occurred. Please try again later.'
-        );
-      }
+      console.error('[ResendVerification] Error sending verification email:', err);
+      // Show full error details for debugging
+      setStatus('error');
+      setMessage(
+        err?.response?.data?.detail || 
+        err?.response?.data?.message || 
+        err?.message ||
+        'An error occurred. Please try again later.'
+      );
     }
   };
 

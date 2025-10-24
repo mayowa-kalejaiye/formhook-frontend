@@ -68,22 +68,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     
     try {
       if (useHttpOnlyCookies) {
-        // When using HTTP-only cookies, we need to make an API call to get the user info
-        const response = await fetch(shouldUseProxy ? '/api/proxy' : `${process.env.NEXT_PUBLIC_API_BASE_URL || 'https://formhook-backend.onrender.com'}/auth/me`, {
-          method: shouldUseProxy ? 'POST' : 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          ...(shouldUseProxy ? {
-            body: JSON.stringify({
-              url: `${process.env.NEXT_PUBLIC_API_BASE_URL || 'https://formhook-backend.onrender.com'}/auth/me`,
+        // Always send credentials for cookies
+        const endpoint = shouldUseProxy
+          ? '/api/proxy'
+          : `${process.env.NEXT_PUBLIC_API_BASE_URL || 'https://formhook-backend.onrender.com'}/auth/me`;
+        const fetchOptions: RequestInit = shouldUseProxy
+          ? {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                url: `${process.env.NEXT_PUBLIC_API_BASE_URL || 'https://formhook-backend.onrender.com'}/auth/me`,
+                method: 'GET',
+                data: {}
+              }),
+              credentials: 'include'
+            }
+          : {
               method: 'GET',
-              data: {}
-            })
-          } : {
-            credentials: 'include'
-          })
-        });
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include'
+            };
+        console.log('[Auth] getCurrentUser endpoint:', endpoint);
+        console.log('[Auth] getCurrentUser fetchOptions:', fetchOptions);
+        const response = await fetch(endpoint, fetchOptions);
+        console.log('[Auth] getCurrentUser response status:', response.status);
 
         if (!response.ok) {
           setUser(null);

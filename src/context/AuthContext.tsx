@@ -41,23 +41,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                           pathname === '/forgot-password' || pathname === '/reset-password' || 
                           pathname === '/verify-email' || pathname === '/verification-required' ||
                           pathname === '/pricing';
-      
-      if (!isPublicPage) {
-        getCurrentUser().then(currentUser => {
-          if (!currentUser && pathname !== '/login') {
-            router.replace('/login');
-          }
-        });
-      } else {
-        getCurrentUser().then(currentUser => {
+
+      getCurrentUser().then(currentUser => {
+        if (!isPublicPage && !currentUser && pathname !== '/login') {
+          // Only redirect to /login if not already on /login and not during login attempt
+          router.replace('/login');
+        } else {
           setLoading(false);
           if (currentUser) {
             setUser(currentUser);
           } else {
             setUser(null);
           }
-        });
-      }
+        }
+      });
     }
   }, [router.pathname]);
 

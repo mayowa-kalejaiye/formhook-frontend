@@ -32,7 +32,7 @@ import {
 export default function SettingsPage() {
   const { user } = useAuth();
   const { isCollapsed } = useSidebar();
-  const { theme, toggleTheme } = useTheme();
+  const { theme, setTheme } = useTheme();
   const { toast } = useToast();
   const router = useRouter();
   const [hydrated, setHydrated] = useState(false);

@@ -1,20 +1,30 @@
 "use client";
 import React from 'react';
 import { useRouter } from 'next/router';
-import { useAuth } from '../services/api';
+import { useAuth } from '../context/AuthContext';
+import DashboardHeader from './DashboardHeader';
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
-  const isLoggedIn = useAuth();
+  const { user, loading } = useAuth();
   const router = useRouter();
 
   React.useEffect(() => {
-    if (!isLoggedIn) {
+    if (!loading && !user) {
       router.replace('/login');
     }
-  }, [isLoggedIn, router]);
+  }, [loading, user, router]);
 
-  if (!isLoggedIn) {
+  if (loading || !user) {
     return <div className="flex items-center justify-center min-h-screen">Checking authentication...</div>;
   }
-  return <>{children}</>;
+
+  // Only show header on authenticated pages, not login/register
+  const isAuthPage = router.pathname === '/login' || router.pathname === '/register' || router.pathname === '/forgot-password';
+
+  return (
+    <>
+      {!isAuthPage && <DashboardHeader />}
+      <div className={!isAuthPage ? 'mt-16' : ''}>{children}</div>
+    </>
+  );
 }

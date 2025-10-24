@@ -10,7 +10,7 @@ import DashboardNav from '../../../components/DashboardNav';
 import { useSidebar } from '../../../context/SidebarContext';
 import BottomGradientRadial from '../../../components/BottomGradientRadial';
 import AuthLayout from '../../../components/AuthLayout';
-import { getForm, getFormAnalytics } from '../../../services/api';
+import { getForm, getFormAnalytics, getFormGeoAnalytics } from '../../../services/api';
 import { toast } from '../../../hooks/use-toast';
 import { 
   BarChart3, 
@@ -26,7 +26,10 @@ import {
   Eye,
   AlertCircle,
   CheckCircle,
-  XCircle
+  MapPin,
+  Zap,
+  Target,
+  TrendingDown
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -46,15 +49,24 @@ import {
   Cell
 } from 'recharts';
 import Link from 'next/link';
+import { ComposableMap, Geographies, Geography, Marker } from 'react-simple-maps';
+
+const geoUrl = "https://raw.githubusercontent.com/deldersveld/topojson/master/world-countries.json";
 
 interface FormAnalyticsData {
   date: string;
   submissions: number;
-  unique_visitors: number;
-  conversion_rate: number;
-  bounce_rate: number;
-  avg_time_on_page: number;
-  success_rate: number;
+  unique_visitors?: number;
+  conversion_rate?: number;
+  success_rate?: number;
+}
+
+interface GeoData {
+  country?: string;
+  city?: string;
+  latitude?: number;
+  longitude?: number;
+  count: number;
 }
 
 interface FormData {
@@ -64,37 +76,6 @@ interface FormData {
   created_at: string;
   total_submissions: number;
 }
-
-// Mock analytics data generator
-const generateMockAnalytics = (interval: string, dateFrom: Date, dateTo: Date): FormAnalyticsData[] => {
-  const data: FormAnalyticsData[] = [];
-  const current = new Date(dateFrom);
-  
-  while (current <= dateTo) {
-    data.push({
-      date: current.toISOString(),
-      submissions: Math.floor(Math.random() * 50) + 10,
-      unique_visitors: Math.floor(Math.random() * 200) + 50,
-      conversion_rate: Math.random() * 15 + 5, // 5-20%
-      bounce_rate: Math.random() * 30 + 30, // 30-60%
-      avg_time_on_page: Math.random() * 180 + 60, // 1-4 minutes
-      success_rate: Math.random() * 10 + 90, // 90-100%
-    });
-    
-    // Increment date based on interval
-    if (interval === 'hourly') {
-      current.setHours(current.getHours() + 1);
-    } else if (interval === 'daily') {
-      current.setDate(current.getDate() + 1);
-    } else if (interval === 'weekly') {
-      current.setDate(current.getDate() + 7);
-    } else {
-      current.setMonth(current.getMonth() + 1);
-    }
-  }
-  
-  return data;
-};
 
 // Enhanced Tooltip Component
 function CustomAnalyticsTooltip({ active, payload, label }: any) {
@@ -106,17 +87,17 @@ function CustomAnalyticsTooltip({ active, payload, label }: any) {
     });
     
     return (
-      <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 backdrop-blur-sm">
+      <div className="bg-white/95 dark:bg-gray-900/95 p-4 rounded-xl shadow-2xl border border-purple-200 dark:border-purple-700 backdrop-blur-md">
         <div className="flex items-center gap-2 mb-3">
-          <Calendar className="h-4 w-4 text-gray-500" />
-          <p className="font-semibold text-gray-900 dark:text-white">{date}</p>
+          <Calendar className="h-4 w-4 text-purple-500" />
+          <p className="font-bold text-gray-900 dark:text-white">{date}</p>
         </div>
         <div className="space-y-2">
           {payload.map((item: any, index: number) => (
             <div key={index} className="flex items-center justify-between gap-6">
               <div className="flex items-center gap-3">
                 <div 
-                  className="w-3 h-3 rounded-full" 
+                  className="w-3 h-3 rounded-full shadow-lg" 
                   style={{ backgroundColor: item.color }}
                 ></div>
                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -145,6 +126,7 @@ function FormAnalyticsContent() {
   
   const [form, setForm] = useState<FormData | null>(null);
   const [analytics, setAnalytics] = useState<FormAnalyticsData[]>([]);
+  const [geoData, setGeoData] = useState<GeoData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
   
@@ -186,7 +168,11 @@ function FormAnalyticsContent() {
           });
           console.log('[FormAnalytics] Analytics response:', analyticsData);
           
-          if (analyticsData && analyticsData.data) {
+          // Check if backend returned fallback data
+          if (analyticsData && (analyticsData as any)._fallback) {
+            console.log('[FormAnalytics] Backend analytics unavailable, using empty array');
+            setAnalytics([]);
+          } else if (analyticsData && analyticsData.data) {
             setAnalytics(analyticsData.data);
           } else if (Array.isArray(analyticsData)) {
             setAnalytics(analyticsData);
@@ -194,12 +180,46 @@ function FormAnalyticsContent() {
             setAnalytics([]);
           }
         } catch (analyticsErr) {
-          console.error('[FormAnalytics] Failed to load analytics:', analyticsErr);
+          // Should not throw anymore, but handle just in case
+          console.error('[FormAnalytics] Unexpected error loading analytics:', analyticsErr);
           setAnalytics([]);
           toast({
             title: 'Analytics Error',
             description: 'Failed to load analytics data. The form data loaded successfully but analytics are not available.',
           });
+        }
+        
+        // Load geographic analytics data
+        try {
+          console.log(`[FormAnalytics] Fetching geo analytics for form ${formId}...`);
+          const geoAnalyticsData = await getFormGeoAnalytics(formId as string);
+          console.log('[FormAnalytics] Geo analytics response:', geoAnalyticsData);
+          
+          // Check if backend returned fallback data
+          if (geoAnalyticsData && !(geoAnalyticsData as any)._fallback) {
+            // Combine countries and cities into single array
+            const combinedGeoData: GeoData[] = [
+              ...(geoAnalyticsData.countries || []).map(c => ({
+                country: c.country,
+                latitude: c.latitude,
+                longitude: c.longitude,
+                count: c.count
+              })),
+              ...(geoAnalyticsData.cities || []).map(c => ({
+                city: c.city,
+                latitude: c.latitude,
+                longitude: c.longitude,
+                count: c.count
+              }))
+            ];
+            setGeoData(combinedGeoData);
+          } else {
+            console.log('[FormAnalytics] Backend geo analytics unavailable, using empty array');
+            setGeoData([]);
+          }
+        } catch (geoErr) {
+          console.error('[FormAnalytics] Unexpected error loading geo analytics:', geoErr);
+          setGeoData([]);
         }
       } catch (err) {
         console.error('[FormAnalytics] Error loading form data:', err);
@@ -215,22 +235,40 @@ function FormAnalyticsContent() {
 
   // Calculate summary metrics
   const summaryMetrics = useMemo(() => {
-    if (!analytics.length) return null;
+    if (!analytics.length) {
+      return {
+        totalSubmissions: form?.total_submissions || 0,
+        totalVisitors: 0,
+        avgConversionRate: 0,
+        avgSuccessRate: 0,
+        trend: 0
+      };
+    }
 
     const totalSubmissions = analytics.reduce((sum, item) => sum + item.submissions, 0);
-    const totalVisitors = analytics.reduce((sum, item) => sum + item.unique_visitors, 0);
-    const avgConversionRate = analytics.reduce((sum, item) => sum + item.conversion_rate, 0) / analytics.length;
-    const avgSuccessRate = analytics.reduce((sum, item) => sum + item.success_rate, 0) / analytics.length;
-    const avgTimeOnPage = analytics.reduce((sum, item) => sum + item.avg_time_on_page, 0) / analytics.length;
+    const totalVisitors = analytics.reduce((sum, item) => sum + (item.unique_visitors || 0), 0);
+    const avgConversionRate = analytics.reduce((sum, item) => sum + (item.conversion_rate || 0), 0) / analytics.length;
+    const avgSuccessRate = analytics.reduce((sum, item) => sum + (item.success_rate || 0), 0) / analytics.length;
+    
+    // Calculate trend (compare first half vs second half of period)
+    let trend = 0;
+    if (analytics.length >= 2) {
+      const midpoint = Math.floor(analytics.length / 2);
+      const firstHalf = analytics.slice(0, midpoint).reduce((sum, item) => sum + item.submissions, 0) / midpoint;
+      const secondHalf = analytics.slice(midpoint).reduce((sum, item) => sum + item.submissions, 0) / (analytics.length - midpoint);
+      if (firstHalf > 0) {
+        trend = ((secondHalf - firstHalf) / firstHalf) * 100;
+      }
+    }
 
     return {
       totalSubmissions,
       totalVisitors,
       avgConversionRate,
       avgSuccessRate,
-      avgTimeOnPage
+      trend
     };
-  }, [analytics]);
+  }, [analytics, form]);
 
   const handleRefresh = () => {
     setLoading(true);
@@ -245,9 +283,12 @@ function FormAnalyticsContent() {
             <DashboardNav />
             <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-8 pt-8 pb-4">
               <div className="flex items-center justify-center h-64">
-                <div className="text-center space-y-4">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
-                  <span className="text-gray-600 text-lg font-medium">Loading analytics...</span>
+                <div className="text-center space-y-6">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-gradient-to-r from-purple-400 via-pink-500 to-blue-500 rounded-full blur-xl opacity-50 animate-pulse"></div>
+                    <div className="relative animate-spin rounded-full h-16 w-16 border-4 border-transparent border-t-purple-600 border-r-pink-500 mx-auto"></div>
+                  </div>
+                  <span className="text-gray-600 dark:text-gray-300 text-lg font-medium">Loading analytics...</span>
                 </div>
               </div>
             </main>
@@ -263,37 +304,41 @@ function FormAnalyticsContent() {
         <DashboardNav />
         <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-8 pt-8 pb-4">
 
-          {/* Header */}
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 mb-8">
-            <div className="flex items-center gap-4">
-              <Link href="/forms" className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-                <ArrowLeft className="h-6 w-6 text-gray-600 dark:text-gray-400" />
-              </Link>
-              <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 text-white">
-                <BarChart3 className="h-8 w-8" />
+          {/* Modern Gradient Hero Header */}
+          <div className="relative mb-8 overflow-hidden rounded-3xl bg-gradient-to-br from-purple-600 via-pink-500 to-blue-600 p-8 shadow-2xl">
+            <div className="absolute inset-0 bg-black/10"></div>
+            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+            <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+              <div className="flex items-center gap-4">
+                <Link href="/forms" className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors backdrop-blur-sm">
+                  <ArrowLeft className="h-6 w-6 text-white" />
+                </Link>
+                <div className="p-4 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30">
+                  <BarChart3 className="h-10 w-10 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight drop-shadow-lg">
+                    {form?.name} Analytics
+                  </h1>
+                  <p className="text-white/90 mt-2 max-w-2xl text-lg font-medium">
+                    Real-time insights and geographic distribution
+                  </p>
+                </div>
               </div>
-              <div>
-                <h1 className="text-3xl md:text-4xl font-extrabold text-purple-800 dark:text-purple-200 tracking-tight">
-                  {form?.name} Analytics
-                </h1>
-                <p className="text-gray-600 dark:text-gray-300 mt-1 max-w-2xl">
-                  Detailed insights and performance metrics for your form
-                </p>
-              </div>
+              <Button 
+                onClick={handleRefresh}
+                disabled={loading}
+                className="bg-white/20 hover:bg-white/30 backdrop-blur-md border border-white/30 text-white px-6 py-3 rounded-xl font-semibold shadow-lg transition-all"
+              >
+                <RefreshCcw className={`h-5 w-5 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                Refresh Data
+              </Button>
             </div>
-            <Button 
-              onClick={handleRefresh}
-              disabled={loading}
-              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 py-3 rounded-lg font-semibold shadow-lg"
-            >
-              <RefreshCcw className={`h-5 w-5 mr-2 ${loading ? 'animate-spin' : ''}`} />
-              Refresh Data
-            </Button>
           </div>
 
           {/* Error Alert */}
           {error && (
-            <Card className="mb-6 border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20">
+            <Card className="mb-6 border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20 backdrop-blur-sm">
               <CardContent className="p-4">
                 <div className="flex items-center gap-3 text-red-800 dark:text-red-200">
                   <AlertCircle className="h-5 w-5" />
@@ -304,31 +349,40 @@ function FormAnalyticsContent() {
           )}
 
           {/* Filters */}
-          <Card className="mb-6 bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm border border-gray-200/50 dark:border-gray-700/50">
-            <CardContent className="p-4">
+          <Card className="mb-8 bg-white/60 dark:bg-gray-900/60 backdrop-blur-xl border-0 shadow-xl rounded-2xl">
+            <CardContent className="p-6">
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">From Date</label>
+                  <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-purple-600" />
+                    From Date
+                  </label>
                   <Input
                     type="date"
                     value={dateFrom}
                     onChange={(e) => setDateFrom(e.target.value)}
-                    className="bg-white dark:bg-gray-800"
+                    className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-purple-200 dark:border-purple-700 focus:border-purple-500"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">To Date</label>
+                  <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-pink-600" />
+                    To Date
+                  </label>
                   <Input
                     type="date"
                     value={dateTo}
                     onChange={(e) => setDateTo(e.target.value)}
-                    className="bg-white dark:bg-gray-800"
+                    className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-pink-200 dark:border-pink-700 focus:border-pink-500"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Interval</label>
+                  <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-blue-600" />
+                    Interval
+                  </label>
                   <Select value={interval} onValueChange={(value: 'hourly' | 'daily' | 'weekly' | 'monthly') => setInterval(value)}>
-                    <SelectTrigger className="bg-white dark:bg-gray-800">
+                    <SelectTrigger className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-blue-200 dark:border-blue-700">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -340,7 +394,7 @@ function FormAnalyticsContent() {
                   </Select>
                 </div>
                 <div className="flex items-end">
-                  <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white">
+                  <Button className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg">
                     <Eye className="h-4 w-4 mr-2" />
                     Apply Filters
                   </Button>
@@ -349,87 +403,233 @@ function FormAnalyticsContent() {
             </CardContent>
           </Card>
 
-          {/* Summary Metrics */}
+          {/* Modern Metric Cards with Gradients */}
           {summaryMetrics && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-              <Card className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 border-blue-200 dark:border-blue-700">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <Users className="h-8 w-8 text-blue-600" />
-                    <div>
-                      <p className="text-2xl font-bold text-blue-900 dark:text-blue-100">{summaryMetrics.totalSubmissions}</p>
-                      <p className="text-sm text-blue-600 dark:text-blue-300">Total Submissions</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+              {/* Submissions with Trend Badge */}
+              <Card className="relative overflow-hidden bg-gradient-to-br from-blue-500 to-blue-600 border-0 shadow-2xl rounded-2xl">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
+                <CardContent className="p-6 relative z-10">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="p-3 rounded-xl bg-white/20 backdrop-blur-sm">
+                      <Users className="h-6 w-6 text-white" />
                     </div>
+                    {summaryMetrics.trend !== 0 && (
+                      <div className={`px-3 py-1 rounded-full text-xs font-bold backdrop-blur-md ${
+                        summaryMetrics.trend > 0 
+                          ? 'bg-green-500/30 text-green-100 border border-green-300/50' 
+                          : 'bg-red-500/30 text-red-100 border border-red-300/50'
+                      }`}>
+                        {summaryMetrics.trend > 0 ? '+' : ''}{summaryMetrics.trend.toFixed(1)}%
+                      </div>
+                    )}
                   </div>
+                  <p className="text-3xl font-extrabold text-white mb-1">{summaryMetrics.totalSubmissions.toLocaleString()}</p>
+                  <p className="text-blue-100 text-sm font-medium">Total Submissions</p>
                 </CardContent>
               </Card>
 
-              <Card className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 border-green-200 dark:border-green-700">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <Eye className="h-8 w-8 text-green-600" />
-                    <div>
-                      <p className="text-2xl font-bold text-green-900 dark:text-green-100">{summaryMetrics.totalVisitors}</p>
-                      <p className="text-sm text-green-600 dark:text-green-300">Total Visitors</p>
+              {/* Visitors */}
+              <Card className="relative overflow-hidden bg-gradient-to-br from-purple-500 to-purple-600 border-0 shadow-2xl rounded-2xl">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
+                <CardContent className="p-6 relative z-10">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="p-3 rounded-xl bg-white/20 backdrop-blur-sm">
+                      <Eye className="h-6 w-6 text-white" />
                     </div>
                   </div>
+                  <p className="text-3xl font-extrabold text-white mb-1">{summaryMetrics.totalVisitors.toLocaleString()}</p>
+                  <p className="text-purple-100 text-sm font-medium">Unique Visitors</p>
                 </CardContent>
               </Card>
 
-              <Card className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 border-purple-200 dark:border-purple-700">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <TrendingUp className="h-8 w-8 text-purple-600" />
-                    <div>
-                      <p className="text-2xl font-bold text-purple-900 dark:text-purple-100">{summaryMetrics.avgConversionRate.toFixed(1)}%</p>
-                      <p className="text-sm text-purple-600 dark:text-purple-300">Conversion Rate</p>
+              {/* Conversion Rate */}
+              <Card className="relative overflow-hidden bg-gradient-to-br from-pink-500 to-pink-600 border-0 shadow-2xl rounded-2xl">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
+                <CardContent className="p-6 relative z-10">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="p-3 rounded-xl bg-white/20 backdrop-blur-sm">
+                      <TrendingUp className="h-6 w-6 text-white" />
                     </div>
                   </div>
+                  <p className="text-3xl font-extrabold text-white mb-1">{summaryMetrics.avgConversionRate.toFixed(1)}%</p>
+                  <p className="text-pink-100 text-sm font-medium">Conversion Rate</p>
                 </CardContent>
               </Card>
 
-              <Card className="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 border-orange-200 dark:border-orange-700">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <CheckCircle className="h-8 w-8 text-orange-600" />
-                    <div>
-                      <p className="text-2xl font-bold text-orange-900 dark:text-orange-100">{summaryMetrics.avgSuccessRate.toFixed(1)}%</p>
-                      <p className="text-sm text-orange-600 dark:text-orange-300">Success Rate</p>
+              {/* Success Rate */}
+              <Card className="relative overflow-hidden bg-gradient-to-br from-green-500 to-green-600 border-0 shadow-2xl rounded-2xl">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
+                <CardContent className="p-6 relative z-10">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="p-3 rounded-xl bg-white/20 backdrop-blur-sm">
+                      <CheckCircle className="h-6 w-6 text-white" />
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gradient-to-br from-teal-50 to-teal-100 dark:from-teal-900/20 dark:to-teal-800/20 border-teal-200 dark:border-teal-700">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <Clock className="h-8 w-8 text-teal-600" />
-                    <div>
-                      <p className="text-2xl font-bold text-teal-900 dark:text-teal-100">{Math.floor(summaryMetrics.avgTimeOnPage / 60)}m</p>
-                      <p className="text-sm text-teal-600 dark:text-teal-300">Avg Time on Page</p>
-                    </div>
-                  </div>
+                  <p className="text-3xl font-extrabold text-white mb-1">{summaryMetrics.avgSuccessRate.toFixed(1)}%</p>
+                  <p className="text-green-100 text-sm font-medium">Success Rate</p>
                 </CardContent>
               </Card>
             </div>
+          )}
+
+          {/* Geographic Distribution Section */}
+          {geoData.length > 0 && (
+            <Card className="mb-8 bg-white/60 dark:bg-gray-900/60 backdrop-blur-xl border-0 shadow-2xl rounded-3xl overflow-hidden">
+              <CardHeader className="bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-blue-500/10 border-b border-purple-200 dark:border-purple-700">
+                <CardTitle className="flex items-center gap-3 text-2xl">
+                  <MapPin className="h-7 w-7 text-purple-600" />
+                  Geographic Distribution
+                </CardTitle>
+                <CardDescription className="text-base">Submission locations around the world</CardDescription>
+              </CardHeader>
+              <CardContent className="p-8">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                  {/* World Map */}
+                  <div className="lg:col-span-2">
+                    <div className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 rounded-2xl p-4 border border-gray-200 dark:border-gray-700">
+                      <ComposableMap
+                        projectionConfig={{
+                          scale: 140,
+                          center: [0, 20]
+                        }}
+                        className="w-full h-auto"
+                      >
+                        <Geographies geography={geoUrl}>
+                          {({ geographies }) =>
+                            geographies.map((geo) => (
+                              <Geography
+                                key={geo.rsmKey}
+                                geography={geo}
+                                fill="#E5E7EB"
+                                stroke="#9CA3AF"
+                                strokeWidth={0.5}
+                                style={{
+                                  default: { outline: 'none' },
+                                  hover: { outline: 'none', fill: '#D1D5DB' },
+                                  pressed: { outline: 'none' }
+                                }}
+                              />
+                            ))
+                          }
+                        </Geographies>
+                        {/* Plot markers for locations with coordinates */}
+                        {geoData
+                          .filter(location => location.latitude !== undefined && location.longitude !== undefined)
+                          .map((location, index) => (
+                            <Marker
+                              key={index}
+                              coordinates={[location.longitude!, location.latitude!]}
+                            >
+                              <g>
+                                <circle
+                                  r={Math.max(4, Math.min(location.count / 2, 20))}
+                                  fill="#9333EA"
+                                  fillOpacity={0.7}
+                                  stroke="#EC4899"
+                                  strokeWidth={2}
+                                  className="animate-pulse"
+                                />
+                                <circle
+                                  r={Math.max(2, Math.min(location.count / 4, 10))}
+                                  fill="#EC4899"
+                                />
+                              </g>
+                            </Marker>
+                          ))}
+                      </ComposableMap>
+                    </div>
+                  </div>
+
+                  {/* Top Locations Lists */}
+                  <div className="space-y-6">
+                    {/* Top Countries */}
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200 mb-4 flex items-center gap-2">
+                        <Target className="h-5 w-5 text-purple-600" />
+                        Top Countries
+                      </h3>
+                      <div className="space-y-3">
+                        {geoData
+                          .filter(loc => loc.country)
+                          .sort((a, b) => b.count - a.count)
+                          .slice(0, 5)
+                          .map((location, index) => (
+                            <div
+                              key={index}
+                              className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 border border-purple-200 dark:border-purple-700"
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-purple-600 text-white text-sm font-bold">
+                                  {index + 1}
+                                </div>
+                                <span className="font-semibold text-gray-800 dark:text-gray-200">
+                                  {location.country}
+                                </span>
+                              </div>
+                              <span className="text-purple-600 dark:text-purple-400 font-bold">
+                                {location.count}
+                              </span>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+
+                    {/* Top Cities */}
+                    {geoData.some(loc => loc.city) && (
+                      <div>
+                        <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200 mb-4 flex items-center gap-2">
+                          <Zap className="h-5 w-5 text-pink-600" />
+                          Top Cities
+                        </h3>
+                        <div className="space-y-3">
+                          {geoData
+                            .filter(loc => loc.city)
+                            .sort((a, b) => b.count - a.count)
+                            .slice(0, 5)
+                            .map((location, index) => (
+                              <div
+                                key={index}
+                                className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-pink-50 to-blue-50 dark:from-pink-900/20 dark:to-blue-900/20 border border-pink-200 dark:border-pink-700"
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-pink-600 text-white text-sm font-bold">
+                                    {index + 1}
+                                  </div>
+                                  <span className="font-semibold text-gray-800 dark:text-gray-200">
+                                    {location.city}
+                                  </span>
+                                </div>
+                                <span className="text-pink-600 dark:text-pink-400 font-bold">
+                                  {location.count}
+                                </span>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           )}
 
           {/* Charts */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
             
             {/* Submissions Over Time */}
-            <Card className="bg-white/95 dark:bg-gray-900/95 border-0 shadow-xl rounded-2xl backdrop-blur-sm">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <BarChart3 className="h-5 w-5 text-blue-600" />
+            <Card className="bg-white/60 dark:bg-gray-900/60 backdrop-blur-xl border-0 shadow-2xl rounded-3xl">
+              <CardHeader className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 border-b border-blue-200 dark:border-blue-700">
+                <CardTitle className="flex items-center gap-2 text-xl">
+                  <BarChart3 className="h-6 w-6 text-blue-600" />
                   Submissions Over Time
                 </CardTitle>
-                <CardDescription>Track form submission trends and patterns</CardDescription>
+                <CardDescription className="text-base">Track form submission trends and patterns</CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="pt-6">
                 <ResponsiveContainer width="100%" height={300}>
                   <AreaChart data={analytics} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" opacity={0.6} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" opacity={0.3} />
                     <XAxis 
                       dataKey="date" 
                       tick={{ fontSize: 12, fill: '#64748b' }}
@@ -450,16 +650,16 @@ function FormAnalyticsContent() {
                     <Tooltip content={<CustomAnalyticsTooltip />} />
                     <defs>
                       <linearGradient id="submissionsGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.4} />
-                        <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.1} />
+                        <stop offset="0%" stopColor="#9333EA" stopOpacity={0.6} />
+                        <stop offset="100%" stopColor="#EC4899" stopOpacity={0.1} />
                       </linearGradient>
                     </defs>
                     <Area
                       dataKey="submissions"
                       name="Submissions"
-                      stroke="#3b82f6"
+                      stroke="#9333EA"
                       fill="url(#submissionsGradient)"
-                      strokeWidth={2}
+                      strokeWidth={3}
                     />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -467,18 +667,18 @@ function FormAnalyticsContent() {
             </Card>
 
             {/* Conversion & Success Rates */}
-            <Card className="bg-white/95 dark:bg-gray-900/95 border-0 shadow-xl rounded-2xl backdrop-blur-sm">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5 text-green-600" />
+            <Card className="bg-white/60 dark:bg-gray-900/60 backdrop-blur-xl border-0 shadow-2xl rounded-3xl">
+              <CardHeader className="bg-gradient-to-r from-pink-500/10 to-green-500/10 border-b border-pink-200 dark:border-pink-700">
+                <CardTitle className="flex items-center gap-2 text-xl">
+                  <TrendingUp className="h-6 w-6 text-pink-600" />
                   Performance Metrics
                 </CardTitle>
-                <CardDescription>Conversion and success rate trends</CardDescription>
+                <CardDescription className="text-base">Conversion and success rate trends</CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="pt-6">
                 <ResponsiveContainer width="100%" height={300}>
                   <LineChart data={analytics} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" opacity={0.6} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" opacity={0.3} />
                     <XAxis 
                       dataKey="date"
                       tick={{ fontSize: 12, fill: '#64748b' }}
@@ -501,16 +701,18 @@ function FormAnalyticsContent() {
                     <Line 
                       dataKey="conversion_rate" 
                       name="Conversion Rate"
-                      stroke="#10b981" 
+                      stroke="#EC4899" 
                       strokeWidth={3}
-                      dot={{ r: 4, fill: '#10b981' }}
+                      dot={{ r: 5, fill: '#EC4899', strokeWidth: 2, stroke: '#fff' }}
+                      activeDot={{ r: 7 }}
                     />
                     <Line 
                       dataKey="success_rate" 
                       name="Success Rate"
-                      stroke="#f59e0b" 
+                      stroke="#10b981" 
                       strokeWidth={3}
-                      dot={{ r: 4, fill: '#f59e0b' }}
+                      dot={{ r: 5, fill: '#10b981', strokeWidth: 2, stroke: '#fff' }}
+                      activeDot={{ r: 7 }}
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -571,3 +773,4 @@ export default function FormAnalyticsPage() {
   );
 }
 
+  

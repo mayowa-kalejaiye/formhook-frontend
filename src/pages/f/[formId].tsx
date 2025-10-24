@@ -101,9 +101,22 @@ export default function PublicFormPage() {
     console.log('Form ID:', formId);
 
     setSubmitting(true);
+    
+    // Show a toast for slow backends (Render free tier cold start)
+    const slowBackendTimer = setTimeout(() => {
+      toast({ 
+        title: 'Still processing...', 
+        description: 'The backend is starting up. This can take up to 60 seconds on the first request.'
+      });
+    }, 5000);
+    
     try {
       // Submit with the exact format backend expects: { "data": { field1: "value1", field2: "value2" } }
       console.log('Submitting with correct backend format:', { data: formData });
+      
+      // Add timeout to fetch request (90 seconds for Render cold start)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 90000);
       
       const response = await fetch(`https://formhook-backend.onrender.com/forms/${formId}/submit`, {
         method: 'POST',
@@ -112,8 +125,12 @@ export default function PublicFormPage() {
         },
         body: JSON.stringify({
           data: formData
-        })
+        }),
+        signal: controller.signal
       });
+      
+      clearTimeout(timeoutId);
+      clearTimeout(slowBackendTimer);
 
       console.log('Submission response status:', response.status);
 
@@ -143,9 +160,21 @@ export default function PublicFormPage() {
       toast({ title: 'Success!', description: 'Your form has been submitted successfully.' });
     } catch (err: any) {
       console.error('Submission error:', err);
+      console.error('Error type:', err.name);
+      console.error('Error message:', err.message);
+      console.error('Full error:', JSON.stringify(err, Object.getOwnPropertyNames(err)));
+      
+      let errorMessage = err.message || 'Please try again later.';
+      
+      // Check if it's a network error
+      if (err.message === 'Failed to fetch' || err.name === 'TypeError') {
+        errorMessage = 'Unable to connect to the server. The backend may be starting up (this takes ~30 seconds on first request) or there may be a network issue. Please try again.';
+      }
+      
       toast({ 
         title: 'Submission Failed', 
-        description: err.message || 'Please try again later.'
+        description: errorMessage,
+        variant: 'destructive'
       });
     } finally {
       setSubmitting(false);

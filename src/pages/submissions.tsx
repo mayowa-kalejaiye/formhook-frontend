@@ -34,7 +34,8 @@ import {
   Shield,
   AlertTriangle,
   Globe,
-  BellRing
+  BellRing,
+  Inbox
 } from 'lucide-react';
 import AuthLayout from '../components/AuthLayout';
 
@@ -538,6 +539,8 @@ function SubmissionsPageContent() {
   }, []);
 
   useEffect(() => {
+    let isMounted = true; // Prevent state updates on unmounted component
+    
     async function fetchData() {
       setLoading(true);
       try {
@@ -553,6 +556,9 @@ function SubmissionsPageContent() {
         } else if (Array.isArray(formsRes)) {
           formsData = formsRes;
         }
+        
+        // Only update if component is still mounted
+        if (!isMounted) return;
         
         setForms(formsData);
         
@@ -614,34 +620,47 @@ function SubmissionsPageContent() {
           }
           
           console.log('[SubmissionsPage] All submissions fetched:', allSubmissions);
-          setSubmissions(allSubmissions);
-          setFilteredSubmissions(allSubmissions);
+          
+          // Only update if component is still mounted
+          if (isMounted) {
+            setSubmissions(allSubmissions);
+            setFilteredSubmissions(allSubmissions);
+          }
         } else {
           console.log('[SubmissionsPage] No forms found');
-          setSubmissions([]);
-          setFilteredSubmissions([]);
+          if (isMounted) {
+            setSubmissions([]);
+            setFilteredSubmissions([]);
+          }
         }
         
       } catch (err) {
         console.error('[SubmissionsPage] Error fetching data:', err);
         
-        // Show error message instead of using mock data
-        toast({
-          title: 'Error',
-          description: 'Failed to load submissions. Please check your connection and try again.',
-          variant: 'destructive'
-        });
-        
-        // Set empty arrays instead of mock data
-        setForms([]);
-        setSubmissions([]);
-        setFilteredSubmissions([]);
+        // Only show error and update state if component is still mounted
+        if (isMounted) {
+          // Show error message instead of using mock data
+          toast({
+            title: 'Error',
+            description: 'Failed to load submissions. Please check your connection and try again.',
+            variant: 'destructive'
+          });
+          
+          // Don't clear existing data on error - keep what we have
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     }
     
     fetchData();
+    
+    // Cleanup function to prevent state updates after unmount
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Advanced filter submissions
@@ -884,15 +903,13 @@ function SubmissionsPageContent() {
           {/* Header */}
           <div className="mb-6">
             <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <Button asChild className="bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 p-2 h-10 w-10">
-                  <Link href="/dashboard">
-                    <ArrowLeft className="h-4 w-4" />
-                  </Link>
-                </Button>
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-md bg-slate-600 dark:bg-slate-700 text-white border border-slate-300 dark:border-slate-600">
+                  <Inbox className="h-8 w-8" />
+                </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Form Submissions</h1>
+                    <h1 className="text-3xl md:text-4xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">Form Submissions</h1>
                     <Button
                       onClick={() => {
                         alert(`Form Numbering System:\n\n• Blue badges (#1, #2, #3...) show form-specific sequence numbers\n• Each form has its own counting sequence starting from #1\n• Global database IDs are shown in tooltips and detailed views\n• This gives you both user-friendly numbering and technical precision\n\nHover over any blue # badge to see the global database ID.`);
@@ -903,7 +920,7 @@ function SubmissionsPageContent() {
                       ?
                     </Button>
                   </div>
-                  <p className="text-gray-600 dark:text-gray-300">Track and manage all your form submissions. Each form has its own numbering sequence (#1, #2, #3...)</p>
+                  <p className="text-slate-600 dark:text-slate-400 mt-1 max-w-2xl">Track and manage all your form submissions. Each form has its own numbering sequence (#1, #2, #3...)</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">

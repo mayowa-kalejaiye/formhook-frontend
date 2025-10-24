@@ -1,12 +1,3 @@
-// --- Next.js SSG fallback for dynamic route build error ---
-export async function getStaticPaths() {
-  return { paths: [], fallback: 'blocking' };
-}
-
-export async function getStaticProps() {
-  return { props: {} };
-}
-
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import DashboardNav from '../../components/DashboardNav';
@@ -18,8 +9,8 @@ import { toast } from '../../hooks/use-toast';
 import { Toaster } from '../../components/ui/toaster';
 import { 
   getForm, 
-  generateApiToken, 
-  revokeApiToken,
+  generateFormToken, 
+  revokeFormToken,
   getFormAnalytics,
   getSubmissions,
   getWebhookDeliveries,
@@ -29,6 +20,15 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from '../../components/ui/button';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../../components/ui/table';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/tabs';
+
+// --- Next.js SSG fallback for dynamic route build error ---
+export async function getStaticPaths() {
+  return { paths: [], fallback: 'blocking' };
+}
+
+export async function getStaticProps() {
+  return { props: {} };
+}
 import { Badge } from '../../components/ui/badge';
 import { Switch } from '../../components/ui/switch';
 import { Label } from '../../components/ui/label';
@@ -118,61 +118,24 @@ export default function FormSettingsPage() {
     try {
       console.log('[FormDetail] Loading analytics for form:', formId);
       const data = await getFormAnalytics(formId as string, { interval: 'day' });
-      console.log('[FormDetail] Analytics data:', data);
-      console.log('[FormDetail] Analytics data type:', typeof data);
-      console.log('[FormDetail] Analytics data keys:', data ? Object.keys(data) : 'null');
+      console.log('[FormDetail] Analytics data received:', data);
       
-      // Handle different response formats more flexibly
-      if (data !== null && data !== undefined) {
-        // Accept any data that's not null/undefined
-        if (typeof data === 'object' && Object.keys(data).length > 0) {
-          setAnalytics(data);
-          toast({ title: 'Success', description: 'Analytics loaded successfully', variant: 'default' });
-        } else if (Array.isArray(data) && data.length > 0) {
-          setAnalytics(data);
-          toast({ title: 'Success', description: 'Analytics loaded successfully', variant: 'default' });
-        } else {
-          // Empty object or array - create fallback analytics
-          setAnalytics(createFallbackAnalytics());
-          toast({ title: 'Limited Analytics', description: 'Using submission data for analytics', variant: 'default' });
-        }
-      } else {
-        // Null or undefined response - create fallback analytics
+      // Check if backend returned fallback data (indicated by _fallback flag)
+      if (data && (data as any)._fallback) {
+        console.log('[FormDetail] Backend analytics unavailable, computing from submissions');
         setAnalytics(createFallbackAnalytics());
-        toast({ title: 'Limited Analytics', description: 'Using submission data for analytics', variant: 'default' });
+      } else if (data && typeof data === 'object' && Object.keys(data).length > 0) {
+        // Valid backend analytics
+        setAnalytics(data);
+      } else {
+        // Empty or invalid response - create fallback analytics
+        console.log('[FormDetail] Invalid analytics response, using fallback');
+        setAnalytics(createFallbackAnalytics());
       }
     } catch (e) {
-      console.error('[FormDetail] Error loading analytics:', e);
-      const errorMessage = e instanceof Error ? e.message : 'Failed to load analytics';
-      
-      if (errorMessage.includes('500')) {
-        // Server error - provide fallback analytics
-        setAnalytics(createFallbackAnalytics());
-        toast({ 
-          title: 'Analytics Unavailable', 
-          description: 'Backend analytics not available. Showing basic stats from submissions.', 
-          variant: 'default' 
-        });
-      } else if (errorMessage.includes('404')) {
-        // Not found - provide fallback analytics
-        setAnalytics(createFallbackAnalytics());
-        toast({ 
-          title: 'Analytics Not Implemented', 
-          description: 'Analytics endpoint not found. Showing basic stats from submissions.', 
-          variant: 'default' 
-        });
-      } else if (errorMessage.includes('401') || errorMessage.includes('403')) {
-        toast({ title: 'Authentication Error', description: 'Please log in again to view analytics.', variant: 'destructive' });
-        setAnalytics(null);
-      } else {
-        // Other errors - provide fallback
-        setAnalytics(createFallbackAnalytics());
-        toast({ 
-          title: 'Analytics Error', 
-          description: 'Analytics service error. Showing basic stats from submissions.', 
-          variant: 'default' 
-        });
-      }
+      // Should never throw now, but just in case
+      console.log('[FormDetail] Unexpected error loading analytics, using fallback:', e);
+      setAnalytics(createFallbackAnalytics());
     } finally {
       setAnalyticsLoading(false);
     }
@@ -326,29 +289,43 @@ export default function FormSettingsPage() {
   };
 
   const handleGenerateToken = async () => {
+    if (!formId) return;
     setTokenLoading(true);
     try {
-      const res = await generateApiToken();
-      setToken(res.token);
+      const res = await generateFormToken(formId as string);
+      setToken(res.token || res.api_token);
       setShowToken(true);
-      toast({ title: 'Token generated', description: 'Copy this token now. You won’t see it again.' });
-    } catch {
-      toast({ title: 'Error', description: 'Failed to generate token', variant: 'destructive' });
+      setRequireToken(true);
+      toast({ title: "Token generated", description: "Copy this token now. You won't see it again." });
+      
+      // Reload form to get updated require_token flag
+      const updatedForm = await getForm(formId as string);
+      setForm(updatedForm);
+    } catch (error: any) {
+      console.error('[FormDetail] Error generating token:', error);
+      toast({ title: 'Error', description: error.message || 'Failed to generate token', variant: 'destructive' });
     } finally {
       setTokenLoading(false);
     }
   };
 
   const handleRevokeToken = async () => {
+    if (!formId) return;
     if (!window.confirm('This will break any form submissions using the current token. Continue?')) return;
     setTokenLoading(true);
     try {
-      await revokeApiToken();
+      await revokeFormToken(formId as string);
       setToken(null);
       setShowToken(false);
+      setRequireToken(false);
       toast({ title: 'Token revoked', description: 'API token revoked.' });
-    } catch {
-      toast({ title: 'Error', description: 'Failed to revoke token', variant: 'destructive' });
+      
+      // Reload form to get updated require_token flag
+      const updatedForm = await getForm(formId as string);
+      setForm(updatedForm);
+    } catch (error: any) {
+      console.error('[FormDetail] Error revoking token:', error);
+      toast({ title: 'Error', description: error.message || 'Failed to revoke token', variant: 'destructive' });
     } finally {
       setTokenLoading(false);
     }

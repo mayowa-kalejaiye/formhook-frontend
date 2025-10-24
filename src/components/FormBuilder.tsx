@@ -35,6 +35,10 @@ export default function FormBuilder({
   submitLabel?: string;
 }) {
   const [name, setName] = useState(initial?.name || '');
+  const [description, setDescription] = useState(initial?.description || '');
+  const [webhookUrl, setWebhookUrl] = useState(initial?.webhook_url || '');
+  const [webhookHeaders, setWebhookHeaders] = useState(initial?.webhook_headers ? JSON.stringify(initial.webhook_headers, null, 2) : '');
+  const [notificationEmail, setNotificationEmail] = useState(initial?.notification_email || '');
   const [redirectUrl, setRedirectUrl] = useState(initial?.redirect_url || '');
   const [successMessage, setSuccessMessage] = useState(initial?.success_message || '');
   const [fields, setFields] = useState(initial?.fields?.length ? initial.fields : [emptyField()]);
@@ -59,8 +63,24 @@ export default function FormBuilder({
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    
+    // Parse webhook headers if provided
+    let parsedWebhookHeaders = undefined;
+    if (webhookHeaders.trim()) {
+      try {
+        parsedWebhookHeaders = JSON.parse(webhookHeaders);
+      } catch (error) {
+        alert('Invalid JSON format for webhook headers. Please check the format.');
+        return;
+      }
+    }
+    
     onSubmit({
       name,
+      description: description || undefined,
+      webhook_url: webhookUrl || undefined,
+      webhook_headers: parsedWebhookHeaders,
+      notification_email: notificationEmail || undefined,
       redirect_url: redirectUrl || undefined,
       success_message: successMessage || undefined,
       fields: fields.map(f => ({
@@ -75,20 +95,89 @@ export default function FormBuilder({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
-      <div>
-        <label className="block font-medium mb-1">Form Name</label>
-        <Input value={name} onChange={e => setName(e.target.value)} required placeholder="Contact Us" />
-      </div>
-      <div>
-        <label className="block font-medium mb-1">Redirect URL (optional)</label>
-        <Input value={redirectUrl} onChange={e => setRedirectUrl(e.target.value)} placeholder="https://yourdomain.com/thanks" />
-      </div>
-      <div>
-        <label className="block font-medium mb-1">Success Message (optional)</label>
-        <Input value={successMessage} onChange={e => setSuccessMessage(e.target.value)} placeholder="Thank you for your submission!" />
-      </div>
+      {/* Basic Information */}
       <div className="space-y-4">
-        <div className="font-semibold">Fields</div>
+        <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Basic Information</h3>
+        
+        <div>
+          <label className="block font-medium mb-1 text-slate-700 dark:text-slate-300">Form Name *</label>
+          <Input value={name} onChange={e => setName(e.target.value)} required placeholder="Contact Us" />
+        </div>
+        
+        <div>
+          <label className="block font-medium mb-1 text-slate-700 dark:text-slate-300">Description</label>
+          <Input value={description} onChange={e => setDescription(e.target.value)} placeholder="Brief description of this form" />
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Help organize and identify your forms</p>
+        </div>
+      </div>
+
+      {/* Notifications & Webhooks */}
+      <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-slate-700">
+        <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Notifications & Webhooks</h3>
+        
+        <div>
+          <label className="block font-medium mb-1 text-slate-700 dark:text-slate-300">Notification Email</label>
+          <Input 
+            type="email"
+            value={notificationEmail} 
+            onChange={e => setNotificationEmail(e.target.value)} 
+            placeholder="notify@example.com" 
+          />
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Receive email notifications for new submissions</p>
+        </div>
+        
+        <div>
+          <label className="block font-medium mb-1 text-slate-700 dark:text-slate-300">Webhook URL</label>
+          <Input 
+            type="url"
+            value={webhookUrl} 
+            onChange={e => setWebhookUrl(e.target.value)} 
+            placeholder="https://example.com/webhook" 
+          />
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Send form data to your server in real-time</p>
+        </div>
+        
+        <div>
+          <label className="block font-medium mb-1 text-slate-700 dark:text-slate-300">Webhook Headers (JSON)</label>
+          <textarea
+            value={webhookHeaders}
+            onChange={e => setWebhookHeaders(e.target.value)}
+            placeholder='{"X-API-Key": "your-key", "Content-Type": "application/json"}'
+            className="w-full min-h-[100px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-mono text-sm"
+          />
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Custom headers to include with webhook requests (optional)</p>
+        </div>
+      </div>
+
+      {/* User Experience */}
+      <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-slate-700">
+        <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">User Experience</h3>
+        
+        <div>
+          <label className="block font-medium mb-1 text-slate-700 dark:text-slate-300">Redirect URL</label>
+          <Input 
+            type="url"
+            value={redirectUrl} 
+            onChange={e => setRedirectUrl(e.target.value)} 
+            placeholder="https://yourdomain.com/thank-you" 
+          />
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Redirect users after successful submission</p>
+        </div>
+        
+        <div>
+          <label className="block font-medium mb-1 text-slate-700 dark:text-slate-300">Success Message</label>
+          <Input 
+            value={successMessage} 
+            onChange={e => setSuccessMessage(e.target.value)} 
+            placeholder="Thank you for your submission!" 
+          />
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Message shown after successful submission (if no redirect URL)</p>
+        </div>
+      </div>
+
+      {/* Form Fields */}
+      <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-slate-700">
+        <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Form Fields</h3>
         {fields.map((field, idx) => (
           <Card key={idx} className="p-4 border border-purple-100 bg-white/90 dark:bg-black/80">
             <div className="flex gap-2 mb-2">

@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { useAuth } from "../context/AuthContext";
 import { useRouter } from "next/router";
 import { useToast } from "../hooks/use-toast";
+import { Toaster } from "../components/ui/toaster";
 
 const UserIcon = () => (
   <svg
@@ -67,13 +68,77 @@ export default function Login() {
   const { toast } = useToast();
   const [loginAttempted, setLoginAttempted] = useState(false);
 
+  // Clear any cached data when login page loads to prevent data leakage
+  useEffect(() => {
+    console.log('[Login] Clearing cached data on login page load');
+    
+    // Clear SWR cache
+    if (typeof window !== 'undefined') {
+      // Clear all SWR cache keys that might contain user-specific data
+      const swr = require('swr');
+      if (swr && swr.cache) {
+        console.log('[Login] Clearing SWR cache');
+        swr.cache.clear();
+      }
+    }
+    
+    // Clear any form-related data from sessionStorage
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      const keysToRemove = [];
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const key = sessionStorage.key(i);
+        if (key && (key.includes('form') || key.includes('submission'))) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach(key => {
+        console.log('[Login] Clearing sessionStorage:', key);
+        sessionStorage.removeItem(key);
+      });
+    }
+  }, []);
+
   const onSubmit = async (data: { email: string; password: string }) => {
-    setLoginAttempted(false);
-    await login(data);
-    setLoginAttempted(true);
+    try {
+      console.log('[Login] Attempting login with:', data.email);
+      
+      // Clear any existing cached data before login
+      if (typeof window !== 'undefined') {
+        console.log('[Login] Clearing cache before new login');
+        localStorage.removeItem('token'); // Remove any old token
+      }
+      
+      setLoginAttempted(false);
+      await login(data);
+      console.log('[Login] Login completed for user:', data.email);
+      setLoginAttempted(true);
+      
+      // Show success message
+      toast({
+        title: "Login successful",
+        description: "Welcome back! Redirecting to dashboard...",
+      });
+    } catch (err) {
+      console.error('[Login] Error during login:', err);
+      setLoginAttempted(true);
+      
+      // Show error toast
+      const errorMessage = error || 'Login failed. Please try again.';
+      toast({
+        title: "Login failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    }
   };
 
   useEffect(() => {
+    // If user is already logged in, redirect to dashboard
+    if (user && !loginAttempted) {
+      router.push("/dashboard");
+      return;
+    }
+
     // Check if user was redirected from verification page
     if (router.query.verify === 'true') {
       toast({ 
@@ -84,6 +149,7 @@ export default function Login() {
     }
     
     if (!loginAttempted) return;
+    
     if (user) {
       toast({ title: "Login successful", description: "Welcome back!", variant: "default" });
       router.push("/dashboard");
@@ -94,6 +160,7 @@ export default function Login() {
 
   return (
     <div className="relative w-full flex items-center justify-center font-sans overflow-hidden min-h-screen bg-white dark:bg-black">
+      <Toaster />
       <div className="relative w-full max-w-sm p-6 space-y-6 bg-white dark:bg-black rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-lg dark:shadow-zinc-900/50">
         <div className="text-center space-y-3">
           <div className="inline-flex p-2 bg-zinc-100 dark:bg-zinc-900 rounded-md border border-zinc-200 dark:border-zinc-800">

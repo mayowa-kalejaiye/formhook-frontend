@@ -1,7 +1,8 @@
 "use client";
-import React, { createContext, useContext } from 'react';
+import React, { createContext, useContext, useEffect } from 'react';
 import useSWR from 'swr';
 import { getForms } from '../services/api';
+import { useAuth } from './AuthContext';
 
 interface Form {
   id: string;
@@ -19,15 +20,24 @@ interface FormsContextType {
 
 const FormsContext = createContext<FormsContextType | undefined>(undefined);
 
+// Get user ID from token for cache key
+const getUserIdFromToken = () => {
+  if (typeof window === 'undefined') return null;
+  const token = localStorage.getItem('token');
+  if (!token) return null;
+  
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload.sub || payload.id || payload.email;
+  } catch (e) {
+    console.error('[FormsContext] Failed to decode token:', e);
+    return null;
+  }
+};
 
 // Enhanced fetcher with logging for debugging excessive API calls
-const fetcher = async () => {
-  if (process.env.NODE_ENV !== 'production') {
-    // eslint-disable-next-line no-console
-    console.log('[FormsContext] Fetching forms from API at', new Date().toISOString(), new Error().stack?.split('\n')[2]?.trim());
-  }
+const fetcher = async (key: string) => {
   const res = await getForms();
-  console.log('[FormsContext] getForms response:', res);
   
   // Handle different response formats
   if (res && res.data && Array.isArray(res.data)) {
@@ -36,12 +46,33 @@ const fetcher = async () => {
     return res;
   }
   
-  console.warn('[FormsContext] Unexpected getForms response format:', res);
   return [];
 };
 
 export const FormsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { data, error, isLoading, mutate } = useSWR('forms', fetcher, { revalidateOnFocus: false });
+  const { user } = useAuth();
+  
+  // Create user-specific cache key to prevent data leakage between users
+  const userId = user?.userId || user?.email || getUserIdFromToken();
+  const cacheKey = userId ? `forms-${userId}` : null;
+  
+  const { data, error, isLoading, mutate } = useSWR(
+    cacheKey, 
+    fetcher, 
+    { 
+      revalidateOnFocus: false,
+      // Clear cache when user changes
+      dedupingInterval: 0
+    }
+  );
+  
+  // Clear cache when user logs out or changes
+  useEffect(() => {
+    if (!user && data) {
+      mutate(undefined, false);
+    }
+  }, [user, data, mutate]);
+  
   return (
     <FormsContext.Provider value={{
       forms: data || [],

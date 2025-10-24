@@ -37,7 +37,8 @@ import {
   Code,
   Play,
   Filter,
-  Download
+  Download,
+  FileText
 } from 'lucide-react';
 import { getForms, getWebhookDeliveries, updateFormWebhook, retryPendingWebhooks } from '../services/api';
 import { toast } from '../hooks/use-toast';
@@ -124,66 +125,17 @@ function WebhooksPageContent() {
   }, null, 2));
   const [testResults, setTestResults] = useState<WebhookTest[]>([]);
 
-  // Mock webhook deliveries for demonstration
-  const mockDeliveries: WebhookDelivery[] = [
-    {
-      id: '1',
-      form_id: 'form-1',
-      form_name: 'Contact Form',
-      url: 'https://your-app.com/webhook',
-      status: 'delivered',
-      response_code: 200,
-      response_body: '{"success":true,"message":"Webhook received"}',
-      attempted_at: '2025-09-22T10:30:00.000Z',
-      delivered_at: '2025-09-22T10:30:01.000Z',
-      retry_count: 0,
-      request_headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': 'FormHook-Webhook/1.0',
-        'X-FormHook-Signature': 'sha256=abc123...'
-      },
-      request_body: '{"form_id":"form-1","email":"john@example.com","data":{"name":"John Doe","message":"Hello"}}',
-      duration: 1200
-    },
-    {
-      id: '2',
-      form_id: 'form-1',
-      form_name: 'Contact Form',
-      url: 'https://your-app.com/webhook',
-      status: 'failed',
-      response_code: 500,
-      error_message: 'Internal Server Error',
-      attempted_at: '2025-09-22T09:15:00.000Z',
-      retry_count: 3,
-      request_headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': 'FormHook-Webhook/1.0'
-      },
-      request_body: '{"form_id":"form-1","email":"sarah@company.com","data":{"name":"Sarah","message":"Support request"}}',
-      duration: 5000
-    },
-    {
-      id: '3',
-      form_id: 'form-2',
-      form_name: 'Newsletter Signup',
-      url: 'https://api.mailchimp.com/webhook',
-      status: 'pending',
-      attempted_at: '2025-09-22T08:45:00.000Z',
-      retry_count: 0,
-      request_headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer token123'
-      },
-      request_body: '{"form_id":"form-2","email":"mike@startup.io","data":{"email":"mike@startup.io"}}',
-      duration: 0
-    }
-  ];
-
   // Load forms and webhook deliveries
   useEffect(() => {
     loadForms();
-    loadWebhookDeliveries();
   }, []);
+
+  // Load webhook deliveries when a form is selected or filters change
+  useEffect(() => {
+    if (forms.length > 0) {
+      loadWebhookDeliveries();
+    }
+  }, [forms, formFilter]);
 
   // Filter deliveries based on selected filters
   useEffect(() => {
@@ -206,14 +158,22 @@ function WebhooksPageContent() {
       const response = await getForms();
       const formsData = Array.isArray(response) ? response : response.data || [];
       setForms(formsData);
+      
+      if (formsData.length === 0) {
+        toast({
+          title: "No forms found",
+          description: "Create forms first to configure webhooks",
+          variant: "default",
+        });
+      }
     } catch (error) {
-      console.log('Using mock forms data');
-      // Mock forms data
-      setForms([
-        { id: 'form-1', name: 'Contact Form', webhook_url: 'https://your-app.com/webhook' },
-        { id: 'form-2', name: 'Newsletter Signup', webhook_url: 'https://api.mailchimp.com/webhook' },
-        { id: 'form-3', name: 'Support Ticket' }
-      ]);
+      console.error('Failed to load forms:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load forms. Please try again.",
+        variant: "destructive",
+      });
+      setForms([]);
     } finally {
       setLoading(false);
     }
@@ -222,11 +182,50 @@ function WebhooksPageContent() {
   const loadWebhookDeliveries = async () => {
     try {
       setLoading(true);
-      // Try to load real data, fallback to mock
-      setWebhookDeliveries(mockDeliveries);
+      
+      // Load deliveries for all forms or specific form
+      const deliveriesToLoad: WebhookDelivery[] = [];
+      const formsToQuery = formFilter === 'all' ? forms : forms.filter(f => f.id === formFilter);
+      
+      await Promise.all(
+        formsToQuery.map(async (form) => {
+          if (form.webhook_url) {
+            try {
+              const deliveries = await getWebhookDeliveries(form.id);
+              // Add form name to each delivery for display
+              const deliveriesWithFormName = Array.isArray(deliveries) 
+                ? deliveries.map(d => ({ ...d, form_name: form.name, form_id: form.id }))
+                : [];
+              deliveriesToLoad.push(...deliveriesWithFormName);
+            } catch (error) {
+              console.error(`Failed to load deliveries for form ${form.id}:`, error);
+            }
+          }
+        })
+      );
+      
+      // Sort by attempted_at descending (most recent first)
+      deliveriesToLoad.sort((a, b) => 
+        new Date(b.attempted_at).getTime() - new Date(a.attempted_at).getTime()
+      );
+      
+      setWebhookDeliveries(deliveriesToLoad);
+      
+      if (deliveriesToLoad.length === 0 && formsToQuery.some(f => f.webhook_url)) {
+        toast({
+          title: "No webhook deliveries",
+          description: "No webhook delivery logs found yet. Webhook deliveries will appear here once forms receive submissions.",
+          variant: "default",
+        });
+      }
     } catch (error) {
-      console.log('Using mock webhook deliveries');
-      setWebhookDeliveries(mockDeliveries);
+      console.error('Failed to load webhook deliveries:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load webhook delivery logs",
+        variant: "destructive",
+      });
+      setWebhookDeliveries([]);
     } finally {
       setLoading(false);
     }
@@ -240,18 +239,17 @@ function WebhooksPageContent() {
         title: "Success",
         description: "Pending webhooks have been queued for retry",
       });
+      // Reload deliveries after a brief delay to see updated status
       setTimeout(() => {
         loadWebhookDeliveries();
-      }, 1000);
+      }, 2000);
     } catch (error) {
-      // Mock retry success
+      console.error('Failed to retry webhooks:', error);
       toast({
-        title: "Success",
-        description: "Pending webhooks have been queued for retry",
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to retry webhooks. Please try again.",
+        variant: "destructive",
       });
-      setTimeout(() => {
-        loadWebhookDeliveries();
-      }, 1000);
     } finally {
       setRetryLoading(false);
     }
@@ -260,12 +258,34 @@ function WebhooksPageContent() {
   const handleSaveWebhookConfig = async () => {
     if (!selectedForm) return;
 
+    // Validate webhook URL format if provided
+    if (webhookUrl && webhookUrl.trim()) {
+      try {
+        const url = new URL(webhookUrl);
+        if (!['http:', 'https:'].includes(url.protocol)) {
+          toast({
+            title: "Invalid URL",
+            description: "Webhook URL must use HTTP or HTTPS protocol",
+            variant: "destructive",
+          });
+          return;
+        }
+      } catch (error) {
+        toast({
+          title: "Invalid URL",
+          description: "Please enter a valid webhook URL",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     try {
       setLoading(true);
       await updateFormWebhook(selectedForm.id, {
-        webhook_url: webhookUrl || null,
+        webhook_url: webhookUrl.trim() || null,
         webhook_headers: Object.keys(webhookHeaders).length > 0 ? webhookHeaders : {},
-        webhook_secret: webhookSecret || null,
+        webhook_secret: webhookSecret.trim() || null,
       });
       
       toast({
@@ -273,24 +293,21 @@ function WebhooksPageContent() {
         description: "Webhook configuration updated successfully",
       });
       
-      loadForms();
+      // Reload forms to get updated webhook data
+      await loadForms();
       setSelectedForm(null);
+      
+      // Clear form fields
+      setWebhookUrl('');
+      setWebhookSecret('');
+      setWebhookHeaders({});
     } catch (error) {
-      // Mock success
+      console.error('Failed to save webhook config:', error);
       toast({
-        title: "Success",
-        description: "Webhook configuration updated successfully (demo mode)",
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to update webhook configuration. Please try again.",
+        variant: "destructive",
       });
-      
-      // Update local forms state
-      setForms(prev => prev.map(f => f.id === selectedForm.id ? {
-        ...f,
-        webhook_url: webhookUrl || undefined,
-        webhook_headers: webhookHeaders,
-        webhook_secret: webhookSecret || undefined
-      } : f));
-      
-      setSelectedForm(null);
     } finally {
       setLoading(false);
     }
@@ -306,10 +323,63 @@ function WebhooksPageContent() {
       return;
     }
 
+    // Validate URL format
+    try {
+      const url = new URL(testUrl);
+      if (!['http:', 'https:'].includes(url.protocol)) {
+        toast({
+          title: "Invalid URL",
+          description: "Webhook URL must use HTTP or HTTPS protocol",
+          variant: "destructive",
+        });
+        return;
+      }
+    } catch (error) {
+      toast({
+        title: "Invalid URL",
+        description: "Please enter a valid webhook URL",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate JSON body
+    try {
+      JSON.parse(testBody);
+    } catch (error) {
+      toast({
+        title: "Invalid JSON",
+        description: "Request body must be valid JSON",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       setTestLoading(true);
       
-      // Simulate webhook test (in real app would make actual HTTP request)
+      const startTime = Date.now();
+      
+      // Make actual HTTP request to test webhook
+      const response = await fetch(testUrl, {
+        method: testMethod,
+        headers: {
+          ...testHeaders,
+          'Content-Type': 'application/json',
+        },
+        body: testBody,
+      });
+      
+      const duration = Date.now() - startTime;
+      const responseBody = await response.text();
+      
+      let parsedResponseBody;
+      try {
+        parsedResponseBody = JSON.parse(responseBody);
+      } catch {
+        parsedResponseBody = responseBody;
+      }
+
       const testResult: WebhookTest = {
         id: Date.now().toString(),
         url: testUrl,
@@ -318,32 +388,45 @@ function WebhooksPageContent() {
         body: testBody,
         timestamp: new Date().toISOString(),
         response: {
-          status: Math.random() > 0.3 ? 200 : 500,
-          body: Math.random() > 0.3 ? '{"success": true}' : '{"error": "Internal server error"}',
-          headers: {
-            'Content-Type': 'application/json',
-            'Server': 'nginx/1.20.1'
-          },
-          duration: Math.floor(Math.random() * 2000) + 500
+          status: response.status,
+          body: typeof parsedResponseBody === 'object' 
+            ? JSON.stringify(parsedResponseBody, null, 2)
+            : responseBody,
+          headers: Object.fromEntries(response.headers.entries()),
+          duration: duration
         }
       };
 
-      if (testResult.response.status >= 400) {
-        testResult.error = 'HTTP ' + testResult.response.status;
+      if (response.status >= 400) {
+        testResult.error = `HTTP ${response.status}: ${response.statusText}`;
       }
 
-      setTestResults(prev => [testResult, ...prev.slice(0, 4)]);
+      setTestResults(prev => [testResult, ...prev.slice(0, 9)]); // Keep last 10 results
       
       toast({
-        title: testResult.response.status < 400 ? "Success" : "Warning",
-        description: `Webhook test ${testResult.response.status < 400 ? 'succeeded' : 'failed'}: HTTP ${testResult.response.status}`,
-        variant: testResult.response.status < 400 ? "default" : "destructive",
+        title: response.status < 400 ? "Success" : "Warning",
+        description: `Webhook test ${response.status < 400 ? 'succeeded' : 'failed'}: HTTP ${response.status}`,
+        variant: response.status < 400 ? "default" : "destructive",
       });
       
     } catch (error) {
+      console.error('Webhook test failed:', error);
+      
+      const testResult: WebhookTest = {
+        id: Date.now().toString(),
+        url: testUrl,
+        method: testMethod,
+        headers: testHeaders,
+        body: testBody,
+        timestamp: new Date().toISOString(),
+        error: error instanceof Error ? error.message : 'Network error or request failed'
+      };
+      
+      setTestResults(prev => [testResult, ...prev.slice(0, 9)]);
+      
       toast({
         title: "Error",
-        description: "Failed to test webhook",
+        description: error instanceof Error ? error.message : "Failed to test webhook. Check URL and network connection.",
         variant: "destructive",
       });
     } finally {
@@ -394,7 +477,18 @@ function WebhooksPageContent() {
     setWebhookUrl(form.webhook_url || '');
     setWebhookSecret(form.webhook_secret || '');
     setWebhookHeaders(form.webhook_headers || {});
-    setTestUrl(form.webhook_url || '');
+    if (form.webhook_url) {
+      setTestUrl(form.webhook_url);
+    }
+  };
+
+  const handleRefresh = () => {
+    loadForms();
+    loadWebhookDeliveries();
+    toast({
+      title: "Refreshing",
+      description: "Loading latest webhook data...",
+    });
   };
 
   const copyToClipboard = (text: string) => {
@@ -513,8 +607,16 @@ function WebhooksPageContent() {
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                       <div className="flex items-center gap-4">
                         <Button 
+                          onClick={handleRefresh}
+                          disabled={loading}
+                          className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
+                        >
+                          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                          {loading ? 'Loading...' : 'Refresh'}
+                        </Button>
+                        <Button 
                           onClick={handleRetryPendingWebhooks}
-                          disabled={retryLoading}
+                          disabled={retryLoading || webhookDeliveries.filter(d => d.status === 'failed' || d.status === 'pending').length === 0}
                           className="bg-orange-600 hover:bg-orange-700 text-white flex items-center gap-2"
                         >
                           <RefreshCw className={`h-4 w-4 ${retryLoading ? 'animate-spin' : ''}`} />
@@ -522,6 +624,7 @@ function WebhooksPageContent() {
                         </Button>
                         <Button 
                           onClick={exportDeliveries}
+                          disabled={filteredDeliveries.length === 0}
                           className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2"
                         >
                           <Download className="h-4 w-4" />
@@ -576,15 +679,55 @@ function WebhooksPageContent() {
                         <RefreshCw className="h-6 w-6 animate-spin text-purple-600" />
                         <span className="ml-2">Loading webhook logs...</span>
                       </div>
+                    ) : forms.length === 0 ? (
+                      <div className="text-center py-12 space-y-4">
+                        <div className="bg-gray-100 dark:bg-gray-800 rounded-full p-8 w-24 h-24 flex items-center justify-center mx-auto">
+                          <FileText className="h-12 w-12 text-gray-400 dark:text-gray-500" />
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No forms found</h3>
+                          <p className="text-gray-600 dark:text-gray-300 text-sm mb-4">
+                            Create a form first to configure webhooks and see delivery logs
+                          </p>
+                          <Button asChild className="bg-purple-600 hover:bg-purple-700 text-white">
+                            <Link href="/forms/new">
+                              <Plus className="h-4 w-4 mr-2" />
+                              Create Your First Form
+                            </Link>
+                          </Button>
+                        </div>
+                      </div>
+                    ) : filteredDeliveries.length === 0 && forms.every(f => !f.webhook_url) ? (
+                      <div className="text-center py-12 space-y-4">
+                        <div className="bg-gray-100 dark:bg-gray-800 rounded-full p-8 w-24 h-24 flex items-center justify-center mx-auto">
+                          <Webhook className="h-12 w-12 text-gray-400 dark:text-gray-500" />
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No webhooks configured</h3>
+                          <p className="text-gray-600 dark:text-gray-300 text-sm mb-4">
+                            Go to the Configuration tab to set up webhooks for your forms
+                          </p>
+                          <Button 
+                            onClick={() => setActiveTab('config')}
+                            className="bg-purple-600 hover:bg-purple-700 text-white"
+                          >
+                            <Settings className="h-4 w-4 mr-2" />
+                            Configure Webhooks
+                          </Button>
+                        </div>
+                      </div>
                     ) : filteredDeliveries.length === 0 ? (
                       <div className="text-center py-12 space-y-4">
                         <div className="bg-gray-100 dark:bg-gray-800 rounded-full p-8 w-24 h-24 flex items-center justify-center mx-auto">
                           <Webhook className="h-12 w-12 text-gray-400 dark:text-gray-500" />
                         </div>
                         <div>
-                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No webhook deliveries found</h3>
+                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No webhook deliveries yet</h3>
                           <p className="text-gray-600 dark:text-gray-300 text-sm">
-                            Configure webhooks for your forms to see delivery logs here
+                            {statusFilter !== 'all' || formFilter !== 'all' 
+                              ? 'No deliveries match your current filters. Try adjusting the filters or wait for new form submissions.'
+                              : 'Webhook deliveries will appear here once your forms receive submissions.'
+                            }
                           </p>
                         </div>
                       </div>
@@ -760,49 +903,82 @@ function WebhooksPageContent() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-3">
-                      {forms.map((form) => (
-                        <div
-                          key={form.id}
-                          className={`p-4 rounded-xl border cursor-pointer transition-all hover:shadow-md ${
-                            selectedForm?.id === form.id 
-                              ? 'border-purple-500 bg-purple-50 dark:bg-purple-950/50 shadow-md' 
-                              : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 bg-white dark:bg-gray-800'
-                          }`}
-                          onClick={() => selectFormForConfig(form)}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <h4 className="font-semibold text-gray-900 dark:text-white">{form.name}</h4>
-                              <p className="text-sm text-gray-600 dark:text-gray-300 truncate max-w-xs mt-1">
-                                {form.webhook_url || 'No webhook configured'}
-                              </p>
-                              {form.webhook_headers && Object.keys(form.webhook_headers).length > 0 && (
-                                <div className="flex items-center gap-1 mt-2">
-                                  <Badge variant="outline" className="text-xs">
-                                    {Object.keys(form.webhook_headers).length} headers
+                    {loading ? (
+                      <div className="flex items-center justify-center py-8">
+                        <RefreshCw className="h-6 w-6 animate-spin text-purple-600" />
+                        <span className="ml-2">Loading forms...</span>
+                      </div>
+                    ) : forms.length === 0 ? (
+                      <div className="text-center py-8 space-y-3">
+                        <p className="text-gray-600 dark:text-gray-300 text-sm">
+                          No forms found. Create a form first.
+                        </p>
+                        <Button asChild className="bg-purple-600 hover:bg-purple-700 text-white" size="sm">
+                          <Link href="/forms/new">
+                            <Plus className="h-4 w-4 mr-2" />
+                            Create Form
+                          </Link>
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {forms.map((form) => (
+                          <div
+                            key={form.id}
+                            className={`p-4 rounded-xl border cursor-pointer transition-all hover:shadow-md ${
+                              selectedForm?.id === form.id 
+                                ? 'border-purple-500 bg-purple-50 dark:bg-purple-950/50 shadow-md' 
+                                : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 bg-white dark:bg-gray-800'
+                            }`}
+                            onClick={() => selectFormForConfig(form)}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1 min-w-0">
+                                <h4 className="font-semibold text-gray-900 dark:text-white truncate">{form.name}</h4>
+                                {form.webhook_url ? (
+                                  <>
+                                    <p className="text-sm text-gray-600 dark:text-gray-300 truncate mt-1" title={form.webhook_url}>
+                                      {form.webhook_url}
+                                    </p>
+                                    <div className="flex items-center gap-2 mt-2 flex-wrap">
+                                      {form.webhook_secret && (
+                                        <Badge variant="outline" className="text-xs">
+                                          <Shield className="h-3 w-3 mr-1" />
+                                          Signed
+                                        </Badge>
+                                      )}
+                                      {form.webhook_headers && Object.keys(form.webhook_headers).length > 0 && (
+                                        <Badge variant="outline" className="text-xs">
+                                          {Object.keys(form.webhook_headers).length} custom {Object.keys(form.webhook_headers).length === 1 ? 'header' : 'headers'}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  </>
+                                ) : (
+                                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                                    No webhook configured
+                                  </p>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2 ml-3 flex-shrink-0">
+                                {form.webhook_url ? (
+                                  <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+                                    <CheckCircle className="h-3 w-3 mr-1" />
+                                    Active
                                   </Badge>
-                                </div>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2 ml-3">
-                              {form.webhook_url ? (
-                                <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
-                                  <CheckCircle className="h-3 w-3 mr-1" />
-                                  Configured
-                                </Badge>
-                              ) : (
-                                <Badge variant="secondary">
-                                  <Settings className="h-3 w-3 mr-1" />
-                                  Not configured
-                                </Badge>
-                              )}
-                              <Edit className="h-4 w-4 text-gray-400" />
+                                ) : (
+                                  <Badge variant="secondary">
+                                    <Settings className="h-3 w-3 mr-1" />
+                                    Setup
+                                  </Badge>
+                                )}
+                                <Edit className="h-4 w-4 text-gray-400" />
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
 

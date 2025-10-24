@@ -14,8 +14,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!url) {
       return res.status(400).json({ message: 'URL is required' });
     }
+
+    console.log('[Proxy] Forwarding request to:', url);
     
-    // Forward credentials (cookies) from the request
+    // Forward credentials and headers
     const config = {
       method: method,
       url,
@@ -23,13 +25,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       headers: {
         ...headers,
         'Content-Type': 'application/json',
+        // Forward cookies if they exist
+        ...(req.headers.cookie ? { Cookie: req.headers.cookie } : {}),
+        // Forward authorization header if it exists
+        ...(req.headers.authorization ? { Authorization: req.headers.authorization } : {})
       },
       withCredentials: true,
+      validateStatus: (status) => true, // Don't throw on any status
     };
     
     // Make the request to the API
     const apiResponse = await axios(config);
     
+    console.log('[Proxy] API Response:', {
+      status: apiResponse.status,
+      headers: apiResponse.headers,
+      data: apiResponse.data
+    });
+
+    // Forward cookies from the API response
+    if (apiResponse.headers['set-cookie']) {
+      res.setHeader('Set-Cookie', apiResponse.headers['set-cookie']);
+    }
+
     // Forward the API response
     return res.status(apiResponse.status).json(apiResponse.data);
   } catch (error) {

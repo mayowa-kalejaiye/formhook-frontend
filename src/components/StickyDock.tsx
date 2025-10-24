@@ -184,26 +184,6 @@ const StickyDock: React.FC = () => {
             ))}
           </ul>
         </motion.nav>
-        {/* DEBUG: Floating button to test settingsOpen state */}
-        <button
-          style={{position: 'fixed', top: 40, right: 40, zIndex: 99999, background: '#222', color: '#fff', padding: 12, borderRadius: 8}}
-          onClick={() => setSettingsOpen(v => !v)}
-        >
-          Toggle Modal (Debug)
-        </button>
-        {settingsOpen && (
-          <div style={{position: 'fixed', top: 120, left: '50%', transform: 'translateX(-50%)', zIndex: 99999, background: 'white', color: 'black', padding: 32, border: '3px solid green', borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.2)'}}>
-            <div style={{fontWeight: 'bold', marginBottom: 12}}>Custom Modal Test</div>
-            <div>This proves the state and click handler work.</div>
-            <button style={{marginTop: 16, padding: '8px 16px', background: '#eee', borderRadius: 6}} onClick={() => setSettingsOpen(false)}>Close</button>
-          </div>
-        )}
-        {settingsOpen && (
-          <div style={{position: 'fixed', top: 100, left: '50%', transform: 'translateX(-50%)', zIndex: 99999, background: 'yellow', padding: 24, border: '2px solid red'}}>
-            DEBUG: settingsOpen is true
-            <button onClick={() => setSettingsOpen(false)} style={{marginLeft: 16}}>Close</button>
-          </div>
-        )}
       </div>
     </div>
   );

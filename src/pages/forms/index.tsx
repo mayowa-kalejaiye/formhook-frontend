@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useMemo } from 'react';
+import { useRouter } from 'next/router';
 import SEO from '../../components/SEO';
 import useSWR from 'swr';
 import { getForms, createForm, deleteForm, getForm, updateFormWebhook } from '../../services/api';
@@ -129,47 +130,47 @@ function FormCard({ form, onEdit, onDelete, onView }: {
   return (
     <Card className="pro-card group hover:border-slate-300 dark:hover:border-slate-600 transition-all duration-200">
       <CardHeader className="pb-3">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
             <FormAvatar formName={form.name} size="lg" />
-            <div className="flex-1">
-              <CardTitle className="text-lg font-semibold text-slate-900 dark:text-slate-100 group-hover:text-slate-700 dark:group-hover:text-slate-200 transition-colors">
+            <div className="flex-1 min-w-0">
+              <CardTitle className="text-lg font-semibold text-slate-900 dark:text-slate-100 group-hover:text-slate-700 dark:group-hover:text-slate-200 transition-colors truncate">
                 {form.name}
               </CardTitle>
-              <CardDescription className="text-sm mt-1">
+              <CardDescription className="text-sm mt-1 line-clamp-2">
                 {form.description || 'No description provided'}
               </CardDescription>
             </div>
           </div>
-          <Badge className={statusColors[form.status || 'active']}>
+          <Badge className={`${statusColors[form.status || 'active']} flex-shrink-0 self-start sm:self-auto`}>
             {form.status || 'Active'}
           </Badge>
         </div>
       </CardHeader>
       
       <CardContent>
-        <div className="grid grid-cols-2 gap-4 mb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4">
           <div className="flex items-center gap-2">
-            <Users className="h-4 w-4 text-slate-500" />
-            <span className="text-sm text-slate-600 dark:text-slate-400">
+            <Users className="h-4 w-4 text-slate-500 flex-shrink-0" />
+            <span className="text-sm text-slate-600 dark:text-slate-400 truncate">
               {form.submission_count || 0} submissions
             </span>
           </div>
           <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-slate-500" />
-            <span className="text-sm text-slate-600 dark:text-slate-400">
+            <Calendar className="h-4 w-4 text-slate-500 flex-shrink-0" />
+            <span className="text-sm text-slate-600 dark:text-slate-400 truncate">
               {form.created_at ? new Date(form.created_at).toLocaleDateString() : 'N/A'}
             </span>
           </div>
         </div>
 
         {/* Enhanced metadata section */}
-        <div className="flex items-center justify-between mb-4 pt-3 border-t border-slate-200 dark:border-slate-700">
-          <div className="flex items-center gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4 pt-3 border-t border-slate-200 dark:border-slate-700">
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4">
             {/* Recent activity indicator */}
             {form.recent_submissions > 0 && (
-              <div className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
-                <TrendingUp className="h-3 w-3" />
+              <div className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400 whitespace-nowrap">
+                <TrendingUp className="h-3 w-3 flex-shrink-0" />
                 <span>{form.recent_submissions} recent</span>
               </div>
             )}
@@ -177,15 +178,15 @@ function FormCard({ form, onEdit, onDelete, onView }: {
             {/* Last submission time */}
             {form.last_submission_at && (
               <div className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
-                <Globe className="h-3 w-3" />
-                <span>Last: {new Date(form.last_submission_at).toLocaleDateString()}</span>
+                <Globe className="h-3 w-3 flex-shrink-0" />
+                <span className="truncate">Last: {new Date(form.last_submission_at).toLocaleDateString()}</span>
               </div>
             )}
             
             {/* No activity indicator */}
             {!form.last_submission_at && form.submission_count === 0 && (
               <div className="flex items-center gap-1 text-xs text-slate-400 dark:text-slate-500">
-                <Globe className="h-3 w-3" />
+                <Globe className="h-3 w-3 flex-shrink-0" />
                 <span>No submissions yet</span>
               </div>
             )}
@@ -194,41 +195,46 @@ function FormCard({ form, onEdit, onDelete, onView }: {
 
         {form.webhook_url && (
           <div className="flex items-center gap-2 mb-4 p-2 bg-slate-50 dark:bg-slate-800 rounded-md border border-slate-200 dark:border-slate-700">
-            <Globe className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+            <Globe className="h-4 w-4 text-slate-600 dark:text-slate-400 flex-shrink-0" />
             <span className="text-xs text-slate-700 dark:text-slate-300 truncate">
               Webhook configured
             </span>
           </div>
         )}
 
-        <div className="flex items-center justify-between pt-4 border-t border-slate-200 dark:border-slate-700">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-4 border-t border-slate-200 dark:border-slate-700">
+          <div className="flex items-center gap-2 flex-wrap">
             <Button
               onClick={() => onView(form.id)}
-              className="pro-btn-secondary text-xs px-3 py-1 h-8"
+              className="pro-btn-secondary text-xs px-3 py-1 h-8 flex-1 sm:flex-initial"
             >
               <Eye className="h-3 w-3 mr-1" />
               View
             </Button>
             <Button
-              onClick={() => window.open(`/forms/${form.id}`, '_blank')}
-              className="pro-btn-secondary text-xs px-3 py-1 h-8"
+              onClick={() => {
+                const url = window.location.origin + `/forms/${form.id}`;
+                window.open(url, '_blank');
+              }}
+              className="pro-btn-secondary text-xs px-3 py-1 h-8 flex-1 sm:flex-initial"
             >
               <ExternalLink className="h-3 w-3 mr-1" />
               Open
             </Button>
           </div>
           
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 justify-end">
             <Button
               onClick={() => onEdit(form)}
               className="pro-btn-secondary text-xs px-2 py-1 h-8"
+              title="Edit form"
             >
               <Edit3 className="h-3 w-3" />
             </Button>
             <Button
               onClick={() => onDelete(form.id)}
               className="text-xs px-2 py-1 h-8 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/30 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800 rounded-md"
+              title="Delete form"
             >
               <Trash2 className="h-3 w-3" />
             </Button>
@@ -242,6 +248,7 @@ function FormCard({ form, onEdit, onDelete, onView }: {
 
 
 function FormsPageContent() {
+  const router = useRouter();
   const { data, error, isLoading, mutate } = useSWR('forms', async () => (await getForms()).data);
   const forms = data || [];
   
@@ -359,11 +366,11 @@ function FormsPageContent() {
   };
 
   const handleView = (formId: string) => {
-    window.location.href = `/forms/${formId}`;
+    router.push(`/forms/${formId}`);
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-900 md:ml-56 transition-all duration-300 ease-in-out">
+    <div className="bg-slate-50 dark:bg-slate-900 md:ml-56">
       <SEO
         title="Your Forms — FormHook"
         description="Manage all your forms in one place. Create forms, configure webhooks, and view submission analytics."
@@ -371,35 +378,38 @@ function FormsPageContent() {
         url={`${(process.env.NEXT_PUBLIC_SITE_URL || 'https://formhook-frontend.vercel.app').replace(/\/$/, '')}/forms`}
       />
       <DashboardNav />
-      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-8 pt-8 pb-4">
+      <main className="w-full px-4 sm:px-6 lg:px-8 pt-16 md:pt-8 pb-8">
+        <div className="max-w-7xl mx-auto">
         <Toaster />
 
         {/* Professional Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 mb-8">
-          <div className="flex items-center gap-4">
-            <div className="p-3 rounded-md bg-slate-600 dark:bg-slate-700 text-white border border-slate-300 dark:border-slate-600">
-              <FileText className="h-8 w-8" />
+        <div className="flex flex-col gap-4 sm:gap-6 mb-6 sm:mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+            <div className="flex items-start gap-3 sm:gap-4 min-w-0">
+              <div className="p-2 sm:p-3 rounded-md bg-slate-600 dark:bg-slate-700 text-white border border-slate-300 dark:border-slate-600 flex-shrink-0">
+                <FileText className="h-6 w-6 sm:h-8 sm:w-8" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">
+                    Forms
+                </h1>
+                <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 mt-1 line-clamp-2">
+                  Create, manage, and analyze your forms with powerful insights and integrations
+                </p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-3xl md:text-4xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">
-                  Forms
-              </h1>
-              <p className="text-slate-600 dark:text-slate-400 mt-1 max-w-2xl">
-                Create, manage, and analyze your forms with powerful insights and integrations
-              </p>
-            </div>
+            <Button 
+              onClick={() => setShowCreate(true)} 
+              className="pro-btn-primary px-4 sm:px-6 py-2 sm:py-3 font-semibold w-full sm:w-auto flex-shrink-0"
+            >
+              <Plus className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+              Create New Form
+            </Button>
           </div>
-          <Button 
-            onClick={() => setShowCreate(true)} 
-            className="pro-btn-primary px-6 py-3 font-semibold min-w-fit"
-          >
-            <Plus className="h-5 w-5 mr-2" />
-            Create New Form
-          </Button>
         </div>
 
         {/* Professional Filter and Search Bar */}
-        <div className="flex flex-col lg:flex-row gap-4 mb-6 p-4 pro-card">
+        <div className="flex flex-col gap-3 sm:gap-4 mb-6 p-3 sm:p-4 pro-card">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
             <Input
@@ -410,9 +420,9 @@ function FormsPageContent() {
             />
             </div>
             
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-32 bg-white dark:bg-gray-800">
+                <SelectTrigger className="w-full sm:w-32">
                   <Filter className="h-4 w-4 mr-2" />
                   <SelectValue />
                 </SelectTrigger>
@@ -425,7 +435,7 @@ function FormsPageContent() {
               </Select>
 
               <Select value={sortBy} onValueChange={(value: 'name' | 'created' | 'submissions' | 'recent') => setSortBy(value)}>
-                <SelectTrigger className="w-40 bg-white dark:bg-gray-800">
+                <SelectTrigger className="w-full sm:w-40">
                   <ArrowUpDown className="h-4 w-4 mr-2" />
                   <SelectValue />
                 </SelectTrigger>
@@ -437,23 +447,27 @@ function FormsPageContent() {
                 </SelectContent>
               </Select>
 
-              <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+              <div className="flex items-center gap-1 border border-slate-200 dark:border-slate-700 rounded-lg p-1">
                 <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => setViewMode('grid')}
-                  className={`px-3 py-2 rounded-md transition-colors ${
+                  className={`flex-1 sm:flex-initial px-3 py-2 h-9 ${
                     viewMode === 'grid' 
-                      ? 'bg-white dark:bg-gray-600 shadow-sm text-gray-900 dark:text-white' 
-                      : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                      ? 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100' 
+                      : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300'
                   }`}
                 >
                   <Grid3X3 className="h-4 w-4" />
                 </Button>
                 <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => setViewMode('list')}
-                  className={`px-3 py-2 rounded-md transition-colors ${
+                  className={`flex-1 sm:flex-initial px-3 py-2 h-9 ${
                     viewMode === 'list' 
-                      ? 'bg-white dark:bg-gray-600 shadow-sm text-gray-900 dark:text-white' 
-                      : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                      ? 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100' 
+                      : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300'
                   }`}
                 >
                   <List className="h-4 w-4" />
@@ -548,7 +562,7 @@ function FormsPageContent() {
             ) : (
               <>
                 {viewMode === 'grid' ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
                     {filteredAndSortedForms.map((form: Form) => (
                       <FormCard
                         key={form.id}
@@ -735,6 +749,14 @@ function FormsPageContent() {
                 <Plus className="h-6 w-6" />
               </Button>
             </div>
+
+            {/* Simple Footer */}
+            <div className="mt-12 pt-6 border-t border-slate-200 dark:border-slate-700 mb-8">
+              <p className="text-center text-sm text-slate-500 dark:text-slate-400">
+                © {new Date().getFullYear()} FormHook. All rights reserved.
+              </p>
+            </div>
+          </div>
           </div>
         </main>
         <StickyDock />

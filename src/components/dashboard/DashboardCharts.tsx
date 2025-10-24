@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { Card } from "../../components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { AreaChart, BarChart, XAxis, YAxis, Tooltip as RechartsTooltip, Area, Bar, ResponsiveContainer, CartesianGrid, Legend } from "recharts";
-import { getDashboardAnalytics } from "../../services/api";
+import { getDashboardSummary } from "../../services/api";
 
 interface DashboardChartsProps {
   dashboardData?: any;
@@ -20,8 +20,19 @@ export default function DashboardCharts({ dashboardData, loading }: DashboardCha
     setAnalyticsLoading(true);
     try {
       console.log('[DashboardCharts] Loading analytics for range:', selectedRange);
-      const data = await getDashboardAnalytics({ range: selectedRange });
-      console.log('[DashboardCharts] Analytics data:', data);
+      
+      // Map range to days
+      const daysMap: Record<string, number> = {
+        '7d': 7,
+        '30d': 30,
+        'Q1': 90,
+        'all': 365
+      };
+      const days = daysMap[selectedRange] || 30;
+      
+      // Use getDashboardSummary which returns trend data
+      const data = await getDashboardSummary(days);
+      console.log('[DashboardCharts] Summary data:', data);
       setAnalyticsData(data);
     } catch (e) {
       console.error('[DashboardCharts] Error loading analytics:', e);
@@ -38,10 +49,10 @@ export default function DashboardCharts({ dashboardData, loading }: DashboardCha
 
   // Prepare chart data from real API responses
   const prepareAreaData = () => {
-    if (analyticsData?.daily_data && analyticsData.daily_data.length > 0) {
-      return analyticsData.daily_data.map((item, idx) => ({
+    if (analyticsData?.trend && analyticsData.trend.length > 0) {
+      return analyticsData.trend.map((item: any, idx: number) => ({
         date: item.date ? new Date(item.date).toLocaleDateString('en-US', { weekday: 'short' }) : `Day ${idx + 1}`,
-        submissions: item.count || item.submissions || 0
+        submissions: item.count || 0
       }));
     } else if (dashboardData?.daily_submissions && dashboardData.daily_submissions.length > 0) {
       return dashboardData.daily_submissions.map((item, idx) => ({

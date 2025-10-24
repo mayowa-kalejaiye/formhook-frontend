@@ -52,10 +52,7 @@ import {
   toggle2FA, 
   getSecurityLogs, 
   deleteAccount, 
-  exportUserData,
-  getUserApiTokens,
-  createApiToken,
-  deleteApiToken
+  exportUserData
 } from '../services/api';
 import Link from 'next/link';
 
@@ -89,16 +86,6 @@ interface SecurityLog {
   location?: string;
 }
 
-interface ApiKey {
-  id: string;
-  name: string;
-  key_preview: string;
-  created_at: string;
-  last_used?: string;
-  permissions: string[];
-  expires_at?: string;
-}
-
 function UserAccountSettingsContent() {
   const { isCollapsed } = useSidebar();
   const { user } = useAuth();
@@ -107,24 +94,7 @@ function UserAccountSettingsContent() {
   const [saving, setSaving] = useState(false);
   
   // Profile states
-  const [profile, setProfile] = useState<UserProfile>({
-    id: user?.userId || '1',
-    email: user?.email || 'user@example.com',
-    name: user?.email?.split('@')[0] || 'John Doe',
-    created_at: '2025-01-15T10:00:00.000Z',
-    last_login: '2025-09-22T14:30:00.000Z',
-    email_verified: user?.verified || true,
-    two_factor_enabled: false,
-    timezone: 'America/New_York',
-    language: 'en',
-    notification_preferences: {
-      email_notifications: true,
-      webhook_failures: true,
-      form_submissions: false,
-      security_alerts: true,
-      weekly_reports: true,
-    }
-  });
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   
   // Password states
   const [currentPassword, setCurrentPassword] = useState('');
@@ -136,147 +106,8 @@ function UserAccountSettingsContent() {
     confirm: false
   });
   
-  // API Keys states
-  const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
-  const [loadingApiKeys, setLoadingApiKeys] = useState(false);
-  const [newApiKeyName, setNewApiKeyName] = useState('');
-  const [showNewKeyModal, setShowNewKeyModal] = useState(false);
-  const [newGeneratedKey, setNewGeneratedKey] = useState('');
-  
-  // Load API keys
-  useEffect(() => {
-    loadApiKeys();
-  }, []);
-  
-  const loadApiKeys = async () => {
-    setLoadingApiKeys(true);
-    try {
-      const keys = await getUserApiTokens();
-      setApiKeys(keys || []);
-    } catch (error) {
-      // Fallback to mock data
-      setApiKeys([
-        {
-          id: '1',
-          name: 'Production API',
-          key_preview: 'fh_live_1234...abcd',
-          created_at: '2025-08-15T10:00:00.000Z',
-          last_used: '2025-09-22T12:00:00.000Z',
-          permissions: ['forms:read', 'submissions:read', 'webhooks:manage'],
-          expires_at: '2026-08-15T10:00:00.000Z'
-        },
-        {
-          id: '2',
-          name: 'Development API',
-          key_preview: 'fh_test_5678...efgh',
-          created_at: '2025-09-01T15:30:00.000Z',
-          last_used: '2025-09-20T09:15:00.000Z',
-          permissions: ['forms:read', 'submissions:read'],
-        }
-      ]);
-      console.log('Using fallback API keys:', error);
-    } finally {
-      setLoadingApiKeys(false);
-    }
-  };
-
-  const handleCreateApiKey = async () => {
-    if (!newApiKeyName.trim()) {
-      toast({
-        title: "Error",
-        description: "Please enter a name for your API key",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setSaving(true);
-    try {
-      const result = await createApiToken(newApiKeyName, ['forms:read', 'submissions:read', 'webhooks:manage']);
-      
-      // Add the new key to the list with full token for the modal
-      const newApiKey: ApiKey = {
-        id: result.id || Date.now().toString(),
-        name: newApiKeyName,
-        key_preview: result.token ? result.token.substring(0, 8) + '...' + result.token.substring(result.token.length - 4) : 'fh_new...key',
-        created_at: new Date().toISOString(),
-        permissions: ['forms:read', 'submissions:read', 'webhooks:manage'],
-      };
-      
-      setApiKeys(prev => [newApiKey, ...prev]);
-      setNewGeneratedKey(result.token || `fh_${Date.now()}_${Math.random().toString(36).substring(2)}`);
-      setNewApiKeyName('');
-      setShowNewKeyModal(true);
-      
-      toast({
-        title: "Success",
-        description: "API key created successfully",
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to create API key",
-        variant: "destructive",
-      });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleDeleteApiKey = async (keyId: string, keyName: string) => {
-    const confirmed = window.confirm(`Are you sure you want to delete the API key "${keyName}"?`);
-    if (!confirmed) return;
-
-    setSaving(true);
-    try {
-      await deleteApiToken(keyId);
-      
-      setApiKeys(prev => prev.filter(k => k.id !== keyId));
-      toast({
-        title: "Success",
-        description: "API key deleted successfully",
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to delete API key",
-        variant: "destructive",
-      });
-    } finally {
-      setSaving(false);
-    }
-  };
-  
   // Security log states
-  const [securityLogs, setSecurityLogs] = useState<SecurityLog[]>([
-    {
-      id: '1',
-      event: 'login',
-      description: 'Successful login',
-      ip_address: '192.168.1.100',
-      user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-      timestamp: '2025-09-22T14:30:00.000Z',
-      location: 'New York, US'
-    },
-    {
-      id: '2',
-      event: 'password_change',
-      description: 'Password changed successfully',
-      ip_address: '192.168.1.100',
-      user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-      timestamp: '2025-09-20T10:15:00.000Z',
-      location: 'New York, US'
-    },
-    {
-      id: '3',
-      event: 'failed_login',
-      description: 'Failed login attempt',
-      ip_address: '203.0.113.45',
-      user_agent: 'curl/7.68.0',
-      timestamp: '2025-09-18T03:22:00.000Z',
-      location: 'Unknown'
-    }
-  ]);
+  const [securityLogs, setSecurityLogs] = useState<SecurityLog[]>([]);
 
   // Load profile data
   useEffect(() => {
@@ -288,16 +119,51 @@ function UserAccountSettingsContent() {
     setLoading(true);
     try {
       const profileData = await getUserProfile();
+      
+      if (!profileData) {
+        // Fallback to user data from AuthContext if API fails
+        if (user?.email) {
+          console.log('[Account] Using fallback profile from AuthContext');
+          setProfile({
+            id: user.userId || '',
+            email: user.email,
+            name: user.email.split('@')[0],
+            created_at: new Date().toISOString(),
+            last_login: undefined,
+            email_verified: user.verified || false,
+            two_factor_enabled: false,
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/New_York',
+            language: navigator.language.split('-')[0] || 'en',
+            notification_preferences: {
+              email_notifications: true,
+              webhook_failures: true,
+              form_submissions: false,
+              security_alerts: true,
+              weekly_reports: true,
+            }
+          });
+        } else {
+          console.error('[Account] Profile data is null and no user in context');
+          toast({
+            title: "Error",
+            description: "Failed to load profile data",
+            variant: "destructive",
+          });
+          setProfile(null);
+        }
+        return;
+      }
+      
       setProfile({
-        id: profileData.id || user?.userId || '1',
-        email: profileData.email || user?.email || 'user@example.com',
-        name: profileData.name || user?.email?.split('@')[0] || 'John Doe',
-        created_at: profileData.created_at || '2025-01-15T10:00:00.000Z',
-        last_login: profileData.last_login || '2025-09-22T14:30:00.000Z',
-        email_verified: profileData.email_verified ?? (user?.verified || true),
+        id: profileData.id || user?.userId || '',
+        email: profileData.email || user?.email || '',
+        name: profileData.name || user?.email?.split('@')[0] || '',
+        created_at: profileData.created_at || new Date().toISOString(),
+        last_login: profileData.last_login,
+        email_verified: profileData.email_verified ?? user?.verified ?? false,
         two_factor_enabled: profileData.two_factor_enabled || false,
-        timezone: profileData.timezone || 'America/New_York',
-        language: profileData.language || 'en',
+        timezone: profileData.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/New_York',
+        language: profileData.language || navigator.language.split('-')[0] || 'en',
         notification_preferences: profileData.notification_preferences || {
           email_notifications: true,
           webhook_failures: true,
@@ -307,26 +173,37 @@ function UserAccountSettingsContent() {
         }
       });
     } catch (error) {
-      // Fallback to default profile if API fails
-      setProfile({
-        id: user?.userId || '1',
-        email: user?.email || 'user@example.com',
-        name: user?.email?.split('@')[0] || 'John Doe',
-        created_at: '2025-01-15T10:00:00.000Z',
-        last_login: '2025-09-22T14:30:00.000Z',
-        email_verified: user?.verified || true,
-        two_factor_enabled: false,
-        timezone: 'America/New_York',
-        language: 'en',
-        notification_preferences: {
-          email_notifications: true,
-          webhook_failures: true,
-          form_submissions: false,
-          security_alerts: true,
-          weekly_reports: true,
-        }
-      });
-      console.log('Using fallback profile data:', error);
+      console.error('[Account] Error loading profile:', error);
+      
+      // Fallback to user data from AuthContext
+      if (user?.email) {
+        console.log('[Account] Using fallback profile from AuthContext after error');
+        setProfile({
+          id: user.userId || '',
+          email: user.email,
+          name: user.email.split('@')[0],
+          created_at: new Date().toISOString(),
+          last_login: undefined,
+          email_verified: user.verified || false,
+          two_factor_enabled: false,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/New_York',
+          language: navigator.language.split('-')[0] || 'en',
+          notification_preferences: {
+            email_notifications: true,
+            webhook_failures: true,
+            form_submissions: false,
+            security_alerts: true,
+            weekly_reports: true,
+          }
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to load profile data",
+          variant: "destructive",
+        });
+        setProfile(null);
+      }
     } finally {
       setLoading(false);
     }
@@ -335,35 +212,22 @@ function UserAccountSettingsContent() {
   const loadSecurityLogs = async () => {
     try {
       const logs = await getSecurityLogs();
-      setSecurityLogs(logs);
+      setSecurityLogs(logs || []);
     } catch (error) {
-      // Fallback to mock data
-      setSecurityLogs([
-        {
-          id: '1',
-          event: 'login',
-          description: 'Successful login',
-          ip_address: '192.168.1.100',
-          user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          timestamp: '2025-09-22T14:30:00.000Z',
-          location: 'New York, US'
-        },
-        {
-          id: '2',
-          event: 'password_change',
-          description: 'Password changed successfully',
-          ip_address: '192.168.1.100',
-          user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          timestamp: '2025-09-20T10:15:00.000Z',
-          location: 'New York, US'
-        }
-      ]);
-      console.log('Using fallback security logs:', error);
+      console.error('[Account] Error loading security logs:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load security logs",
+        variant: "destructive",
+      });
+      setSecurityLogs([]);
     }
   };
 
   // Profile form handlers
   const handleSaveProfile = async () => {
+    if (!profile) return;
+    
     setSaving(true);
     try {
       await updateUserProfile({
@@ -434,15 +298,17 @@ function UserAccountSettingsContent() {
   };
 
   const handleToggle2FA = async () => {
+    if (!profile) return;
+    
     setSaving(true);
     try {
       const newState = !profile.two_factor_enabled;
       await toggle2FA(newState);
       
-      setProfile(prev => ({
+      setProfile(prev => prev ? ({
         ...prev,
         two_factor_enabled: newState
-      }));
+      }) : null);
       
       toast({
         title: "Success",
@@ -514,27 +380,11 @@ function UserAccountSettingsContent() {
         description: "Your data has been exported successfully",
       });
     } catch (error) {
-      // Fallback to mock export
-      const exportData = {
-        profile: profile,
-        export_date: new Date().toISOString(),
-        forms: [],
-        submissions: [],
-        webhooks: []
-      };
-      
-      const dataStr = JSON.stringify(exportData, null, 2);
-      const dataBlob = new Blob([dataStr], { type: 'application/json' });
-      const url = URL.createObjectURL(dataBlob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `formhook-data-export-${new Date().toISOString().split('T')[0]}.json`;
-      link.click();
-      URL.revokeObjectURL(url);
-      
+      console.error('[Account] Error exporting data:', error);
       toast({
-        title: "Export Complete",
-        description: "Your data has been exported successfully (mock data)",
+        title: "Error",
+        description: error.message || "Failed to export data",
+        variant: "destructive",
       });
     }
   };
@@ -590,7 +440,7 @@ function UserAccountSettingsContent() {
 
           {/* Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-4 mb-6">
+            <TabsList className="grid w-full grid-cols-3 mb-6">
               <TabsTrigger value="profile" className="flex items-center gap-2">
                 <User className="h-4 w-4" />
                 Profile
@@ -598,10 +448,6 @@ function UserAccountSettingsContent() {
               <TabsTrigger value="security" className="flex items-center gap-2">
                 <Shield className="h-4 w-4" />
                 Security
-              </TabsTrigger>
-              <TabsTrigger value="api" className="flex items-center gap-2">
-                <Key className="h-4 w-4" />
-                API Keys
               </TabsTrigger>
               <TabsTrigger value="preferences" className="flex items-center gap-2">
                 <Settings className="h-4 w-4" />
@@ -611,7 +457,23 @@ function UserAccountSettingsContent() {
 
             {/* Profile Tab */}
             <TabsContent value="profile">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {loading ? (
+                <div className="text-center py-12">
+                  <RefreshCw className="h-8 w-8 animate-spin text-gray-400 mx-auto mb-2" />
+                  <p className="text-gray-500">Loading profile...</p>
+                </div>
+              ) : !profile ? (
+                <div className="text-center py-12">
+                  <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+                  <p className="text-gray-900 dark:text-white text-lg font-semibold mb-2">Failed to Load Profile</p>
+                  <p className="text-gray-600 dark:text-gray-300 text-sm mb-4">Unable to load your profile data</p>
+                  <Button onClick={loadUserProfile} className="bg-blue-600 hover:bg-blue-700 text-white">
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Retry
+                  </Button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 
                 {/* Profile Information */}
                 <Card className="bg-white/95 dark:bg-gray-900/95 border-0 shadow-xl rounded-2xl backdrop-blur-sm">
@@ -628,15 +490,21 @@ function UserAccountSettingsContent() {
                     
                     {/* Avatar */}
                     <div className="flex items-center gap-4">
-                      <div className="w-20 h-20 rounded-full bg-blue-600 flex items-center justify-center text-white text-3xl font-black border-4 border-white shadow-lg" style={{ textShadow: '1px 1px 2px rgba(0,0,0,0.5)' }}>
-                        F
+                      <div 
+                        className="w-20 h-20 rounded-full flex items-center justify-center text-white text-3xl font-black border-4 border-white shadow-lg" 
+                        style={{ 
+                          backgroundColor: profile ? `hsl(${profile.email.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % 360}, 65%, 50%)` : '#3b82f6',
+                          textShadow: '1px 1px 2px rgba(0,0,0,0.5)' 
+                        }}
+                      >
+                        {profile ? profile.email.slice(0, 2).toUpperCase() : 'U'}
                       </div>
                       <div>
                         <div className="text-sm text-gray-600 dark:text-gray-400">
-                          <strong>FormHook Profile Avatar</strong>
+                          <strong>{profile?.name || 'User'}</strong>
                         </div>
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                          Your FormHook branded profile identifier.
+                          {profile?.email || 'Loading...'}
                         </p>
                       </div>
                     </div>
@@ -646,9 +514,10 @@ function UserAccountSettingsContent() {
                       <Label htmlFor="name">Full Name</Label>
                       <Input
                         id="name"
-                        value={profile.name}
-                        onChange={(e) => setProfile(prev => ({ ...prev, name: e.target.value }))}
+                        value={profile?.name || ''}
+                        onChange={(e) => setProfile(prev => prev ? ({ ...prev, name: e.target.value }) : null)}
                         placeholder="Enter your full name"
+                        disabled={!profile}
                       />
                     </div>
 
@@ -659,13 +528,14 @@ function UserAccountSettingsContent() {
                         <Input
                           id="email"
                           type="email"
-                          value={profile.email}
-                          onChange={(e) => setProfile(prev => ({ ...prev, email: e.target.value }))}
+                          value={profile?.email || ''}
+                          onChange={(e) => setProfile(prev => prev ? ({ ...prev, email: e.target.value }) : null)}
                           placeholder="Enter your email"
                           className="pr-10"
+                          disabled={!profile}
                         />
                         <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                          {profile.email_verified ? (
+                          {profile?.email_verified ? (
                             <CheckCircle className="h-4 w-4 text-green-500" />
                           ) : (
                             <AlertTriangle className="h-4 w-4 text-yellow-500" />
@@ -674,14 +544,18 @@ function UserAccountSettingsContent() {
                       </div>
                       <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
                         <Mail className="h-3 w-3" />
-                        {profile.email_verified ? 'Email verified' : 'Email not verified'}
+                        {profile?.email_verified ? 'Email verified' : 'Email not verified'}
                       </p>
                     </div>
 
                     {/* Timezone */}
                     <div className="space-y-2">
                       <Label htmlFor="timezone">Timezone</Label>
-                      <Select value={profile.timezone} onValueChange={(value) => setProfile(prev => ({ ...prev, timezone: value }))}>
+                      <Select 
+                        value={profile?.timezone || 'America/New_York'} 
+                        onValueChange={(value) => setProfile(prev => prev ? ({ ...prev, timezone: value }) : null)}
+                        disabled={!profile}
+                      >
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
@@ -700,7 +574,7 @@ function UserAccountSettingsContent() {
                     {/* Save Button */}
                     <Button 
                       onClick={handleSaveProfile}
-                      disabled={saving}
+                      disabled={saving || !profile}
                       className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
                     >
                       <Save className="h-4 w-4 mr-2" />
@@ -730,7 +604,7 @@ function UserAccountSettingsContent() {
                           <span className="text-sm font-medium text-blue-900 dark:text-blue-100">Member Since</span>
                         </div>
                         <p className="text-lg font-bold text-blue-900 dark:text-blue-100">
-                          {new Date(profile.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                          {profile?.created_at ? new Date(profile.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'N/A'}
                         </p>
                       </div>
                       
@@ -740,7 +614,7 @@ function UserAccountSettingsContent() {
                           <span className="text-sm font-medium text-green-900 dark:text-green-100">Last Login</span>
                         </div>
                         <p className="text-lg font-bold text-green-900 dark:text-green-100">
-                          {profile.last_login ? new Date(profile.last_login).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Never'}
+                          {profile?.last_login ? new Date(profile.last_login).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Never'}
                         </p>
                       </div>
                     </div>
@@ -752,8 +626,8 @@ function UserAccountSettingsContent() {
                           <Mail className="h-4 w-4 text-gray-500" />
                           <span className="font-medium">Email Verification</span>
                         </div>
-                        <Badge variant={profile.email_verified ? 'default' : 'destructive'}>
-                          {profile.email_verified ? 'Verified' : 'Unverified'}
+                        <Badge variant={profile?.email_verified ? 'default' : 'destructive'}>
+                          {profile?.email_verified ? 'Verified' : 'Unverified'}
                         </Badge>
                       </div>
                       
@@ -762,18 +636,8 @@ function UserAccountSettingsContent() {
                           <Shield className="h-4 w-4 text-gray-500" />
                           <span className="font-medium">Two-Factor Auth</span>
                         </div>
-                        <Badge variant={profile.two_factor_enabled ? 'default' : 'secondary'}>
-                          {profile.two_factor_enabled ? 'Enabled' : 'Disabled'}
-                        </Badge>
-                      </div>
-                      
-                      <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <Key className="h-4 w-4 text-gray-500" />
-                          <span className="font-medium">API Keys</span>
-                        </div>
-                        <Badge variant="secondary">
-                          {apiKeys.length} Active
+                        <Badge variant={profile?.two_factor_enabled ? 'default' : 'secondary'}>
+                          {profile?.two_factor_enabled ? 'Enabled' : 'Disabled'}
                         </Badge>
                       </div>
                     </div>
@@ -782,13 +646,14 @@ function UserAccountSettingsContent() {
                     <div className="pt-4 border-t border-gray-200 dark:border-gray-700 space-y-2">
                       <Button 
                         onClick={handleExportData}
+                        disabled={!profile}
                         className="w-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 justify-start"
                       >
                         <Download className="h-4 w-4 mr-2" />
                         Export My Data
                       </Button>
                       
-                      {!profile.email_verified && (
+                      {profile && !profile.email_verified && (
                         <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white justify-start">
                           <Mail className="h-4 w-4 mr-2" />
                           Resend Verification Email
@@ -799,6 +664,7 @@ function UserAccountSettingsContent() {
                 </Card>
 
               </div>
+              )}
             </TabsContent>
 
             {/* Security Tab */}
@@ -901,13 +767,13 @@ function UserAccountSettingsContent() {
                           </p>
                         </div>
                         <Switch
-                          checked={profile.two_factor_enabled}
+                          checked={profile?.two_factor_enabled || false}
                           onCheckedChange={handleToggle2FA}
-                          disabled={saving}
+                          disabled={saving || !profile}
                         />
                       </div>
                       
-                      {profile.two_factor_enabled && (
+                      {profile?.two_factor_enabled && (
                         <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
                           <div className="flex items-center gap-2 mb-2">
                             <CheckCircle className="h-4 w-4 text-green-600" />
@@ -996,197 +862,6 @@ function UserAccountSettingsContent() {
               </Card>
             </TabsContent>
 
-            {/* API Keys Tab */}
-            <TabsContent value="api">
-              <Card className="bg-white/95 dark:bg-gray-900/95 border-0 shadow-xl rounded-2xl backdrop-blur-sm">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Key className="h-5 w-5 text-purple-600" />
-                    API Key Management
-                  </CardTitle>
-                  <CardDescription>
-                    Manage your API keys for programmatic access to FormHook
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  
-                  {/* Create New Key Section */}
-                  <div className="flex flex-col sm:flex-row gap-4 mb-6 p-4 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg">
-                    <div className="flex-1">
-                      <Input
-                        placeholder="Enter API key name (e.g., 'Production API', 'Mobile App')"
-                        value={newApiKeyName}
-                        onChange={(e) => setNewApiKeyName(e.target.value)}
-                        className="mb-2 sm:mb-0"
-                      />
-                    </div>
-                    <Button 
-                      onClick={handleCreateApiKey}
-                      disabled={saving || !newApiKeyName.trim()}
-                      className="bg-purple-600 hover:bg-purple-700 text-white"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      {saving ? 'Creating...' : 'Create API Key'}
-                    </Button>
-                  </div>
-
-                  {/* API Keys List */}
-                  {loadingApiKeys ? (
-                    <div className="text-center py-8">
-                      <RefreshCw className="h-8 w-8 animate-spin text-gray-400 mx-auto mb-2" />
-                      <p className="text-gray-500">Loading API keys...</p>
-                    </div>
-                  ) : apiKeys.length === 0 ? (
-                    <div className="text-center py-12 space-y-4">
-                      <div className="bg-gray-100 dark:bg-gray-800 rounded-full p-8 w-20 h-20 flex items-center justify-center mx-auto">
-                        <Key className="h-10 w-10 text-gray-400 dark:text-gray-500" />
-                      </div>
-                      <div>
-                        <p className="text-gray-900 dark:text-white text-lg font-semibold mb-1">No API keys yet</p>
-                        <p className="text-gray-600 dark:text-gray-300 text-sm">Create your first API key to start using the FormHook API</p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {apiKeys.map((key) => (
-                        <div key={key.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-                          <div className="flex items-start justify-between mb-3">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-purple-500 to-indigo-500 flex items-center justify-center">
-                                <Key className="h-5 w-5 text-white" />
-                              </div>
-                              <div>
-                                <h4 className="font-medium text-gray-900 dark:text-white">{key.name}</h4>
-                                <p className="font-mono text-sm text-gray-600 dark:text-gray-300 mt-1">
-                                  {key.key_preview}
-                                </p>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Button 
-                                onClick={() => {
-                                  navigator.clipboard.writeText(key.key_preview);
-                                  toast({ 
-                                    title: "Copied", 
-                                    description: "Token preview copied (for reference only)" 
-                                  });
-                                }}
-                                className="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 p-2 h-8 w-8"
-                                title="Copy token preview"
-                              >
-                                <Copy className="h-3 w-3" />
-                              </Button>
-                              <Button 
-                                onClick={() => handleDeleteApiKey(key.id, key.name)}
-                                disabled={saving}
-                                className="bg-red-100 dark:bg-red-900/30 hover:bg-red-200 dark:hover:bg-red-800/50 text-red-600 dark:text-red-400 p-2 h-8 w-8"
-                                title="Delete API key"
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          </div>
-                          
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                            <div>
-                              <span className="text-gray-500 dark:text-gray-400">Created:</span>
-                              <p className="font-medium">{formatDate(key.created_at)}</p>
-                            </div>
-                            <div>
-                              <span className="text-gray-500 dark:text-gray-400">Last Used:</span>
-                              <p className="font-medium">{key.last_used ? formatDate(key.last_used) : 'Never'}</p>
-                            </div>
-                            <div>
-                              <span className="text-gray-500 dark:text-gray-400">Expires:</span>
-                              <p className="font-medium">{key.expires_at ? formatDate(key.expires_at) : 'Never'}</p>
-                            </div>
-                          </div>
-                          
-                          <div className="mt-3">
-                            <span className="text-gray-500 dark:text-gray-400 text-sm">Permissions:</span>
-                            <div className="flex flex-wrap gap-1 mt-1">
-                              {key.permissions.map((permission) => (
-                                <Badge key={permission} variant="secondary" className="text-xs">
-                                  {permission}
-                                </Badge>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* API Documentation Link */}
-                  <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                    <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">API Documentation</h4>
-                    <p className="text-sm text-blue-700 dark:text-blue-300 mb-3">
-                      Learn how to use the FormHook API in your applications with our comprehensive documentation.
-                    </p>
-                    <Button asChild className="bg-blue-600 hover:bg-blue-700 text-white text-sm">
-                      <Link href="/api-tokens">
-                        <Database className="h-4 w-4 mr-2" />
-                        View Full API Management
-                      </Link>
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-              
-              {/* New API Key Modal */}
-              <Dialog open={showNewKeyModal} onOpenChange={setShowNewKeyModal}>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2">
-                      <CheckCircle className="h-5 w-5 text-green-600" />
-                      API Key Created Successfully
-                    </DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-                      <p className="text-green-800 dark:text-green-200 text-sm font-medium mb-2">
-                        Your new API key:
-                      </p>
-                      <div className="flex items-center gap-2">
-                        <Input
-                          value={newGeneratedKey}
-                          readOnly
-                          className="font-mono text-sm bg-white dark:bg-gray-800"
-                        />
-                        <Button
-                          onClick={() => {
-                            navigator.clipboard.writeText(newGeneratedKey);
-                            toast({ title: "Copied", description: "Full API key copied to clipboard" });
-                          }}
-                          className="bg-green-600 hover:bg-green-700 text-white px-3"
-                        >
-                          <Copy className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                    <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
-                      <div className="flex items-center gap-2 mb-1">
-                        <AlertTriangle className="h-4 w-4 text-yellow-600" />
-                        <span className="text-sm font-medium text-yellow-800 dark:text-yellow-200">Important</span>
-                      </div>
-                      <p className="text-xs text-yellow-700 dark:text-yellow-300">
-                        This is the only time you'll see the full API key. Make sure to copy and store it securely!
-                      </p>
-                    </div>
-                    <Button
-                      onClick={() => {
-                        setShowNewKeyModal(false);
-                        setNewGeneratedKey('');
-                      }}
-                      className="w-full"
-                    >
-                      I've Saved My Key
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </TabsContent>
-
             {/* Preferences Tab */}
             <TabsContent value="preferences">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -1215,16 +890,17 @@ function UserAccountSettingsContent() {
                             <p className="text-sm text-gray-600 dark:text-gray-400">Receive notifications via email</p>
                           </div>
                           <Switch
-                            checked={profile.notification_preferences.email_notifications}
+                            checked={profile?.notification_preferences.email_notifications || false}
                             onCheckedChange={(checked) => 
-                              setProfile(prev => ({
+                              setProfile(prev => prev ? ({
                                 ...prev,
                                 notification_preferences: {
                                   ...prev.notification_preferences,
                                   email_notifications: checked
                                 }
-                              }))
+                              }) : null)
                             }
+                            disabled={!profile}
                           />
                         </div>
                         
@@ -1234,16 +910,17 @@ function UserAccountSettingsContent() {
                             <p className="text-sm text-gray-600 dark:text-gray-400">Alert me when webhooks fail</p>
                           </div>
                           <Switch
-                            checked={profile.notification_preferences.webhook_failures}
+                            checked={profile?.notification_preferences.webhook_failures || false}
                             onCheckedChange={(checked) => 
-                              setProfile(prev => ({
+                              setProfile(prev => prev ? ({
                                 ...prev,
                                 notification_preferences: {
                                   ...prev.notification_preferences,
                                   webhook_failures: checked
                                 }
-                              }))
+                              }) : null)
                             }
+                            disabled={!profile}
                           />
                         </div>
                         
@@ -1253,16 +930,17 @@ function UserAccountSettingsContent() {
                             <p className="text-sm text-gray-600 dark:text-gray-400">Notify me of new form submissions</p>
                           </div>
                           <Switch
-                            checked={profile.notification_preferences.form_submissions}
+                            checked={profile?.notification_preferences.form_submissions || false}
                             onCheckedChange={(checked) => 
-                              setProfile(prev => ({
+                              setProfile(prev => prev ? ({
                                 ...prev,
                                 notification_preferences: {
                                   ...prev.notification_preferences,
                                   form_submissions: checked
                                 }
-                              }))
+                              }) : null)
                             }
+                            disabled={!profile}
                           />
                         </div>
                         
@@ -1272,16 +950,17 @@ function UserAccountSettingsContent() {
                             <p className="text-sm text-gray-600 dark:text-gray-400">Important security notifications</p>
                           </div>
                           <Switch
-                            checked={profile.notification_preferences.security_alerts}
+                            checked={profile?.notification_preferences.security_alerts || false}
                             onCheckedChange={(checked) => 
-                              setProfile(prev => ({
+                              setProfile(prev => prev ? ({
                                 ...prev,
                                 notification_preferences: {
                                   ...prev.notification_preferences,
                                   security_alerts: checked
                                 }
-                              }))
+                              }) : null)
                             }
+                            disabled={!profile}
                           />
                         </div>
                         
@@ -1291,16 +970,17 @@ function UserAccountSettingsContent() {
                             <p className="text-sm text-gray-600 dark:text-gray-400">Weekly analytics summaries</p>
                           </div>
                           <Switch
-                            checked={profile.notification_preferences.weekly_reports}
+                            checked={profile?.notification_preferences.weekly_reports || false}
                             onCheckedChange={(checked) => 
-                              setProfile(prev => ({
+                              setProfile(prev => prev ? ({
                                 ...prev,
                                 notification_preferences: {
                                   ...prev.notification_preferences,
                                   weekly_reports: checked
                                 }
-                              }))
+                              }) : null)
                             }
+                            disabled={!profile}
                           />
                         </div>
                       </div>
@@ -1324,7 +1004,11 @@ function UserAccountSettingsContent() {
                     {/* Language */}
                     <div className="space-y-2">
                       <Label>Language</Label>
-                      <Select value={profile.language} onValueChange={(value) => setProfile(prev => ({ ...prev, language: value }))}>
+                      <Select 
+                        value={profile?.language || 'en'} 
+                        onValueChange={(value) => setProfile(prev => prev ? ({ ...prev, language: value }) : null)}
+                        disabled={!profile}
+                      >
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
@@ -1365,7 +1049,7 @@ function UserAccountSettingsContent() {
                     {/* Save Preferences */}
                     <Button 
                       onClick={handleSaveProfile}
-                      disabled={saving}
+                      disabled={saving || !profile}
                       className="w-full bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white"
                     >
                       <Save className="h-4 w-4 mr-2" />

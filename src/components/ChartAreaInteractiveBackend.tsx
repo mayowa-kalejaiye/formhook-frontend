@@ -4,15 +4,15 @@ import { Area, AreaChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer, Tool
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { TrendingUp, Monitor, Smartphone, Calendar } from "lucide-react";
-import { getDashboardAnalytics } from "../services/api";
+import { getDashboardSummary } from "../services/api";
 
 const chartConfig = {
   desktop: {
-    label: "Desktop",
+    label: "Submissions",
     color: "#3b82f6",
   },
   mobile: {
-    label: "Mobile", 
+    label: "Errors", 
     color: "#10b981",
   },
 };
@@ -41,9 +41,9 @@ function CustomAreaTooltip({ active, payload, label }: any) {
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2">
                   {item.dataKey === 'desktop' ? (
-                    <Monitor className="h-4 w-4 text-blue-500" />
+                    <TrendingUp className="h-4 w-4 text-blue-500" />
                   ) : (
-                    <Smartphone className="h-4 w-4 text-green-500" />
+                    <TrendingUp className="h-4 w-4 text-red-500" />
                   )}
                   <div 
                     className="w-3 h-3 rounded-full" 
@@ -77,32 +77,66 @@ function CustomAreaTooltip({ active, payload, label }: any) {
   return null;
 }
 
-export function ChartAreaInteractiveBackend({ range, setRange }: { range: string; setRange: (v: string) => void }) {
+export function ChartAreaInteractiveBackend({ 
+  range, 
+  setRange,
+  analyticsData 
+}: { 
+  range: string; 
+  setRange: (v: string) => void;
+  analyticsData?: Array<{ date: string; submissions: number; errors: number; }>;
+}) {
   const [data, setData] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
+    // If analyticsData is provided, use it directly
+    if (analyticsData && analyticsData.length > 0) {
+      const chartData = analyticsData.map((item) => ({
+        date: item.date,
+        desktop: item.submissions || 0, // Map submissions to "desktop" for chart compatibility
+        mobile: item.errors || 0, // Map errors to "mobile" for chart compatibility
+      }));
+      console.log('[ChartAreaInteractiveBackend] Using provided analytics data:', chartData);
+      setData(chartData);
+      setLoading(false);
+      return;
+    }
+
+    // Fallback: fetch from API if no data provided
     const fetchAnalytics = async () => {
       setLoading(true);
       setError(null);
       
       try {
         console.log('[ChartAreaInteractiveBackend] Fetching analytics for range:', range);
-        const response = await getDashboardAnalytics({ range });
         
-        if (response && response.analytics && Array.isArray(response.analytics)) {
-          // Transform the analytics data to match chart format
-          const chartData = response.analytics.map((item: any) => ({
-            date: item.date || item.timestamp || new Date().toISOString(),
-            desktop: Math.floor((item.value1 || item.submissions || 0) * 0.6), // Assume 60% desktop
-            mobile: Math.floor((item.value1 || item.submissions || 0) * 0.4), // Assume 40% mobile
+        // Map range to days
+        const daysMap: Record<string, number> = {
+          '7d': 7,
+          '30d': 30,
+          '90d': 90
+        };
+        const days = daysMap[range] || 30;
+        
+        // Use getDashboardSummary which returns trend data
+        const response = await getDashboardSummary(days);
+        
+        if (response && response.trend && Array.isArray(response.trend)) {
+          // Transform the trend data to match chart format
+          // Note: Backend doesn't track device types, so we show total submissions
+          // For a more detailed breakdown, we'd need per-form analytics aggregation
+          const chartData = response.trend.map((item: any) => ({
+            date: item.date || new Date().toISOString(),
+            desktop: item.count || 0, // Show as total submissions (renamed for chart compatibility)
+            mobile: 0, // Backend doesn't track device type
           }));
           
           console.log('[ChartAreaInteractiveBackend] Transformed data:', chartData);
           setData(chartData);
         } else {
-          console.log('[ChartAreaInteractiveBackend] No analytics data available');
+          console.log('[ChartAreaInteractiveBackend] No trend data available');
           setData([]);
         }
       } catch (err) {
@@ -115,7 +149,7 @@ export function ChartAreaInteractiveBackend({ range, setRange }: { range: string
     };
 
     fetchAnalytics();
-  }, [range]);
+  }, [range, analyticsData]);
 
   // Calculate summary stats
   const totalVisitors = React.useMemo(() => {
@@ -136,11 +170,11 @@ export function ChartAreaInteractiveBackend({ range, setRange }: { range: string
         <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-700">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-blue-100 dark:bg-blue-800 rounded-full">
-              <Monitor className="h-4 w-4 text-blue-600" />
+              <TrendingUp className="h-4 w-4 text-blue-600" />
             </div>
             <div>
               <p className="text-2xl font-bold text-blue-900 dark:text-blue-100">{desktopPercentage}%</p>
-              <p className="text-sm text-blue-600 dark:text-blue-300">Desktop Users</p>
+              <p className="text-sm text-blue-600 dark:text-blue-300">Submissions</p>
             </div>
           </div>
         </div>
@@ -148,11 +182,11 @@ export function ChartAreaInteractiveBackend({ range, setRange }: { range: string
         <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 p-4 rounded-lg border border-green-200 dark:border-green-700">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-green-100 dark:bg-green-800 rounded-full">
-              <Smartphone className="h-4 w-4 text-green-600" />
+              <TrendingUp className="h-4 w-4 text-red-600" />
             </div>
             <div>
               <p className="text-2xl font-bold text-green-900 dark:text-green-100">{mobilePercentage}%</p>
-              <p className="text-sm text-green-600 dark:text-green-300">Mobile Users</p>
+              <p className="text-sm text-green-600 dark:text-green-300">Errors</p>
             </div>
           </div>
         </div>
@@ -166,7 +200,7 @@ export function ChartAreaInteractiveBackend({ range, setRange }: { range: string
               <p className="text-2xl font-bold text-purple-900 dark:text-purple-100">
                 {totalVisitors.toLocaleString()}
               </p>
-              <p className="text-sm text-purple-600 dark:text-purple-300">Total Visitors</p>
+              <p className="text-sm text-purple-600 dark:text-purple-300">Total Activity</p>
             </div>
           </div>
         </div>

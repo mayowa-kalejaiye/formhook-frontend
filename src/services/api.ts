@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { apiCache, CacheTTL } from '@/utils/cache';
 
 // Add global type for window.toast (shadcn/ui toast)
 declare global {
@@ -36,33 +37,16 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
   // Only check localStorage token if not using HTTP-only cookies
   if (!isUsingCookies) {
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-    console.log('[fetchWithAuth] Token check:', { hasToken: !!token, url });
     
     // Token expiry check (optional, UX improvement)
     if (token) {
       const payload = decodeJwt(token);
       if (payload && payload.exp && Date.now() / 1000 > payload.exp) {
-        console.log('[fetchWithAuth] Token expired, redirecting to login');
         localStorage.removeItem('token');
-        showSessionExpiredToast();
-        
-        // Don't redirect to login on public pages
-        const pathname = window.location.pathname;
-        const isPublicPage = pathname === '/' || pathname === '/login' || pathname === '/signup' || 
-                            pathname === '/forgot-password' || pathname === '/reset-password' || 
-                            pathname === '/verify-email' || pathname === '/verification-required' ||
-                            pathname === '/pricing';
-        
-        if (!isPublicPage && window.location.pathname !== '/login') {
-          window.location.href = '/login';
-        }
-        return { ok: false, error: 'Session expired' };
+        return { ok: false, status: 401, error: 'Session expired' };
       }
       // Add token to Authorization header
       headers.set('Authorization', `Bearer ${token}`);
-      console.log('[fetchWithAuth] Added Authorization header for URL:', url);
-    } else {
-      console.warn('[fetchWithAuth] No token found for authenticated request to:', url);
     }
   }
   
@@ -89,26 +73,11 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
     return { ok: false, status: 0, error: 'No response from server' };
   }
   if (res.status === 401) {
-    console.error('[fetchWithAuth] 401 Unauthorized response for:', url);
-    if (typeof window !== 'undefined') {
-      // Don't redirect to login on public pages
-      const pathname = window.location.pathname;
-      const isPublicPage = pathname === '/' || pathname === '/login' || pathname === '/signup' || 
-                          pathname === '/forgot-password' || pathname === '/reset-password' || 
-                          pathname === '/verify-email' || pathname === '/verification-required' ||
-                          pathname === '/pricing';
-      
-      localStorage.removeItem('token');
-      showSessionExpiredToast();
-      
-      if (!isPublicPage && window.location.pathname !== '/login') {
-        window.location.href = '/login';
-      }
-    }
+    localStorage.removeItem('token');
+    showSessionExpiredToast();
     return { ok: false, status: 401, error: 'Unauthorized' };
   }
   if (!res.ok) {
-    console.error(`[fetchWithAuth] ${res.status} error for:`, url);
     let errorMsg = 'API error';
     let errorDetail = '';
     let errorData = null;
@@ -116,7 +85,6 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
     if (contentType.includes('application/json')) {
       try {
         errorData = await res.json();
-        console.error('[fetchWithAuth] Error response data:', errorData);
         errorMsg = errorData?.detail || errorData?.message || errorMsg;
         errorDetail = typeof errorData === 'string' ? errorData : '';
       } catch {
@@ -139,6 +107,67 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
     };
   }
   return res;
+}
+
+// Cached fetch wrapper for GET requests
+export async function fetchWithCache(
+  url: string, 
+  options: RequestInit = {}, 
+  ttl: number = CacheTTL.MEDIUM
+) {
+  // Only cache GET requests
+  const method = (options.method || 'GET').toUpperCase();
+  if (method !== 'GET') {
+    return fetchWithAuth(url, options);
+  }
+
+  // Use the full URL as cache key (includes query parameters)
+  const cacheKey = url;
+  
+  // Check cache first
+  const cached = apiCache.get(cacheKey);
+  if (cached) {
+    // Return a response-like object with cached data
+    // CRITICAL: Return a deep copy to prevent mutation of cached data
+    const cachedCopy = JSON.parse(JSON.stringify(cached));
+    return {
+      ok: true,
+      status: 200,
+      json: async () => cachedCopy,
+      _fromCache: true
+    };
+  }
+
+  // Make the actual request
+  const response = await fetchWithAuth(url, options);
+  
+  // Cache successful responses
+  if (response.ok) {
+    try {
+      const data = await response.json();
+      // Store a deep copy in cache to prevent mutation
+      apiCache.set(cacheKey, JSON.parse(JSON.stringify(data)), undefined, ttl);
+      
+      // Return response-like object with the original data
+      return {
+        ok: true,
+        status: 200,
+        json: async () => data,
+        _fromCache: false
+      };
+    } catch (error) {
+      // If JSON parsing fails, return the original response
+      console.error('[Cache] Failed to parse response as JSON:', error);
+      return response;
+    }
+  }
+
+  return response;
+}
+
+// Helper to invalidate cache for mutations
+export function invalidateCache(pattern: string) {
+  apiCache.invalidatePattern(pattern);
 }
 
 // Simple useAuth hook
@@ -179,20 +208,53 @@ export const updateFormWebhook = async (
   formId: string,
   data: { webhook_url?: string | null; webhook_headers?: Record<string, string>; webhook_secret?: string | null }
 ) => {
-  const res = await fetchWithAuth(`/forms/${formId}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) throw new Error('Failed to update webhook');
-  return await res.json();
+  try {
+    // Invalidate form cache when updating
+    invalidateCache(`/forms/${formId}`);
+    
+    const res = await fetchWithAuth(`/forms/${formId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    
+    if (!res.ok) {
+      const errorMsg = (res as any).error || 'Failed to update webhook';
+      console.error('[API] Error updating webhook:', errorMsg);
+      throw new Error(errorMsg);
+    }
+    
+    if (typeof res.json === 'function') {
+      return await res.json();
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error('[API] Exception in updateFormWebhook:', error);
+    throw error;
+  }
 };
 
 // Get webhook delivery logs for a form
 export const getWebhookDeliveries = async (formId: string) => {
-  const res = await fetchWithAuth(`/forms/${formId}/webhook-deliveries`);
-  if (!res.ok) throw new Error('Failed to fetch webhook deliveries');
-  return await res.json();
+  try {
+    const res = await fetchWithAuth(`/forms/${formId}/webhook-deliveries`);
+    
+    if (!res.ok) {
+      const errorMsg = (res as any).error || 'Failed to fetch webhook deliveries';
+      console.error('[API] Error fetching webhook deliveries:', errorMsg);
+      return []; // Return empty array instead of throwing
+    }
+    
+    if (typeof res.json === 'function') {
+      return await res.json();
+    }
+    
+    return [];
+  } catch (error) {
+    console.error('[API] Exception in getWebhookDeliveries:', error);
+    return [];
+  }
 };
 
 // Admin: Retry all pending webhooks
@@ -202,43 +264,132 @@ export const retryPendingWebhooks = async () => {
   return await res.json();
 };
 
-// Dashboard Analytics
-export const getDashboardAnalytics = async (params?: { range?: string }) => {
-  const url = '/dashboard/analytics' + (params?.range ? `?range=${encodeURIComponent(params.range)}` : '');
-  const res = await fetchWithAuth(url);
-  if (!res.ok) throw new Error('Failed to fetch dashboard analytics');
-  return await res.json();
-};
-// Form Analytics
+// Form Analytics (per-form endpoint from API docs)
 export const getFormAnalytics = async (
   formId: string,
   params?: { date_from?: string; date_to?: string; interval?: string }
 ) => {
-  let url = `/forms/${formId}/analytics`;
-  const q = [];
-  if (params?.date_from) q.push(`date_from=${encodeURIComponent(params.date_from)}`);
-  if (params?.date_to) q.push(`date_to=${encodeURIComponent(params.date_to)}`);
-  if (params?.interval) q.push(`interval=${encodeURIComponent(params.interval)}`);
-  if (q.length) url += '?' + q.join('&');
-  const res = await fetchWithAuth(url);
-  if (!res.ok) throw new Error('Failed to fetch form analytics');
-  return await res.json();
-};
-// Dashboard Summary
-export const getDashboardSummary = async (days?: number) => {
-  const url = '/dashboard/summary' + (days ? `?days=${days}` : '');
-  const res = await fetchWithAuth(url);
-  if (!res.ok) throw new Error('Failed to fetch dashboard summary');
-  return await res.json();
+  // Consistent fallback structure when backend unavailable
+  const fallbackAnalytics = {
+    total_submissions: 0,
+    time_series: [],
+    status_breakdown: {},
+    daily_stats: [],
+    _fallback: true // Flag to indicate this is fallback data
+  };
+
+  try {
+    let url = `/forms/${formId}/analytics`;
+    const q = [];
+    if (params?.date_from) q.push(`date_from=${encodeURIComponent(params.date_from)}`);
+    if (params?.date_to) q.push(`date_to=${encodeURIComponent(params.date_to)}`);
+    if (params?.interval) q.push(`interval=${encodeURIComponent(params.interval)}`);
+    if (q.length) url += '?' + q.join('&');
+
+    // Use cached fetch with medium TTL (5 minutes)
+    const res = await fetchWithCache(url, {}, CacheTTL.MEDIUM);
+
+    if (!res.ok) {
+      // fetchWithAuth returns a custom error-like object on network/auth failures.
+      const errorMsg = (res as any).error || `Failed to fetch form analytics (status: ${(res as any).status || 'unknown'})`;
+      console.warn('[API] getFormAnalytics unavailable:', errorMsg);
+      return fallbackAnalytics;
+    }
+
+    if (typeof res.json === 'function') {
+      const data = await res.json();
+      // Ensure data has expected structure, otherwise use fallback
+      if (data && typeof data === 'object') {
+        return data;
+      }
+      console.warn('[API] getFormAnalytics: unexpected data format, using fallback');
+      return fallbackAnalytics;
+    }
+
+    // If response doesn't support .json, use fallback
+    console.warn('[API] getFormAnalytics: response missing json(); using fallback');
+    return fallbackAnalytics;
+  } catch (error) {
+    // Network or unexpected exception - log and return consistent fallback
+    console.error('[API] Exception in getFormAnalytics:', error);
+    return fallbackAnalytics;
+  }
 };
 
-// Recent Submissions (across all forms)
-export const getRecentSubmissions = async (params?: { limit?: number }) => {
-  const url = '/dashboard/recent-submissions' + (params?.limit ? `?limit=${params.limit}` : '');
-  const res = await fetchWithAuth(url);
-  if (!res.ok) throw new Error('Failed to fetch recent submissions');
-  return await res.json();
+// Form Geo Analytics (geographic breakdown)
+export const getFormGeoAnalytics = async (formId: string) => {
+  const fallbackGeoAnalytics = {
+    countries: [],
+    cities: [],
+    _fallback: true
+  };
+
+  try {
+    // Use cached fetch with longer TTL (15 minutes) - geo data changes less frequently
+    const res = await fetchWithCache(`/forms/${formId}/geo-analytics`, {}, CacheTTL.LONG);
+
+    if (!res.ok) {
+      const errorMsg = (res as any).error || `Failed to fetch geo analytics (status: ${(res as any).status || 'unknown'})`;
+      console.warn('[API] getFormGeoAnalytics unavailable:', errorMsg);
+      return fallbackGeoAnalytics;
+    }
+
+    if (typeof res.json === 'function') {
+      const data = await res.json();
+      if (data && typeof data === 'object') {
+        return data;
+      }
+      console.warn('[API] getFormGeoAnalytics: unexpected data format, using fallback');
+      return fallbackGeoAnalytics;
+    }
+
+    console.warn('[API] getFormGeoAnalytics: response missing json(); using fallback');
+    return fallbackGeoAnalytics;
+  } catch (error) {
+    console.error('[API] Exception in getFormGeoAnalytics:', error);
+    return fallbackGeoAnalytics;
+  }
 };
+
+// Dashboard Summary
+export const getDashboardSummary = async (days?: number) => {
+  try {
+    const url = '/dashboard/summary' + (days ? `?days=${days}` : '');
+    const res = await fetchWithAuth(url);
+    
+    if (!res.ok) {
+      // Return default summary data structure instead of throwing
+      return {
+        total_forms: 0,
+        total_submissions: 0,
+        recent_submissions: [],
+        trend: [],
+        webhook_stats: {
+          total: 0,
+          delivered: 0,
+          failed: 0
+        }
+      };
+    }
+    
+    const data = await res.json();
+    return data;
+  } catch (error) {
+    // Return default summary data structure instead of throwing
+    return {
+      total_forms: 0,
+      total_submissions: 0,
+      recent_submissions: [],
+      trend: [],
+      webhook_stats: {
+        total: 0,
+        delivered: 0,
+        failed: 0
+      }
+    };
+  }
+};
+
 // API Token
 export const generateApiToken = async () => {
   const res = await fetchWithAuth('/api-token/generate', { method: 'POST' });
@@ -266,32 +417,60 @@ export const signup = (data: { email: string; password: string }) => {
 };
 
 // Flexible login function that supports multiple backend authentication endpoints
-export const login = (data: { email: string; password: string }) => {
-  // First try the standard login endpoint
-  const loginAtEndpoint = (endpoint: string) => {
+export const login = async (data: { email: string; password: string }) => {
+  console.log('[API] Login attempt:', { email: data.email, useProxy: shouldUseProxy });
+
+  const loginAtEndpoint = async (endpoint: string) => {
+    const fullUrl = `${API_BASE_URL}${endpoint}`;
+    console.log('[API] Attempting login at:', fullUrl);
+
     if (shouldUseProxy) {
       // Use the proxy in production to avoid CORS issues
+      console.log('[API] Using proxy for login request');
       return axios.post('/api/proxy', {
-        url: `${API_BASE_URL}${endpoint}`,
+        url: fullUrl,
+        method: 'POST',
         data: data
       });
     } else {
       // Use direct API call in development
-      return API.post(endpoint, data);
+      console.log('[API] Direct API call for login');
+      try {
+        return await axios.post(fullUrl, data, {
+          withCredentials: true,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+      } catch (error) {
+        console.error('[API] Login error:', error);
+        throw error;
+      }
     }
   };
   
-  // Start with the primary login endpoint
-  return loginAtEndpoint('/auth/login')
-    .catch(error => {
-      // If the first endpoint fails specifically with a not found error (404),
-      // try the email login endpoint as fallback
-      if (error.response && error.response.status === 404) {
-        return loginAtEndpoint('/auth/email-login');
-      }
-      // For any other error, propagate it
-      throw error;
-    });
+  try {
+    // Start with the primary login endpoint
+    console.log('[API] Trying primary login endpoint');
+    return await loginAtEndpoint('/auth/login');
+  } catch (error: any) {
+    console.error('[API] Primary login error:', error);
+    
+    // If the first endpoint fails specifically with a not found error (404),
+    // try the email login endpoint as fallback
+    if (error.response && error.response.status === 404) {
+      console.log('[API] Trying fallback login endpoint');
+      return await loginAtEndpoint('/auth/email-login');
+    }
+    
+    // For any other error, propagate it with more context
+    const errorMessage = error.response?.data?.detail || 
+                        error.response?.data?.message || 
+                        error.message || 
+                        'Login failed';
+    console.error('[API] Login failed:', errorMessage);
+    throw new Error(errorMessage);
+  }
 };
 
 // Token-based login (for password reset links, etc.)
@@ -336,30 +515,26 @@ export const requestEmailVerification = (email: string) => {
 
 // Forms
 export const getForms = async () => {
-  const res = await fetchWithAuth('/forms/');
-  // Log the full response for debugging
-  if (process.env.NODE_ENV !== 'production') {
-    // eslint-disable-next-line no-console
-    console.log('[getForms] fetchWithAuth response:', res);
-  }
-  if (!res.ok) {
-    if (process.env.NODE_ENV !== 'production') {
-      // eslint-disable-next-line no-console
-      console.error('[getForms] Error fetching forms:', res.error || res.status);
+  try {
+    // Use cached fetch with short TTL (1 minute) - forms list changes frequently
+    const res = await fetchWithCache('/forms/', {}, CacheTTL.SHORT);
+    
+    if (!res.ok) {
+      // Return empty data instead of throwing
+      return { data: [] };
     }
-    throw new Error(res.error || 'Failed to fetch forms');
-  }
-  // If res is a Response object, parse as JSON
-  if (typeof res.json === 'function') {
-    const data = await res.json();
-    if (process.env.NODE_ENV !== 'production') {
-      // eslint-disable-next-line no-console
-      console.log('[getForms] Parsed forms data:', data);
+    
+    // If res is a Response object, parse as JSON
+    if (typeof res.json === 'function') {
+      const data = await res.json();
+      return { data };
     }
-    return { data };
+    // If res is already parsed (error case), return as is
+    return res;
+  } catch (error) {
+    // Return empty data on any error
+    return { data: [] };
   }
-  // If res is already parsed (error case), return as is
-  return res;
 };
 export const createForm = async (data: {
   name: string;
@@ -375,7 +550,9 @@ export const createForm = async (data: {
     validation?: any;
   }>;
 }) => {
-  console.log('[API] Creating form with data:', data);
+  // Invalidate forms cache when creating a new form
+  invalidateCache('/forms/');
+  
   const res = await fetchWithAuth('/forms/', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -386,14 +563,10 @@ export const createForm = async (data: {
     let errorMsg = 'Failed to create form';
     
     if (res.errorData) {
-      console.error('[API] Create form error response:', res.errorData);
-      
       // Handle FastAPI validation errors specifically
       if (res.errorData.detail && Array.isArray(res.errorData.detail)) {
         // FastAPI validation errors are arrays
-        console.error('[API] FastAPI validation errors:', res.errorData.detail);
         const validationErrors = res.errorData.detail.map(err => {
-          console.error('[API] Individual validation error:', err);
           return `${err.loc ? err.loc.join('.') : 'field'}: ${err.msg}`;
         }).join('; ');
         errorMsg = `Validation error: ${validationErrors}`;
@@ -414,21 +587,61 @@ export const createForm = async (data: {
   return { ok: true, data: result };
 };
 export const getForm = async (formId: string) => {
-  const res = await fetchWithAuth(`/forms/${formId}`);
-  if (!res.ok) throw new Error('Failed to fetch form');
-  return await res.json();
+  try {
+    const res = await fetchWithAuth(`/forms/${formId}`);
+    
+    if (!res.ok) {
+      const errorMsg = (res as any).error || 'Failed to fetch form';
+      console.error('[API] Error fetching form:', errorMsg);
+      throw new Error(errorMsg);
+    }
+    
+    if (typeof res.json === 'function') {
+      return await res.json();
+    }
+    
+    throw new Error('Invalid response format');
+  } catch (error) {
+    console.error('[API] Exception in getForm:', error);
+    throw error;
+  }
 };
+
 export const deleteForm = async (formId: string) => {
-  const res = await fetchWithAuth(`/forms/${formId}`, { method: 'DELETE' });
-  if (!res.ok) throw new Error('Failed to delete form');
-  return await res.json();
+  try {
+    // Invalidate form-related caches
+    invalidateCache('/forms/');
+    invalidateCache(`/forms/${formId}`);
+    
+    const res = await fetchWithAuth(`/forms/${formId}`, { method: 'DELETE' });
+    
+    if (!res.ok) {
+      const errorMsg = (res as any).error || 'Failed to delete form';
+      console.error('[API] Error deleting form:', errorMsg);
+      throw new Error(errorMsg);
+    }
+    
+    if (typeof res.json === 'function') {
+      return await res.json();
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error('[API] Exception in deleteForm:', error);
+    throw error;
+  }
 };
 
 // Submissions
 export const getSubmissions = async (
-  formId: string,
+  formId?: string,
   params?: { limit?: number; offset?: number; date_from?: string; date_to?: string; ip_address?: string }
 ) => {
+  if (!formId) {
+    // If no formId provided, return empty array (or you could fetch all submissions from all forms)
+    return [];
+  }
+  
   let url = `/forms/${formId}/submissions`;
   const q = [];
   if (params?.limit) q.push(`limit=${params.limit}`);
@@ -437,9 +650,20 @@ export const getSubmissions = async (
   if (params?.date_to) q.push(`date_to=${encodeURIComponent(params.date_to)}`);
   if (params?.ip_address) q.push(`ip_address=${encodeURIComponent(params.ip_address)}`);
   if (q.length) url += '?' + q.join('&');
-  const res = await fetchWithAuth(url);
-  if (!res.ok) throw new Error('Failed to fetch submissions');
-  return await res.json();
+  
+  try {
+    // Use cached fetch with short TTL (1 minute) - submissions can change frequently
+    const res = await fetchWithCache(url, {}, CacheTTL.SHORT);
+    if (!res.ok) {
+      console.error('Failed to fetch submissions:', res.status, res.error);
+      return [];
+    }
+    
+    return await res.json();
+  } catch (error) {
+    console.error('Error fetching submissions:', error);
+    return [];
+  }
 };
 export const exportSubmissions = async (
   formId: string,
@@ -458,9 +682,17 @@ export const exportSubmissions = async (
 
 // --- User Profile & Account Management ---
 export const getUserProfile = async () => {
-  const res = await fetchWithAuth('/user/profile');
-  if (!res.ok) throw new Error('Failed to get user profile');
-  return await res.json();
+  try {
+    const res = await fetchWithAuth('/user/profile');
+    if (!res.ok) {
+      console.error('[API] getUserProfile failed:', res.status, res.statusText);
+      return null;
+    }
+    return await res.json();
+  } catch (error) {
+    console.error('[API] getUserProfile error:', error);
+    return null;
+  }
 };
 
 export const updateUserProfile = async (data: {
@@ -469,87 +701,452 @@ export const updateUserProfile = async (data: {
   language?: string;
   notification_preferences?: object;
 }) => {
-  const res = await fetchWithAuth('/user/profile', {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data)
-  });
-  if (!res.ok) throw new Error('Failed to update user profile');
-  return await res.json();
+  try {
+    const res = await fetchWithAuth('/user/profile', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    if (!res.ok) {
+      const errorMsg = (res as any).error || 'Failed to update user profile';
+      throw new Error(errorMsg);
+    }
+    if (typeof res.json === 'function') {
+      return await res.json();
+    }
+    return { success: true };
+  } catch (error) {
+    console.error('[API] updateUserProfile error:', error);
+    throw error;
+  }
 };
 
 export const changePassword = async (data: {
   current_password: string;
   new_password: string;
 }) => {
-  const res = await fetchWithAuth('/user/change-password', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data)
-  });
-  if (!res.ok) {
-    const errorData = await res.json();
-    throw new Error(errorData.detail || 'Failed to change password');
+  try {
+    const res = await fetchWithAuth('/user/change-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    if (!res.ok) {
+      const errorMsg = (res as any).error || 'Failed to change password';
+      throw new Error(errorMsg);
+    }
+    if (typeof res.json === 'function') {
+      return await res.json();
+    }
+    return { success: true };
+  } catch (error) {
+    console.error('[API] changePassword error:', error);
+    throw error;
   }
-  return await res.json();
 };
 
 export const toggle2FA = async (enabled: boolean) => {
-  const res = await fetchWithAuth('/user/2fa', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ enabled })
-  });
-  if (!res.ok) throw new Error('Failed to update 2FA settings');
-  return await res.json();
+  try {
+    const res = await fetchWithAuth('/user/2fa', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled })
+    });
+    if (!res.ok) {
+      const errorMsg = (res as any).error || 'Failed to update 2FA settings';
+      throw new Error(errorMsg);
+    }
+    if (typeof res.json === 'function') {
+      return await res.json();
+    }
+    return { success: true };
+  } catch (error) {
+    console.error('[API] toggle2FA error:', error);
+    throw error;
+  }
 };
 
 export const getSecurityLogs = async () => {
-  const res = await fetchWithAuth('/user/security-logs');
-  if (!res.ok) throw new Error('Failed to get security logs');
-  return await res.json();
+  try {
+    const res = await fetchWithAuth('/user/security-logs');
+    if (!res.ok) {
+      console.error('[API] getSecurityLogs failed:', res.status, res.statusText);
+      return [];
+    }
+    return await res.json();
+  } catch (error) {
+    console.error('[API] getSecurityLogs error:', error);
+    return [];
+  }
 };
 
 export const deleteAccount = async (password: string) => {
-  const res = await fetchWithAuth('/user/delete-account', {
-    method: 'DELETE',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ password })
-  });
-  if (!res.ok) {
-    const errorData = await res.json();
-    throw new Error(errorData.detail || 'Failed to delete account');
+  try {
+    const res = await fetchWithAuth('/user/delete-account', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password })
+    });
+    if (!res.ok) {
+      const errorMsg = (res as any).error || 'Failed to delete account';
+      throw new Error(errorMsg);
+    }
+    if (typeof res.json === 'function') {
+      return await res.json();
+    }
+    return { success: true };
+  } catch (error) {
+    console.error('[API] deleteAccount error:', error);
+    throw error;
   }
-  return await res.json();
 };
 
 export const exportUserData = async () => {
-  const res = await fetchWithAuth('/user/export-data');
-  if (!res.ok) throw new Error('Failed to export user data');
-  return await res.blob();
+  try {
+    const res = await fetchWithAuth('/user/export-data');
+    if (!res.ok) {
+      console.error('[API] exportUserData failed:', res.status, res.statusText);
+      throw new Error('Failed to export user data');
+    }
+    return await res.blob();
+  } catch (error) {
+    console.error('[API] exportUserData error:', error);
+    throw error;
+  }
 };
 
-// --- Enhanced API Token Management ---
+// --- API Token Management (Per-Form) ---
+export const generateFormToken = async (formId: string) => {
+  try {
+    const res = await fetchWithAuth(`/forms/${formId}/generate-token`, {
+      method: 'POST'
+    });
+    if (!res.ok) {
+      const errorMsg = (res as any).error || 'Failed to generate form token';
+      throw new Error(errorMsg);
+    }
+    if (typeof res.json === 'function') {
+      return await res.json();
+    }
+    throw new Error('Invalid response from server');
+  } catch (error) {
+    console.error('[API] generateFormToken error:', error);
+    throw error;
+  }
+};
+
+export const revokeFormToken = async (formId: string) => {
+  try {
+    const res = await fetchWithAuth(`/forms/${formId}/revoke-token`, {
+      method: 'DELETE'
+    });
+    if (!res.ok) {
+      const errorMsg = (res as any).error || 'Failed to revoke form token';
+      throw new Error(errorMsg);
+    }
+    return { success: true };
+  } catch (error) {
+    console.error('[API] revokeFormToken error:', error);
+    throw error;
+  }
+};
+
+// --- User API Tokens (Legacy - not implemented in backend) ---
 export const getUserApiTokens = async () => {
-  const res = await fetchWithAuth('/user/api-tokens');
-  if (!res.ok) throw new Error('Failed to get API tokens');
-  return await res.json();
+  // Backend doesn't support multiple user-level API tokens
+  // Tokens are per-form, not per-user
+  console.log('[API] User-level API tokens not supported, use per-form tokens instead');
+  return [];
 };
 
 export const createApiToken = async (name: string, permissions?: string[]) => {
-  const res = await fetchWithAuth('/user/api-tokens', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, permissions: permissions || ['forms:read', 'submissions:read'] })
-  });
-  if (!res.ok) throw new Error('Failed to create API token');
-  return await res.json();
+  // Not implemented in backend - use per-form tokens instead
+  throw new Error('User-level API tokens not supported. Use per-form tokens from the Forms page.');
 };
 
 export const deleteApiToken = async (tokenId: string) => {
-  const res = await fetchWithAuth(`/user/api-tokens/${tokenId}`, {
-    method: 'DELETE'
-  });
-  if (!res.ok) throw new Error('Failed to delete API token');
-  return await res.json();
+  // Not implemented in backend - use per-form tokens instead
+  throw new Error('User-level API tokens not supported. Use per-form tokens from the Forms page.');
+};
+
+// --- Notifications API ---
+export interface Notification {
+  id: string;
+  type: 'submission' | 'webhook' | 'system' | 'email' | 'security' | 'milestone';
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  title: string;
+  message: string;
+  timestamp: string;
+  read: boolean;
+  archived: boolean;
+  metadata?: {
+    formId?: string;
+    formName?: string;
+    submissionId?: string;
+    webhookUrl?: string;
+    status?: string;
+    emailTo?: string;
+    emailSubject?: string;
+    emailBody?: string;
+    ipAddress?: string;
+    userAgent?: string;
+    error?: string;
+  };
+}
+
+// Get all notifications for the authenticated user
+export const getNotifications = async (params?: {
+  limit?: number;
+  offset?: number;
+  type?: string;
+  read?: boolean;
+  archived?: boolean;
+}) => {
+  try {
+    let url = '/notifications';
+    const q = [];
+    if (params?.limit) q.push(`limit=${params.limit}`);
+    if (params?.offset) q.push(`offset=${params.offset}`);
+    if (params?.type) q.push(`type=${params.type}`);
+    if (params?.read !== undefined) q.push(`read=${params.read}`);
+    if (params?.archived !== undefined) q.push(`archived=${params.archived}`);
+    if (q.length) url += '?' + q.join('&');
+
+    // Use cached fetch with short TTL (30 seconds)
+    const res = await fetchWithCache(url, {}, 30000);
+    
+    if (!res.ok) {
+      console.error('[API] Failed to fetch notifications:', res.status);
+      return { notifications: [], total: 0, unread: 0 };
+    }
+    
+    const data = await res.json();
+    return data;
+  } catch (error) {
+    console.error('[API] getNotifications error:', error);
+    return { notifications: [], total: 0, unread: 0 };
+  }
+};
+
+// Get unread notification count
+export const getUnreadNotificationCount = async () => {
+  try {
+    const res = await fetchWithAuth('/notifications/unread-count');
+    
+    if (!res.ok) {
+      console.error('[API] Failed to fetch unread count:', res.status);
+      return 0;
+    }
+    
+    const data = await res.json();
+    return data.count || 0;
+  } catch (error) {
+    console.error('[API] getUnreadNotificationCount error:', error);
+    return 0;
+  }
+};
+
+// Mark notification as read
+export const markNotificationAsRead = async (notificationId: string) => {
+  try {
+    // Invalidate notifications cache
+    invalidateCache('/notifications');
+    
+    const res = await fetchWithAuth(`/notifications/${notificationId}/read`, {
+      method: 'POST'
+    });
+    
+    if (!res.ok) {
+      const errorMsg = (res as any).error || 'Failed to mark notification as read';
+      throw new Error(errorMsg);
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error('[API] markNotificationAsRead error:', error);
+    throw error;
+  }
+};
+
+// Mark all notifications as read
+export const markAllNotificationsAsRead = async () => {
+  try {
+    // Invalidate notifications cache
+    invalidateCache('/notifications');
+    
+    const res = await fetchWithAuth('/notifications/mark-all-read', {
+      method: 'POST'
+    });
+    
+    if (!res.ok) {
+      const errorMsg = (res as any).error || 'Failed to mark all notifications as read';
+      throw new Error(errorMsg);
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error('[API] markAllNotificationsAsRead error:', error);
+    throw error;
+  }
+};
+
+// Archive a notification
+export const archiveNotification = async (notificationId: string) => {
+  try {
+    // Invalidate notifications cache
+    invalidateCache('/notifications');
+    
+    const res = await fetchWithAuth(`/notifications/${notificationId}/archive`, {
+      method: 'POST'
+    });
+    
+    if (!res.ok) {
+      const errorMsg = (res as any).error || 'Failed to archive notification';
+      throw new Error(errorMsg);
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error('[API] archiveNotification error:', error);
+    throw error;
+  }
+};
+
+// Delete a notification
+export const deleteNotification = async (notificationId: string) => {
+  try {
+    // Invalidate notifications cache
+    invalidateCache('/notifications');
+    
+    const res = await fetchWithAuth(`/notifications/${notificationId}`, {
+      method: 'DELETE'
+    });
+    
+    if (!res.ok) {
+      const errorMsg = (res as any).error || 'Failed to delete notification';
+      throw new Error(errorMsg);
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error('[API] deleteNotification error:', error);
+    throw error;
+  }
+};
+
+// Get notification preferences
+export const getNotificationPreferences = async () => {
+  try {
+    const res = await fetchWithAuth('/notifications/preferences');
+    
+    if (!res.ok) {
+      console.error('[API] Failed to fetch notification preferences:', res.status);
+      return {
+        email_notifications: true,
+        webhook_failures: true,
+        security_alerts: true,
+        milestone_alerts: true,
+        submission_alerts: true
+      };
+    }
+    
+    return await res.json();
+  } catch (error) {
+    console.error('[API] getNotificationPreferences error:', error);
+    return {
+      email_notifications: true,
+      webhook_failures: true,
+      security_alerts: true,
+      milestone_alerts: true,
+      submission_alerts: true
+    };
+  }
+};
+
+// Update notification preferences
+export const updateNotificationPreferences = async (preferences: {
+  email_notifications?: boolean;
+  webhook_failures?: boolean;
+  security_alerts?: boolean;
+  milestone_alerts?: boolean;
+  submission_alerts?: boolean;
+}) => {
+  try {
+    const res = await fetchWithAuth('/notifications/preferences', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(preferences)
+    });
+    
+    if (!res.ok) {
+      const errorMsg = (res as any).error || 'Failed to update notification preferences';
+      throw new Error(errorMsg);
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error('[API] updateNotificationPreferences error:', error);
+    throw error;
+  }
+};
+
+// --- Push Notifications API ---
+// Subscribe to push notifications
+export const subscribeToPush = async (subscription: PushSubscription) => {
+  try {
+    const res = await fetchWithAuth('/notifications/push/subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(subscription.toJSON())
+    });
+    
+    if (!res.ok) {
+      const errorMsg = (res as any).error || 'Failed to subscribe to push notifications';
+      throw new Error(errorMsg);
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error('[API] subscribeToPush error:', error);
+    throw error;
+  }
+};
+
+// Unsubscribe from push notifications
+export const unsubscribeFromPush = async (endpoint: string) => {
+  try {
+    const res = await fetchWithAuth('/notifications/push/unsubscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ endpoint })
+    });
+    
+    if (!res.ok) {
+      const errorMsg = (res as any).error || 'Failed to unsubscribe from push notifications';
+      throw new Error(errorMsg);
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error('[API] unsubscribeFromPush error:', error);
+    throw error;
+  }
+};
+
+// Get VAPID public key from backend
+export const getVapidPublicKey = async (): Promise<string> => {
+  try {
+    const res = await fetchWithAuth('/notifications/push/vapid-key');
+    
+    if (!res.ok) {
+      console.error('[API] Failed to fetch VAPID key:', res.status);
+      throw new Error('Failed to fetch VAPID public key');
+    }
+    
+    const data = await res.json();
+    return data.publicKey || data.vapid_public_key || '';
+  } catch (error) {
+    console.error('[API] getVapidPublicKey error:', error);
+    throw error;
+  }
 };

@@ -7,8 +7,11 @@ body {
 }
 
 /* Prevent horizontal scrolling site-wide which can cause mobile pages to shift */
+/* Remove forced minimum height to prevent white space below content */
 html, body, #__next {
   overflow-x: hidden;
+  min-height: 0 !important;
+  height: auto !important;
 }
 
 /* Prevent flash of invisible content */

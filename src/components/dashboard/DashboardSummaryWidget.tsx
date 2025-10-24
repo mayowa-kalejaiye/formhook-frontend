@@ -33,6 +33,9 @@ interface DashboardSummaryWidgetProps {
   failedWebhooks: number;
   loading?: boolean;
   onRefresh?: () => void;
+  // Add trend data from API
+  previousPeriodForms?: number;
+  previousPeriodSubmissions?: number;
 }
 
 interface StatusCardProps {
@@ -114,24 +117,24 @@ function StatusCard({ title, value, icon: Icon, color, description, trend, loadi
 
   return (
     <Card className={`bg-gradient-to-br ${classes.bg} ${classes.border} hover:shadow-lg transition-all duration-200`}>
-      <CardContent className="p-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className={`p-3 rounded-xl bg-white dark:bg-gray-800 shadow-sm`}>
-              <Icon className={`h-6 w-6 ${classes.icon}`} />
+      <CardContent className="p-4 sm:p-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+            <div className={`p-2 sm:p-3 rounded-xl bg-white dark:bg-gray-800 shadow-sm flex-shrink-0`}>
+              <Icon className={`h-5 w-5 sm:h-6 sm:w-6 ${classes.icon}`} />
             </div>
-            <div>
-              <p className={`text-2xl font-bold ${classes.text}`}>{value}</p>
-              <p className={`text-sm ${classes.subtext} font-medium`}>{title}</p>
+            <div className="min-w-0 flex-1">
+              <p className={`text-xl sm:text-2xl font-bold ${classes.text} truncate`}>{value}</p>
+              <p className={`text-xs sm:text-sm ${classes.subtext} font-medium truncate`}>{title}</p>
               {description && (
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{description}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate">{description}</p>
               )}
             </div>
           </div>
           {trend && (
-            <div className={`flex items-center gap-1 text-sm font-medium ${trend.positive ? 'text-green-600' : 'text-red-600'}`}>
-              {trend.positive ? <TrendingUp className="h-4 w-4" /> : <TrendingUp className="h-4 w-4 transform rotate-180" />}
-              {Math.abs(trend.value)}%
+            <div className={`flex items-center gap-1 text-xs sm:text-sm font-medium flex-shrink-0 ${trend.positive ? 'text-green-600' : 'text-red-600'}`}>
+              {trend.positive ? <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4" /> : <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 transform rotate-180" />}
+              <span className="whitespace-nowrap">{Math.abs(trend.value)}%</span>
             </div>
           )}
         </div>
@@ -173,7 +176,9 @@ export default function DashboardSummaryWidget({
   activeWebhooks,
   failedWebhooks,
   loading = false,
-  onRefresh
+  onRefresh,
+  previousPeriodForms = 0,
+  previousPeriodSubmissions = 0
 }: DashboardSummaryWidgetProps) {
   const [refreshing, setRefreshing] = useState(false);
 
@@ -185,56 +190,47 @@ export default function DashboardSummaryWidget({
     setTimeout(() => setRefreshing(false), 1000);
   };
 
-  // Calculate trends (mock data for demonstration)
-  const submissionsTrend = { value: 12.5, positive: true };
-  const formsTrend = { value: 8.3, positive: true };
+  // Calculate real trends from actual data
+  const calculateTrend = (current: number, previous: number) => {
+    if (previous === 0) {
+      return current > 0 ? { value: 100, positive: true } : { value: 0, positive: true };
+    }
+    const percentChange = ((current - previous) / previous) * 100;
+    return {
+      value: Math.abs(Math.round(percentChange * 10) / 10),
+      positive: percentChange >= 0
+    };
+  };
+
+  const submissionsTrend = calculateTrend(totalSubmissions, previousPeriodSubmissions);
+  const formsTrend = calculateTrend(totalForms, previousPeriodForms);
 
   return (
     <div className="space-y-6">
       {/* Header with Action Buttons */}
-      <Card className="bg-white/95 dark:bg-gray-900/95 border-0 shadow-xl rounded-2xl backdrop-blur-sm">
-        <CardHeader>
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-            <div>
-              <CardTitle className="text-2xl font-bold text-blue-800 dark:text-blue-200 text-opacity-100">
-                Dashboard Overview
-              </CardTitle>
-              <CardDescription className="text-gray-600 dark:text-gray-400 mt-1 opacity-100">
-                Real-time insights and quick actions for your forms and submissions
-              </CardDescription>
-            </div>
-            <div className="flex items-center gap-3">
-              <Button
-                onClick={handleRefresh}
-                disabled={refreshing}
-                className="border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 bg-transparent flex items-center gap-2"
-              >
-                <RefreshCcw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-                Refresh
-              </Button>
-              <Button 
-                asChild 
-                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg border border-blue-500 font-bold px-4 py-2 min-w-[140px] opacity-100"
-                style={{ 
-                  background: 'linear-gradient(to right, #2563eb, #9333ea)',
-                  color: 'white',
-                  visibility: 'visible',
-                  opacity: 1,
-                  display: 'flex'
-                }}
-              >
-                <Link href="/forms/new" className="flex items-center gap-2 font-semibold text-white no-underline">
-                  <Plus className="h-4 w-4 text-white flex-shrink-0" />
-                  <span className="text-white font-semibold">Create Form</span>
-                </Link>
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-      </Card>
+      <div className="flex flex-row items-center justify-between mb-2">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+            Overview
+          </h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            Here is the summary of overall data
+          </p>
+        </div>
+        <Button
+          onClick={handleRefresh}
+          disabled={refreshing}
+          variant="ghost"
+          size="sm"
+          className="flex items-center gap-2"
+        >
+          <RefreshCcw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+          Refresh
+        </Button>
+      </div>
 
       {/* Status Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         <StatusCard
           title="Total Forms"
           value={totalForms}
@@ -271,125 +267,7 @@ export default function DashboardSummaryWidget({
         />
       </div>
 
-      {/* Quick Actions and System Status */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        
-        {/* Quick Actions Panel */}
-        <Card className="bg-white/95 dark:bg-gray-900/95 border-0 shadow-xl rounded-2xl backdrop-blur-sm">
-          <CardHeader>
-            <CardTitle className="text-xl font-bold text-gray-900 dark:text-white">
-              Quick Actions
-            </CardTitle>
-            <CardDescription className="text-gray-600 dark:text-gray-400">
-              Common tasks and shortcuts
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Button asChild className="bg-indigo-600 hover:bg-indigo-700 text-white justify-start">
-                <Link href="/forms/new" className="flex items-center gap-2">
-                  <Plus className="h-4 w-4" />
-                  New Form
-                </Link>
-              </Button>
-              <Button asChild className="bg-green-600 hover:bg-green-700 text-white justify-start">
-                <Link href="/submissions" className="flex items-center gap-2">
-                  <Eye className="h-4 w-4" />
-                  View Submissions
-                </Link>
-              </Button>
-              <Button asChild className="bg-purple-600 hover:bg-purple-700 text-white justify-start">
-                <Link href="/analytics" className="flex items-center gap-2">
-                  <BarChart3 className="h-4 w-4" />
-                  Analytics
-                </Link>
-              </Button>
-              <Button asChild className="bg-orange-600 hover:bg-orange-700 text-white justify-start">
-                <Link href="/api-tokens" className="flex items-center gap-2">
-                  <Settings className="h-4 w-4" />
-                  API Tokens
-                </Link>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* System Health Panel */}
-        <Card className="bg-white/95 dark:bg-gray-900/95 border-0 shadow-xl rounded-2xl backdrop-blur-sm">
-          <CardHeader>
-            <CardTitle className="text-xl font-bold text-gray-900 dark:text-white">
-              System Health
-            </CardTitle>
-            <CardDescription className="text-gray-600 dark:text-gray-400">
-              Current status of your integrations
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            
-            {/* Webhook Health */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Webhook Delivery</span>
-                <Badge variant={webhookSuccessRate >= 95 ? 'default' : 'destructive'}>
-                  {webhookSuccessRate >= 95 ? 'Healthy' : 'Issues Detected'}
-                </Badge>
-              </div>
-              <WebhookStatusIndicator 
-                successRate={webhookSuccessRate} 
-                active={activeWebhooks} 
-                failed={failedWebhooks} 
-              />
-              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mt-2">
-                <div 
-                  className={`h-2 rounded-full transition-all duration-500 ${
-                    webhookSuccessRate >= 95 ? 'bg-green-500' : 
-                    webhookSuccessRate >= 80 ? 'bg-yellow-500' : 'bg-red-500'
-                  }`}
-                  style={{ width: `${webhookSuccessRate}%` }}
-                ></div>
-              </div>
-            </div>
-
-            {/* API Status */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">API Status</span>
-                <Badge variant="default">Operational</Badge>
-              </div>
-              <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                All systems operational
-              </div>
-            </div>
-
-            {/* Storage Status */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Data Storage</span>
-                <Badge variant="default">85% Available</Badge>
-              </div>
-              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                <div className="w-1/6 h-2 bg-blue-500 rounded-full"></div>
-              </div>
-            </div>
-
-            {/* Quick Health Actions */}
-            <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-gray-500">Last updated: Just now</span>
-                <Button asChild className="text-xs px-3 py-1 h-auto bg-gray-100 hover:bg-gray-200 text-gray-600 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-300">
-                  <Link href="/webhooks" className="flex items-center gap-1">
-                    <Settings className="h-3 w-3" />
-                    Manage
-                  </Link>
-                </Button>
-              </div>
-            </div>
-
-          </CardContent>
-        </Card>
-
-      </div>
     </div>
   );
 }
+

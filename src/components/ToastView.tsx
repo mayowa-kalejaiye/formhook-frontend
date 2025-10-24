@@ -98,7 +98,7 @@ const ToastView = React.forwardRef(function ToastView(_props, ref: React.Ref<any
     };
 
   return (
-    <div className="relative min-h-screen p-4">
+    <div className="relative">
       {/* Notifications container - Fixed positioning */}
       <div className={`fixed p-4 space-y-2 w-full max-w-sm z-50 ${getPositionClasses(position)}`}>
         <AnimatePresence>
@@ -115,12 +115,6 @@ const ToastView = React.forwardRef(function ToastView(_props, ref: React.Ref<any
               />
           ))}
         </AnimatePresence>
-      </div>
-
-
-      {/* Position controls */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md p-3 rounded-xl shadow-lg flex flex-wrap justify-center gap-1 z-40 border border-gray-200/50 dark:border-gray-700/50">
-          {/* ...position button code omitted for brevity... */}
       </div>
     </div>
   );

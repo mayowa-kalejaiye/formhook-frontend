@@ -18,7 +18,7 @@ function MyApp({ Component, pageProps }: AppProps) {
   // Let the ThemeProvider handle theme properly instead
 
   const content = (
-    <div className="min-h-screen">
+    <div>
       {/* <MenuBar /> */}
       <Component {...pageProps} />
     </div>

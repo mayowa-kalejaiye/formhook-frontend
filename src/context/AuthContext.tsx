@@ -37,10 +37,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const pathname = window.location.pathname;
-      const isPublicPage = pathname === '/' || pathname === '/login' || pathname === '/signup' || 
-                          pathname === '/forgot-password' || pathname === '/reset-password' || 
-                          pathname === '/verify-email' || pathname === '/verification-required' ||
-                          pathname === '/pricing';
+  const isPublicPage = pathname === '/' || pathname === '/login' || pathname === '/signup' || 
+          pathname === '/forgot-password' || pathname === '/reset-password' || 
+          pathname === '/verify-email' || pathname === '/verification-required' ||
+          pathname === '/pricing' || pathname === '/resend-verification';
 
       getCurrentUser().then(currentUser => {
         if (!isPublicPage && !currentUser && pathname !== '/login') {

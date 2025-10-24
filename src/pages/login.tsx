@@ -111,8 +111,9 @@ export default function Login() {
       setLoginAttempted(false);
       await login(data);
       // Force update user state after login
-      await getCurrentUser();
-      console.log('[Login] Login completed for user:', data.email);
+      const currentUser = await getCurrentUser();
+      console.log('[Login] getCurrentUser() result:', currentUser);
+      console.log('[Login] user state after login:', user);
       setLoginAttempted(true);
       // Show success message
       toast({

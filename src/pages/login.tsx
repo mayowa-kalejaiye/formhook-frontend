@@ -134,13 +134,14 @@ export default function Login() {
   };
 
   useEffect(() => {
-    // If user is already logged in, redirect to dashboard
-    if (user && !loginAttempted) {
-      router.push("/dashboard");
+    // Only redirect after a successful login attempt
+    if (loginAttempted && user) {
+      toast({ title: "Login successful", description: "Welcome back!", variant: "default" });
+      router.replace("/dashboard");
       return;
     }
 
-    // Check if user was redirected from verification page
+    // Show verification toast if redirected from verification page
     if (router.query.verify === 'true') {
       toast({ 
         title: "Email verification required", 
@@ -148,13 +149,8 @@ export default function Login() {
         variant: "default" 
       });
     }
-    
-    if (!loginAttempted) return;
-    
-    if (user) {
-      toast({ title: "Login successful", description: "Welcome back!", variant: "default" });
-      router.push("/dashboard");
-    } else if (error) {
+
+    if (loginAttempted && error) {
       toast({ title: "Login failed", description: error, variant: "destructive" });
     }
   }, [user, error, loginAttempted, router, toast]);

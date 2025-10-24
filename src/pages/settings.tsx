@@ -44,6 +44,7 @@ export default function SettingsPage() {
   const [marketingEmails, setMarketingEmails] = useState(false);
   const [submissionAlerts, setSubmissionAlerts] = useState(true);
   const [webhookAlerts, setWebhookAlerts] = useState(true);
+  const [analyticsEnabled, setAnalyticsEnabled] = useState(true);
   const [language, setLanguage] = useState('en');
   const [timezone, setTimezone] = useState('UTC');
   const [dateFormat, setDateFormat] = useState('MM/DD/YYYY');
@@ -403,7 +404,10 @@ export default function SettingsPage() {
                           Help us improve FormHook by sharing usage data
                         </p>
                       </div>
-                      <Switch defaultChecked />
+                      <Switch
+                        checked={analyticsEnabled}
+                        onCheckedChange={setAnalyticsEnabled}
+                      />
                     </div>
 
                     <div className="flex items-center justify-between">

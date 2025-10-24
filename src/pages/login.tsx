@@ -63,7 +63,7 @@ const EyeOffIcon = () => (
 export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const { register, handleSubmit, formState: { errors } } = useForm<{ email: string; password: string }>();
-  const { login, loading, error, user } = useAuth();
+  const { login, loading, error, user, getCurrentUser } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
   const [loginAttempted, setLoginAttempted] = useState(false);
@@ -110,9 +110,10 @@ export default function Login() {
       
       setLoginAttempted(false);
       await login(data);
+      // Force update user state after login
+      await getCurrentUser();
       console.log('[Login] Login completed for user:', data.email);
       setLoginAttempted(true);
-      
       // Show success message
       toast({
         title: "Login successful",

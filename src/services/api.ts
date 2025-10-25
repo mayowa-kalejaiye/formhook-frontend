@@ -423,29 +423,18 @@ export const login = async (data: { email: string; password: string }) => {
   const loginAtEndpoint = async (endpoint: string) => {
     const fullUrl = `${API_BASE_URL}${endpoint}`;
     console.log('[API] Attempting login at:', fullUrl);
-
-    if (shouldUseProxy) {
-      // Use the proxy in production to avoid CORS issues
-      console.log('[API] Using proxy for login request');
-      return axios.post('/api/proxy', {
+    // Always use the proxy for login to avoid CORS/network issues in production
+    // and ensure cookies are properly forwarded by the Next.js API proxy.
+    try {
+      console.log('[API] Using proxy for login request (forced)');
+      return await axios.post('/api/proxy', {
         url: fullUrl,
         method: 'POST',
         data: data
       });
-    } else {
-      // Use direct API call in development
-      console.log('[API] Direct API call for login');
-      try {
-        return await axios.post(fullUrl, data, {
-          withCredentials: true,
-          headers: {
-            'Content-Type': 'application/json',
-          }
-        });
-      } catch (error) {
-        console.error('[API] Login error:', error);
-        throw error;
-      }
+    } catch (proxyErr) {
+      console.error('[API] Proxy login error:', proxyErr?.message || proxyErr);
+      throw proxyErr;
     }
   };
   

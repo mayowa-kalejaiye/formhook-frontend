@@ -101,20 +101,39 @@ const Signup: React.FC = () => {
     setSuccess(false);
     try {
       const res = await signupApi({ email, password });
-      // Check for success in the response
-      if (res.data?.success) {
-        setSuccess(true);
-        // Show verification message and redirect to signin
-        setTimeout(() => router.push('/signin?verify=true'), 1500);
-      } else if (res.data?.message) {
-        // Show the message from the backend (might be "check your email")
+      console.log('[Signup] API response:', res);
+      // Treat any 2xx status as success (backend might return different shapes)
+      const ok = res?.status >= 200 && res?.status < 300;
+      if (ok) {
         setSuccess(true);
         setError(null);
+        // If backend included a message, log it
+        if (res.data?.message) console.log('[Signup] message:', res.data.message);
+        // Redirect to signin after brief delay
+        setTimeout(() => router.push('/signin?verify=true'), 1500);
       } else {
-        setError(res.data?.detail || 'Signup failed. Please check your email for verification or try again.');
+        // Non-2xx: show backend-provided message if any
+        const backendMsg = res?.data?.detail || res?.data?.message;
+        if (backendMsg) {
+          setError(backendMsg);
+        } else if (res?.status === 409) {
+          setError('An account with this email already exists. Please sign in or use password reset.');
+        } else {
+          setError('Signup failed. Please check your email for verification or try again.');
+        }
       }
     } catch (err: any) {
-      setError(err?.response?.data?.detail || 'Signup failed. Please try again.');
+      console.error('[Signup] Error:', err);
+      // If server returned 409 conflict, show friendly message
+      const status = err?.response?.status;
+      const data = err?.response?.data;
+      if (status === 409) {
+        setError(data?.message || 'An account with this email already exists. Please sign in.');
+      } else if (data?.message || data?.detail) {
+        setError(data.message || data.detail);
+      } else {
+        setError(err?.message || 'Signup failed. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }

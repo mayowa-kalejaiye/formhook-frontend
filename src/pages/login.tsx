@@ -120,6 +120,13 @@ export default function Login() {
         title: "Login successful",
         description: "Welcome back! Redirecting to dashboard...",
       });
+      // If we successfully obtained the current user, navigate immediately to avoid
+      // relying on context hydration which can sometimes lag in production.
+      if (currentUser) {
+        console.log('[Login] Navigating to dashboard immediately after successful login');
+        router.replace('/dashboard');
+        return;
+      }
     } catch (err) {
       console.error('[Login] Error during login:', err);
       setLoginAttempted(true);

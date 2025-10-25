@@ -45,7 +45,33 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Forward cookies from the API response
     if (apiResponse.headers['set-cookie']) {
-      res.setHeader('Set-Cookie', apiResponse.headers['set-cookie']);
+      // Normalize cookies so they are valid for the frontend domain.
+      // Some backends set the Domain attribute to the API domain which prevents the browser
+      // from sending the cookie to the frontend-origin proxy on subsequent requests.
+      const incomingCookies: string[] = Array.isArray(apiResponse.headers['set-cookie'])
+        ? apiResponse.headers['set-cookie']
+        : [String(apiResponse.headers['set-cookie'])];
+
+      const normalized = incomingCookies.map(raw => {
+        // Remove Domain attributes to ensure cookie is set for the current origin
+        let parts = raw.split(/;\s*/).filter(Boolean);
+        parts = parts.filter(p => !/^Domain=/i.test(p));
+
+        // Ensure Path is set to / so cookie is sent on all requests
+        if (!parts.some(p => /^Path=/i.test(p))) {
+          parts.push('Path=/');
+        }
+
+        // Keep SameSite and Secure flags if present, otherwise set SameSite=None for cross-site compatibility
+        if (!parts.some(p => /^SameSite=/i.test(p))) {
+          parts.push('SameSite=None');
+        }
+
+        return parts.join('; ');
+      });
+
+      // Set the normalized cookies on the response so browser stores them on the frontend origin
+      res.setHeader('Set-Cookie', normalized);
     }
 
     // Forward the API response

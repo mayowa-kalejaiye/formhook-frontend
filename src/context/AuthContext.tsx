@@ -1,6 +1,7 @@
 "use client";
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { login as apiLogin, signup as apiSignup, loginWithToken as apiLoginWithToken, getUserProfile } from '../services/api';
+import { login as apiLogin, signup as apiSignup, loginWithToken as apiLoginWithToken, getUserProfile, fetchWithAuth } from '../services/api';
+import { apiCache } from '@/utils/cache';
 
 type User = {
   email?: string;
@@ -160,8 +161,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const logout = async () => {
-    try { if (typeof window !== 'undefined') localStorage.removeItem('token'); } catch (_) {}
-    setUser(null);
+    setLoading(true);
+    setError(null);
+    try {
+      // Attempt to tell the backend to invalidate this token/session if endpoint exists.
+      try {
+        const res = await fetchWithAuth('/auth/logout', { method: 'POST' });
+        // Accept any non-fatal response; backend may return 404 if not implemented.
+        if (res && (res as any).ok === false) {
+          // ignore non-ok responses
+        }
+      } catch (e) {
+        // ignore network errors during logout call
+      }
+
+      // Clear client-side stored auth
+      try { localStorage.removeItem('token'); } catch (_) {}
+      try { localStorage.removeItem('userId'); } catch (_) {}
+
+      // Clear any API caches
+      try { apiCache.clear(); } catch (_) {}
+
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const value: AuthContextType = {

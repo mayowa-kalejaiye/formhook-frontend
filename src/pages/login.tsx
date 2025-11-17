@@ -110,23 +110,13 @@ export default function Login() {
       
       setLoginAttempted(false);
       await login(data);
-      // Force update user state after login
-      const currentUser = await getCurrentUser();
-      console.log('[Login] getCurrentUser() result:', currentUser);
-      console.log('[Login] user state after login:', user);
       setLoginAttempted(true);
+      
       // Show success message
       toast({
         title: "Login successful",
         description: "Welcome back! Redirecting to dashboard...",
       });
-      // If we successfully obtained the current user, navigate immediately to avoid
-      // relying on context hydration which can sometimes lag in production.
-      if (currentUser) {
-        console.log('[Login] Navigating to dashboard immediately after successful login');
-        router.replace('/dashboard');
-        return;
-      }
     } catch (err) {
       console.error('[Login] Error during login:', err);
       setLoginAttempted(true);
@@ -142,9 +132,9 @@ export default function Login() {
   };
 
   useEffect(() => {
-    // Only redirect after a successful login attempt
-    if (loginAttempted && user) {
-      toast({ title: "Login successful", description: "Welcome back!", variant: "default" });
+    // Redirect to dashboard if user is logged in
+    if (user && !loading) {
+      console.log('[Login] User detected, redirecting to dashboard');
       router.replace("/dashboard");
       return;
     }
@@ -157,11 +147,7 @@ export default function Login() {
         variant: "default" 
       });
     }
-
-    if (loginAttempted && error) {
-      toast({ title: "Login failed", description: error, variant: "destructive" });
-    }
-  }, [user, error, loginAttempted, router, toast]);
+  }, [user, loading, router, toast]);
 
   return (
     <div className="relative w-full flex items-center justify-center font-sans overflow-hidden min-h-screen bg-white dark:bg-black">

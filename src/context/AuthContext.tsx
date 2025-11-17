@@ -1,11 +1,8 @@
 "use client";
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useRouter } from 'next/router';
-import { login as apiLogin, signup as apiSignup, loginWithToken as apiLoginWithToken, isUsingHttpOnlyCookies } from '../services/api';
+import { login as apiLogin, signup as apiSignup, loginWithToken as apiLoginWithToken } from '../services/api';
 import { apiCache } from '@/utils/cache';
-
-// Check if we're using HTTP-only cookies
-const useHttpOnlyCookies = isUsingHttpOnlyCookies();
 
 interface User {
   email: string;
@@ -62,82 +59,34 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Only run on client-side
     if (typeof window === 'undefined') return null;
     
-    // Determine if we should use the proxy based on environment
-    const isProduction = window.location.hostname !== 'localhost';
-    const shouldUseProxy = isProduction;
-    
     try {
-      if (useHttpOnlyCookies) {
-        // Always send credentials for cookies
-        const endpoint = shouldUseProxy
-          ? '/api/proxy'
-          : `${process.env.NEXT_PUBLIC_API_BASE_URL || 'https://formhook-backend.onrender.com'}/auth/me`;
-        const fetchOptions: RequestInit = shouldUseProxy
-          ? {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                url: `${process.env.NEXT_PUBLIC_API_BASE_URL || 'https://formhook-backend.onrender.com'}/auth/me`,
-                method: 'GET',
-                data: {}
-              }),
-              credentials: 'include'
-            }
-          : {
-              method: 'GET',
-              headers: { 'Content-Type': 'application/json' },
-              credentials: 'include'
-            };
-        console.log('[Auth] getCurrentUser endpoint:', endpoint);
-        console.log('[Auth] getCurrentUser fetchOptions:', fetchOptions);
-        const response = await fetch(endpoint, fetchOptions);
-        console.log('[Auth] getCurrentUser response status:', response.status);
+      // JWT in localStorage approach per API docs
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setUser(null);
+        return null;
+      }
 
-        if (!response.ok) {
-          setUser(null);
-          return null;
-        }
-
-        const data = await response.json();
-
-        if (data.email) {
-          const userInfo = {
-            email: data.email,
-            verified: data.verified ?? true,
-            userId: data.id || data.user_id
-          };
-          setUser(userInfo);
-          return userInfo;
-        } else {
-          setUser(null);
-          return null;
-        }
-      } else {
-        // JWT in localStorage approach
-        const token = localStorage.getItem('token');
-        if (!token) {
-          setUser(null);
-          return null;
-        }
-
-        try {
-          // Decode JWT token to get user info
-          const payload = JSON.parse(atob(token.split('.')[1]));
-          const userInfo = {
-            email: payload.email || '',
-            verified: payload.verified ?? true,
-            userId: payload.sub || payload.id
-          };
-          setUser(userInfo);
-          return userInfo;
-        } catch (e) {
-          // If token is invalid, remove it
-          localStorage.removeItem('token');
-          setUser(null);
-          return null;
-        }
+      try {
+        // Decode JWT token to get user info
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        const userInfo = {
+          email: payload.email || payload.sub || '',
+          verified: payload.verified ?? payload.is_verified ?? true,
+          userId: payload.sub || payload.user_id || payload.id
+        };
+        console.log('[Auth] Decoded user from JWT:', userInfo);
+        setUser(userInfo);
+        return userInfo;
+      } catch (e) {
+        // If token is invalid, remove it
+        console.error('[Auth] Invalid token:', e);
+        localStorage.removeItem('token');
+        setUser(null);
+        return null;
       }
     } catch (error) {
+      console.error('[Auth] getCurrentUser error:', error);
       setUser(null);
       return null;
     }
@@ -148,74 +97,41 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setError(null);
     try {
       const res = await apiLogin(data);
+      console.log('[Auth] Login response:', res.data);
       
-      if (useHttpOnlyCookies) {
-        // With HTTP-only cookies, we check if login was successful
+      // Backend returns { access_token, token_type, user: { id, email, is_verified } }
+      if (res.data?.access_token) {
+        localStorage.setItem('token', res.data.access_token);
         
-        // Check for success or access_token as some endpoints might return either
-        const isSuccess = res.data?.success || res.data?.access_token;
-        
-        if (isSuccess) {
-          // Force a fetch of current user info
-          await getCurrentUser();
-          // If we got here without throwing, we're logged in
-          const userInfo = {
-            email: data.email,
-            verified: res.data?.verified ?? true,
-            userId: res.data?.user_id || res.data?.id
-          };
-          setUser(userInfo);
-        } else {
-          setUser(null);
-          setError(res.data?.detail || res.data?.message || 'Login failed');
-        }
+        // Set user from response user object or decode token
+        const userInfo = {
+          email: res.data.user?.email || data.email,
+          verified: res.data.user?.is_verified ?? true,
+          userId: res.data.user?.id
+        };
+        console.log('[Auth] Login successful, user:', userInfo);
+        setUser(userInfo);
       } else {
-        // Handle JWT token approach
-        if (res.data?.access_token) {
-          localStorage.setItem('token', res.data.access_token);
-          
-          // Decode the token to get user info including verification status
-          try {
-            const payload = JSON.parse(atob(res.data.access_token.split('.')[1]));
-            const userInfo = {
-              email: data.email,
-              verified: payload.verified === undefined ? true : payload.verified,
-              userId: payload.sub || payload.id
-            };
-            setUser(userInfo);
-            return;
-          } catch (e) {
-            // Token decode failed
-          }
-        }
         setUser(null);
         setError(res.data?.detail || res.data?.message || 'Login failed');
       }
     } catch (err: any) {
       setUser(null);
       
-      // Enhanced error handling for better user feedback
+      // Enhanced error handling
       let errorMsg = 'Login failed';
       
       if (err?.response?.status === 401) {
-        // Unauthorized - wrong credentials
-        errorMsg = 'Invalid email or password. Please check your credentials and try again.';
+        errorMsg = 'Invalid email or password.';
       } else if (err?.response?.status === 403) {
-        // Forbidden - might be unverified email
-        errorMsg = err?.response?.data?.detail || 
-                   err?.response?.data?.message || 
-                   'Access denied. Please verify your email address.';
+        errorMsg = err?.response?.data?.detail || 'Access denied. Please verify your email address.';
       } else if (err?.response?.status === 404) {
-        // Not found - user doesn't exist
         errorMsg = 'Account not found. Please check your email or sign up.';
       } else if (err?.response?.status >= 500) {
-        // Server error
         errorMsg = 'Server error. Please try again later.';
       } else {
-        // Other errors - try to get message from response
         errorMsg = err?.response?.data?.detail ||
                    err?.response?.data?.message ||
-                   (typeof err?.response?.data === 'string' ? err.response.data : null) ||
                    err?.message ||
                    'Login failed. Please try again.';
       }
@@ -223,7 +139,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setError(errorMsg);
       console.error('[Auth] Login error:', {
         status: err?.response?.status,
-        statusText: err?.response?.statusText,
         data: err?.response?.data,
         message: errorMsg
       });
@@ -238,36 +153,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       const res = await apiLoginWithToken(token);
       
-      if (useHttpOnlyCookies) {
-        // With HTTP-only cookies, we don't need to handle the token
-        if (res.data?.success) {
-          // Fetch user info to update the context
-          getCurrentUser();
-        } else {
-          setUser(null);
-          setError(res.data?.detail || res.data?.message || 'Login failed');
-        }
+      // Handle JWT token approach
+      if (res.data?.access_token) {
+        localStorage.setItem('token', res.data.access_token);
+        
+        // Get user info from token or response
+        const userInfo = {
+          email: res.data.user?.email || '',
+          verified: res.data.user?.is_verified ?? true,
+          userId: res.data.user?.id
+        };
+        setUser(userInfo);
       } else {
-        // Handle JWT token approach
-        if (res.data?.access_token) {
-          localStorage.setItem('token', res.data.access_token);
-          
-          // Get user info from token
-          try {
-            const payload = JSON.parse(atob(res.data.access_token.split('.')[1]));
-            setUser({
-              email: payload.email || '',
-              verified: payload.verified === undefined ? true : payload.verified,
-              userId: payload.sub || payload.id
-            });
-          } catch (e) {
-            // If token can't be decoded, fetch user info
-            getCurrentUser();
-          }
-        } else {
-          setUser(null);
-          setError(res.data?.detail || res.data?.message || 'Login failed');
-        }
+        setUser(null);
+        setError(res.data?.detail || res.data?.message || 'Login failed');
       }
     } catch (err: any) {
       setUser(null);
@@ -312,41 +211,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const logout = async () => {
     // Only run on client-side
     if (typeof window === 'undefined') return;
-    
-    // Determine if we should use the proxy based on environment
-    const isProduction = window.location.hostname !== 'localhost';
-    const shouldUseProxy = isProduction;
 
-    if (useHttpOnlyCookies) {
-      // With HTTP-only cookies, we need to call a logout endpoint to clear the cookie
-      try {
-        if (shouldUseProxy) {
-          // Use proxy in production
-          await fetch('/api/proxy', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              url: `${process.env.NEXT_PUBLIC_API_BASE_URL || 'https://formhook-backend.onrender.com'}/auth/logout`,
-              method: 'POST',
-              data: {}
-            })
-          });
-        } else {
-          // Direct API call in development
-          await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'https://formhook-backend.onrender.com'}/auth/logout`, { 
-            method: 'POST', 
-            credentials: 'include' 
-          });
-        }
-      } catch (e) {
-        // Ignore errors
-      }
-    } else {
-      // With JWT, remove token from localStorage
-      localStorage.removeItem('token');
-    }
+    // Remove JWT token from localStorage
+    localStorage.removeItem('token');
     
     // Clear API cache on logout to prevent data leakage
     apiCache.clear();
@@ -364,10 +231,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Clear user state
     setUser(null);
     
-    // Clear SWR cache to prevent stale data
-    if (typeof window !== 'undefined' && (window as any).swrCache) {
-      (window as any).swrCache.clear();
-    }
+    console.log('[Auth] Logout complete');
   };
 
   return (

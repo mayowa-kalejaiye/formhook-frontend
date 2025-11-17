@@ -32,29 +32,27 @@ function decodeJwt(token) {
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://formhook-backend.onrender.com';
 export async function fetchWithAuth(url: string, options: RequestInit = {}) {
   const headers = new Headers(options.headers || {});
-  const isUsingCookies = isUsingHttpOnlyCookies();
   
-  // Only check localStorage token if not using HTTP-only cookies
-  if (!isUsingCookies) {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-    
-    // Token expiry check (optional, UX improvement)
-    if (token) {
-      const payload = decodeJwt(token);
-      if (payload && payload.exp && Date.now() / 1000 > payload.exp) {
-        localStorage.removeItem('token');
-        return { ok: false, status: 401, error: 'Session expired' };
-      }
-      // Add token to Authorization header
-      headers.set('Authorization', `Bearer ${token}`);
+  // Use JWT token from localStorage for all authenticated requests
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+  
+  // Token expiry check (optional, UX improvement)
+  if (token) {
+    const payload = decodeJwt(token);
+    if (payload && payload.exp && Date.now() / 1000 > payload.exp) {
+      localStorage.removeItem('token');
+      showSessionExpiredToast();
+      return { ok: false, status: 401, error: 'Session expired' };
     }
+    // Add token to Authorization header per API docs
+    headers.set('Authorization', `Bearer ${token}`);
   }
   
   // Always prefix with backend base URL unless already absolute
   const fullUrl = url.startsWith('http') ? url : `${API_BASE_URL}${url.startsWith('/') ? url : '/' + url}`;
   
-  // Always include credentials when using cookies
-  const credentials: RequestCredentials = isUsingCookies ? 'include' : 'same-origin';
+  // No credentials needed for JWT auth
+  const credentials: RequestCredentials = 'same-origin';
   
   let res;
   try {
@@ -185,21 +183,30 @@ export function useAuth() {
 }
 import axios from 'axios';
 
-// Determine if we should use the proxy based on environment
-const isProduction = typeof window !== 'undefined' && window.location.hostname !== 'localhost';
-const shouldUseProxy = isProduction;
-
-// Create axios instance
+// Create axios instance with JWT Bearer token authentication
 const API = axios.create({
-  baseURL: API_BASE_URL, // Reusing the API_BASE_URL from above
-  withCredentials: true, // Important for HTTP-only cookies
+  baseURL: API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
 });
 
-// Helper to check if we're using HttpOnly cookies or JWT in localStorage
-export function isUsingHttpOnlyCookies() {
-  // This should match your backend configuration
-  return process.env.NEXT_PUBLIC_USE_HTTP_ONLY_COOKIES === 'true';
-}
+// Add request interceptor to include JWT token in all requests
+API.interceptors.request.use(
+  (config) => {
+    // Get token from localStorage
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Note: This app uses JWT Bearer token authentication per backend API docs
 
 
 // --- Webhook API ---
@@ -416,49 +423,36 @@ export const signup = (data: { email: string; password: string }) => {
   }
 };
 
-// Flexible login function that supports multiple backend authentication endpoints
+// Login function using JWT authentication per API docs
+// Backend returns: { access_token, token_type, user: { id, email, is_verified } }
 export const login = async (data: { email: string; password: string }) => {
-  console.log('[API] Login attempt:', { email: data.email, useProxy: shouldUseProxy });
-
-  const loginAtEndpoint = async (endpoint: string) => {
-    const fullUrl = `${API_BASE_URL}${endpoint}`;
-    console.log('[API] Attempting login at:', fullUrl);
-    // Always use the proxy for login to avoid CORS/network issues in production
-    // and ensure cookies are properly forwarded by the Next.js API proxy.
-    try {
-      console.log('[API] Using proxy for login request (forced)');
-      return await axios.post('/api/proxy', {
-        url: fullUrl,
-        method: 'POST',
-        data: data
-      });
-    } catch (proxyErr) {
-      console.error('[API] Proxy login error:', proxyErr?.message || proxyErr);
-      throw proxyErr;
-    }
-  };
-  
+  console.log('[API] Login attempt:', data.email);
+  console.log('[API] Backend URL:', API_BASE_URL);
   try {
-    // Start with the primary login endpoint
-    console.log('[API] Trying primary login endpoint');
-    return await loginAtEndpoint('/auth/login');
+    // Direct POST to backend /auth/login endpoint
+    const response = await API.post('/auth/login', data);
+    console.log('[API] Login response:', { status: response.status, hasToken: !!response.data?.access_token });
+    return response;
   } catch (error: any) {
-    console.error('[API] Primary login error:', error);
+    console.error('[API] Login error details:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status,
+      config: {
+        url: error.config?.url,
+        method: error.config?.method,
+        baseURL: error.config?.baseURL
+      }
+    });
     
-    // If the first endpoint fails specifically with a not found error (404),
-    // try the email login endpoint as fallback
-    if (error.response && error.response.status === 404) {
-      console.log('[API] Trying fallback login endpoint');
-      return await loginAtEndpoint('/auth/email-login');
+    // Provide more specific error message
+    if (error.message === 'Network Error') {
+      const enhancedError = new Error('Cannot connect to backend server. Please check if the backend is running.');
+      enhancedError.name = 'NetworkError';
+      throw enhancedError;
     }
     
-    // For any other error, propagate it with more context
-    const errorMessage = error.response?.data?.detail || 
-                        error.response?.data?.message || 
-                        error.message || 
-                        'Login failed';
-    console.error('[API] Login failed:', errorMessage);
-    throw new Error(errorMessage);
+    throw error;
   }
 };
 

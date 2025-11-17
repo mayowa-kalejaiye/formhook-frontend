@@ -52,8 +52,9 @@ const fetcher = async (key: string) => {
 export const FormsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
   
-  // Create user-specific cache key to prevent data leakage between users
-  const userId = user?.userId || user?.email || getUserIdFromToken();
+    // Create user-specific cache key to prevent data leakage between users
+    const storedUserId = typeof window !== 'undefined' ? localStorage.getItem('userId') : null;
+    const userId = user?.userId || storedUserId || user?.email || getUserIdFromToken();
   const cacheKey = userId ? `forms-${userId}` : null;
   
   const { data, error, isLoading, mutate } = useSWR(

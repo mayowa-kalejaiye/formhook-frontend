@@ -89,30 +89,6 @@ interface SecurityLog {
 function UserAccountSettingsContent() {
   const { isCollapsed } = useSidebar();
   const { user } = useAuth();
-
-  // Helper to resolve a stable userId across environments.
-  // Falls back to `localStorage.userId` or JWT `sub` if `user.userId` is missing.
-  const resolveUserId = (u?: any) => {
-    try {
-      if (u && u.userId) return String(u.userId);
-      if (typeof window !== 'undefined') {
-        const stored = localStorage.getItem('userId');
-        if (stored) return stored;
-        const token = localStorage.getItem('token');
-        if (token) {
-          try {
-            const payload = JSON.parse(atob(token.split('.')[1]));
-            return payload?.userId || payload?.user_id || payload?.sub || payload?.id || '';
-          } catch (e) {
-            return '';
-          }
-        }
-      }
-    } catch (e) {
-      return '';
-    }
-    return '';
-  };
   const [activeTab, setActiveTab] = useState('profile');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -148,8 +124,9 @@ function UserAccountSettingsContent() {
         // Fallback to user data from AuthContext if API fails
         if (user?.email) {
           console.log('[Account] Using fallback profile from AuthContext');
+          const storedUserId = typeof window !== 'undefined' ? localStorage.getItem('userId') : null;
           setProfile({
-            id: resolveUserId(user) || '',
+            id: user.userId || storedUserId || '',
             email: user.email,
             name: user.email.split('@')[0],
             created_at: new Date().toISOString(),
@@ -178,8 +155,9 @@ function UserAccountSettingsContent() {
         return;
       }
       
+      const storedUserId = typeof window !== 'undefined' ? localStorage.getItem('userId') : null;
       setProfile({
-        id: profileData.id || resolveUserId(user) || '',
+        id: profileData.id || user?.userId || storedUserId || '',
         email: profileData.email || user?.email || '',
         name: profileData.name || user?.email?.split('@')[0] || '',
         created_at: profileData.created_at || new Date().toISOString(),
@@ -202,8 +180,9 @@ function UserAccountSettingsContent() {
       // Fallback to user data from AuthContext
       if (user?.email) {
         console.log('[Account] Using fallback profile from AuthContext after error');
+        const storedUserId = typeof window !== 'undefined' ? localStorage.getItem('userId') : null;
         setProfile({
-          id: resolveUserId(user) || '',
+          id: user.userId || storedUserId || '',
           email: user.email,
           name: user.email.split('@')[0],
           created_at: new Date().toISOString(),

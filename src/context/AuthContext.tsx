@@ -105,10 +105,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         
         // Set user from response user object or decode token
         // Derive userId from response user object or from JWT `sub` if backend omits `userId` field
+        // Ensure we decode the token that is actually stored in localStorage (avoid mismatches)
         let tokenUserId: string | undefined;
         try {
-          const payload = JSON.parse(atob(res.data.access_token.split('.')[1]));
-          tokenUserId = payload?.userId || payload?.user_id || payload?.sub || payload?.id;
+          const storedToken = localStorage.getItem('token');
+          if (storedToken) {
+            const payload = JSON.parse(atob(storedToken.split('.')[1]));
+            tokenUserId = payload?.userId || payload?.user_id || payload?.sub || payload?.id;
+          }
         } catch (e) {
           tokenUserId = undefined;
         }
@@ -177,10 +181,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         localStorage.setItem('token', res.data.access_token);
         
         // Get user info from token or response
+        // Decode the token that was written to localStorage to ensure consistency
         let tokenUserId: string | undefined;
         try {
-          const payload = JSON.parse(atob(res.data.access_token.split('.')[1]));
-          tokenUserId = payload?.userId || payload?.user_id || payload?.sub || payload?.id;
+          const storedToken = localStorage.getItem('token');
+          if (storedToken) {
+            const payload = JSON.parse(atob(storedToken.split('.')[1]));
+            tokenUserId = payload?.userId || payload?.user_id || payload?.sub || payload?.id;
+          }
         } catch (e) {
           tokenUserId = undefined;
         }

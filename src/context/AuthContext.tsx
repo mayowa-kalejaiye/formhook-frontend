@@ -62,16 +62,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           return;
         }
 
+        // Validate token with backend. Only set `user` when server confirms the token.
         try {
           const profile = await getUserProfile();
           if (profile) {
             const normalized = { ...profile, userId: profile.id ? String(profile.id) : profile.userId ?? profile.user_id ?? profile.sub ?? profile.id };
             setUser(normalized);
           } else {
-            setUser({ email: payload.email, verified: payload.is_verified ?? payload.verified, userId: String(payload.userId ?? payload.user_id ?? payload.sub ?? payload.id) });
+            // Backend did not validate token: remove it and remain unauthenticated
+            try { localStorage.removeItem('token'); } catch (_) {}
+            setUser(null);
           }
         } catch (e) {
-          setUser({ email: payload.email, verified: payload.is_verified ?? payload.verified, userId: String(payload.userId ?? payload.user_id ?? payload.sub ?? payload.id) });
+          // On error validating token, remove token and remain unauthenticated
+          try { localStorage.removeItem('token'); } catch (_) {}
+          setUser(null);
         }
         setAuthReady(true);
       } catch (e) {
@@ -99,13 +104,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (_) {}
 
-    const userObj = {
-      email: resData?.user?.email || payload?.email || undefined,
-      verified: resData?.user?.is_verified ?? payload?.is_verified ?? payload?.verified ?? undefined,
-      userId: resData?.user?.id ? String(resData.user.id) : payload ? String(payload?.userId ?? payload?.user_id ?? payload?.sub ?? payload?.id) : undefined,
-    };
-    try { if (userObj.userId) localStorage.setItem('userId', String(userObj.userId)); } catch (_) {}
-    setUser(userObj);
+    // If backend didn't provide a profile, prefer server-provided user shape in resData
+    if (resData?.user) {
+      const userObj = {
+        email: resData.user.email || undefined,
+        verified: resData.user.is_verified ?? undefined,
+        userId: resData.user.id ? String(resData.user.id) : undefined,
+      };
+      try { if (userObj.userId) localStorage.setItem('userId', String(userObj.userId)); } catch (_) {}
+      setUser(userObj);
+      return;
+    }
+
+    // Token couldn't be validated and no user data returned by server: remove token and do not authenticate
+    try { localStorage.removeItem('token'); } catch (_) {}
+    setUser(null);
   };
 
   const login = async (data: { email: string; password: string }) => {
@@ -130,9 +143,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const res = await apiLoginWithToken(token);
       await setTokenAndUserFromResponse(res?.data, token);
     } catch (err: any) {
-      try { localStorage.setItem('token', token); } catch (_) {}
-      const payload = safeParseJwt(token);
-      setUser({ email: payload?.email, verified: payload?.is_verified ?? payload?.verified, userId: payload?.userId ?? payload?.user_id ?? payload?.sub ?? payload?.id });
+      // If backend rejects token, ensure we don't accept raw JWT payloads as authenticated.
+      try { localStorage.removeItem('token'); } catch (_) {}
+      setUser(null);
+      setError(err?.response?.data?.detail || err?.response?.data?.message || err?.message || 'Token login failed');
+      throw err;
     } finally {
       setLoading(false);
     }

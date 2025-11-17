@@ -291,6 +291,18 @@ function ModernTrendChart({ data, trendRange, chartType, onChartTypeChange, onTr
   );
 }
 
+    const MemoTopFormsCard = React.memo(TopFormsCard);
+
+// Development-only debug logger to avoid noisy production logs
+const isDev = process.env.NODE_ENV !== 'production';
+const debug = {
+  log: (...args: any[]) => { if (isDev) console.log(...args); },
+  warn: (...args: any[]) => { if (isDev) console.warn(...args); },
+  error: (...args: any[]) => { if (isDev) console.error(...args); }
+};
+
+const MemoModernTrendChart = React.memo(ModernTrendChart);
+
 function RecentSubmissionsCard({ submissions, loading }: { submissions: any[]; loading: boolean }) {
   if (loading) {
     return (
@@ -372,6 +384,8 @@ function RecentSubmissionsCard({ submissions, loading }: { submissions: any[]; l
     </Card>
   );
 }
+
+const MemoRecentSubmissionsCard = React.memo(RecentSubmissionsCard);
 
 // function QuickActionsCard() {
 //   return (
@@ -541,10 +555,10 @@ function DashboardContent({
   
         {/* Top Forms and Submission Trend - REORGANIZED */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <TopFormsCard forms={forms} loading={loading} />
+          <MemoTopFormsCard forms={forms} loading={loading} />
           
           {/* Submission Trend Chart - Moved here from below */}
-          <ModernTrendChart
+          <MemoModernTrendChart
             data={trendData}
             trendRange={trendRange}
             chartType={trendChartType}
@@ -850,14 +864,19 @@ function DashboardPageImpl() {
   const [previousPeriodForms, setPreviousPeriodForms] = useState(0);
   const [previousPeriodSubmissions, setPreviousPeriodSubmissions] = useState(0);
 
+  // Optimization refs
+  const isMountedRef = useRef(true);
+  const fetchTimeoutRef = useRef<number | null>(null);
+  const lastFetchKeyRef = useRef<string | null>(null);
+
   useEffect(() => {
     // Set hydrated immediately to reduce flashing
     setHydrated(true);
+    isMountedRef.current = true;
     
-    // Suppress annoying browser extension errors in console
+    // Suppress known noisy browser extension errors in console
     const originalError = console.error;
     console.error = (...args) => {
-      // Filter out known browser extension errors
       const message = args[0]?.toString() || '';
       if (message.includes('content_script.bundle.js') || 
           message.includes('chrome-extension://') ||
@@ -867,9 +886,13 @@ function DashboardPageImpl() {
       }
       originalError.apply(console, args);
     };
-    
+
     return () => {
       console.error = originalError; // Cleanup
+      isMountedRef.current = false;
+      if (fetchTimeoutRef.current) {
+        window.clearTimeout(fetchTimeoutRef.current);
+      }
     };
   }, []);
 
@@ -880,294 +903,130 @@ function DashboardPageImpl() {
   }, [hydrated, user, router]);
 
   useEffect(() => {
-    async function fetchDashboardData() {
-      if (!user) return;
-      
-      console.log('[Dashboard] Fetching dashboard data...');
-      setRecentLoading(true);
-      
-      try {
-        // Map trendRange to days parameter for API
-        const daysMap: Record<TrendRange, number> = {
-          'today': 1,
-          'yesterday': 2,
-          '7d': 7,
-          '14d': 14
-        };
-        const days = daysMap[trendRange] || 30;
-        
-        // Always fetch recent activities from last 7 days (reduced to avoid rate limit)
-        const recentActivitiesDays = 7;
-        
-        // Get dashboard summary with dynamic days parameter
-        const summaryRes = await getDashboardSummary(recentActivitiesDays);
-        console.log('[Dashboard] Dashboard summary response:', summaryRes);
-        console.log('[Dashboard] Recent submissions from summary:', summaryRes.recent_submissions);
-        
-        // Skip previous period fetch if we already have trend data to reduce API calls
-        if (summaryRes && summaryRes.trend && summaryRes.trend.length > 0) {
-          // Use trend data to calculate previous period
-          const midPoint = Math.floor(summaryRes.trend.length / 2);
-          const earlierPeriod = summaryRes.trend.slice(0, midPoint);
-          const previousSubmissions = earlierPeriod.reduce((sum: number, item: any) => sum + (item.count || 0), 0);
-          setPreviousPeriodSubmissions(previousSubmissions);
-          
-          // For forms, we can compare the current count with a baseline
-          // Since forms don't change as frequently, we'll use a simple comparison
-          setPreviousPeriodForms(Math.max(0, (summaryRes.total_forms || 0) - Math.floor(forms.length * 0.1)));
-        }
-      
-      // Update state with API response data (will use default values if API fails)
-      setTotalForms(summaryRes.total_forms || 0);
-      setTotalSubmissions(summaryRes.total_submissions || 0);
-      
-      // Use summary recent_submissions if available as initial data
-      if (summaryRes.recent_submissions && Array.isArray(summaryRes.recent_submissions) && summaryRes.recent_submissions.length > 0) {
-        console.log('[Dashboard] Using recent_submissions from summary:', summaryRes.recent_submissions.length, 'items');
-        
-        // Normalize the submissions to ensure consistent field names
-        // Only show submissions with valid form names from backend
-        const normalized = summaryRes.recent_submissions
-          .map((r: any) => {
-            // Log raw submission data for debugging
-            console.log('[Dashboard] Processing submission:', {
-              id: r.id,
-              form_name: r.form_name,
-              form: r.form,
-              form_title: r.form_title,
-              formName: r.formName
-            });
-            
-            // Extract form name from various possible fields
-            const formName = r.form_name ?? r.form?.name ?? r.form_title ?? r.formName ?? null;
-            const formId = r.form_id ?? r.form?._id ?? r.form?.id ?? null;
-            const dateValue = r.date ?? r.created_at ?? r.timestamp ?? r.createdAt ?? r.submitted_at ?? null;
-            
-            return {
-              id: r.id ?? r._id ?? r.uuid ?? `sub-${Date.now()}-${Math.random()}`,
-              form_name: formName,
-              form_id: formId,
-              email: r.email ?? r.contact_email ?? r.submitted_by ?? r.data?.email ?? r.submission_data?.email ?? 'N/A',
-              date: dateValue,
-              status: r.status ?? (r.webhook_delivered === false ? 'failed' : 'success'),
-              data: r.data ?? r.submission_data ?? {},
-              raw: r,
-              _hasValidFormName: !!formName,
-              _hasValidDate: !!dateValue && !isNaN(new Date(dateValue).getTime())
-            };
-          })
-          .filter((item: any) => {
-            // Only keep submissions that have both valid form name AND valid date
-            if (!item._hasValidFormName) {
-              console.log('[Dashboard] Filtering out submission - no form name:', item.id);
-              return false;
-            }
-            if (!item._hasValidDate) {
-              console.log('[Dashboard] Filtering out submission - invalid date:', item.id);
-              return false;
-            }
-            return true;
-          });
-        
-        console.log('[Dashboard] Normalized submissions:', normalized);
-        setRecentSubmissions(normalized);
-        
-        // Update notification count with submissions from last 24 hours
-        // Note: notificationCount now comes from NotificationContext, no need to set it here
-        const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-        const recentCount = normalized.filter((s: any) => {
-          const submissionDate = new Date(s.date);
-          return submissionDate > oneDayAgo;
-        }).length;
-        // Notification count is now managed by NotificationContext
-      } else {
-        console.warn('[Dashboard] No recent_submissions in summary response or empty array');
-        setRecentSubmissions([]);
-      }
-      
-      // Set webhook success rate based on webhook stats
-      if (summaryRes.webhook_stats && summaryRes.webhook_stats.total > 0) {
-        const successRate = (summaryRes.webhook_stats.delivered / summaryRes.webhook_stats.total) * 100;
-        setWebhookSuccessRate(Math.round(successRate));
-      } else {
-        setWebhookSuccessRate(100); // Default if no webhook data
-      }
-      
-      // Set trend data from the summary
-      if (summaryRes.trend && Array.isArray(summaryRes.trend)) {
-        console.log('[Dashboard] Setting trend data from summary:', summaryRes.trend.length, 'data points');
-        const trendData = summaryRes.trend.map(item => ({
-          date: item.date,
-          count: item.count
-        }));
-        setTrendData(trendData);
-      } else {
-        console.warn('[Dashboard] No trend data in summary response');
-        setTrendData([]);
-      }
-      
-      // Fetch aggregated analytics from all forms to get submission vs error breakdown
-      // NOTE: The /forms/{id}/analytics endpoint is not working (returns 500 errors)
-      // As a workaround, we'll use the trend data from /dashboard/summary
-      // This shows total submissions over time, but doesn't include error breakdown
-      if (summaryRes.trend && Array.isArray(summaryRes.trend) && summaryRes.trend.length > 0) {
-        console.log('[Dashboard] Using trend data as fallback for analytics (per-form analytics endpoint not available)');
-        
-        // Format for ChartBarStackedAnalytics (Submissions vs Errors chart)
-        const trendAnalytics = summaryRes.trend.map((item: any) => ({
-          date: item.date,
-          value1: item.count || 0,  // Total submissions
-          value2: 0,                  // Errors not available from this endpoint
-          label1: 'Submissions',
-          label2: 'Errors',
-          color1: '#64748b',
-          color2: '#ef4444',
-        }));
-        
-        // Format for ChartAreaInteractiveBackend (Interactive Analytics Dashboard)
-        const interactiveTrendAnalytics = summaryRes.trend.map((item: any) => ({
-          date: item.date,
-          submissions: item.count || 0,
-          errors: 0,  // Errors not available from this endpoint
-        }));
-        
-        console.log('[Dashboard] Trend-based analytics:', trendAnalytics);
-        console.log('[Dashboard] Interactive analytics:', interactiveTrendAnalytics);
-        setAnalytics(trendAnalytics);
-        setInteractiveAnalytics(interactiveTrendAnalytics);
-      } else {
-        console.warn('[Dashboard] No trend data available for analytics');
-        setAnalytics([]);
-        setInteractiveAnalytics([]);
-      }
-      
-      /* COMMENTED OUT: Per-form analytics aggregation (endpoint returns 500 errors)
-      if (forms && Array.isArray(forms) && forms.length > 0) {
-        console.log('[Dashboard] Aggregating analytics from', forms.length, 'forms for range:', analyticsRange);
-        try {
-          // Map analyticsRange to days
-          const analyticsDaysMap: Record<string, number> = {
-            '7d': 7,
-            '30d': 30,
-            '90d': 90
-          };
-          const analyticsDays = analyticsDaysMap[analyticsRange] || 7;
-          
-          // Map days to date range
-          const endDate = new Date();
-          const startDate = new Date();
-          startDate.setDate(startDate.getDate() - analyticsDays);
-          
-          console.log('[Dashboard] Analytics date range:', { 
-            startDate: startDate.toISOString(), 
-            endDate: endDate.toISOString(),
-            days: analyticsDays 
-          });
-          
-          // Fetch analytics for all forms
-          const analyticsPromises = forms.map(async (form: any) => {
-            try {
-              console.log(`[Dashboard] Fetching analytics for form ${form.id}...`);
-              const result = await getFormAnalytics(form.id, {
-                date_from: startDate.toISOString(),
-                date_to: endDate.toISOString(),
-                interval: 'day'
-              });
-              // Check if backend returned fallback data
-              if (result && (result as any)._fallback) {
-                console.log(`[Dashboard] Analytics unavailable for form ${form.id}, using empty data`);
-                return [];
-              }
-              return result;
-            } catch (err) {
-              console.warn(`[Dashboard] Failed to fetch analytics for form ${form.id}:`, err);
-              return [];
-            }
-          });
-          
-          const allFormAnalytics = await Promise.all(analyticsPromises);
-          console.log('[Dashboard] All form analytics fetched:', allFormAnalytics);
-          
-          // Aggregate analytics by date
-          const analyticsMap = new Map<string, { submissions: number; errors: number }>();
-          
-          allFormAnalytics.forEach((formData: any, index: number) => {
-            console.log(`[Dashboard] Processing form ${index} analytics:`, formData);
-            if (Array.isArray(formData)) {
-              formData.forEach((item: any) => {
-                const date = item.date;
-                const existing = analyticsMap.get(date) || { submissions: 0, errors: 0 };
-                analyticsMap.set(date, {
-                  submissions: existing.submissions + (item.submissions || 0),
-                  errors: existing.errors + (item.failed_webhooks || 0)
-                });
-                console.log(`[Dashboard] Added data for ${date}:`, { 
-                  submissions: item.submissions, 
-                  failed_webhooks: item.failed_webhooks 
-                });
-              });
-            }
-          });
-          
-          // Convert map to array and format for chart
-          const aggregatedAnalytics = Array.from(analyticsMap.entries())
-            .map(([date, data]) => ({
-              date,
-              value1: data.submissions,
-              value2: data.errors,
-              label1: 'Submissions',
-              label2: 'Errors',
-              color1: '#64748b',
-              color2: '#ef4444',
-            }))
-            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-          
-          console.log('[Dashboard] Aggregated analytics:', aggregatedAnalytics);
-          setAnalytics(aggregatedAnalytics);
-        } catch (err) {
-          console.error('[Dashboard] Error aggregating analytics:', err);
-          setAnalytics([]);
-        }
-      } else {
-        console.warn('[Dashboard] No forms available for analytics aggregation');
-        setAnalytics([]);
-      }
-      */
-      
-      console.log('[Dashboard] Dashboard data fetch complete');
-      setRecentLoading(false);
-      
-      // If we have forms data but no summary data, use it as fallback
-      if (summaryRes.total_forms === 0 && forms && Array.isArray(forms) && forms.length > 0) {
-        console.log('[Dashboard] Using forms data as fallback...');
-        setTotalForms(forms.length);
-        
-        // Try to get submission count from individual forms
-        let totalSubmissionsCount = 0;
-        for (const form of forms) {
-          try {
-            const submissionsRes = await getSubmissions(form.id);
-            if (submissionsRes && submissionsRes.submissions) {
-              totalSubmissionsCount += submissionsRes.submissions.length;
-            } else if (Array.isArray(submissionsRes)) {
-              totalSubmissionsCount += submissionsRes.length;
-            }
-          } catch (submissionErr) {
-            console.warn(`[Dashboard] Could not fetch submissions for form ${form.id}:`, submissionErr);
-          }
-        }
-        
-        setTotalSubmissions(totalSubmissionsCount);
-      }
-      } catch (error) {
-        console.error('[Dashboard] Error fetching dashboard data:', error);
-        setRecentLoading(false);
-        // Show error toast if needed
-      }
+    // Debounced fetch to avoid rapid repeated API calls when dependencies change
+    if (!user) return;
+
+    const formIds = Array.isArray(forms) ? forms.map((f: any) => f.id).filter(Boolean).slice(0, 50) : [];
+    const fetchKey = `${trendRange}|${analyticsRange}|${formIds.length}|${formIds.join(',')}`;
+
+    // Skip fetch if identical key as last successful fetch
+    if (lastFetchKeyRef.current === fetchKey) return;
+
+    if (fetchTimeoutRef.current) {
+      window.clearTimeout(fetchTimeoutRef.current);
     }
-    
-    fetchDashboardData();
-  }, [trendRange, analyticsRange, user, forms]);
+
+    fetchTimeoutRef.current = window.setTimeout(async () => {
+      // Double-check mounted
+      if (!isMountedRef.current) return;
+
+      try {
+        setRecentLoading(true);
+
+        debug.log('[Dashboard] Fetching dashboard data (debounced)...');
+        const recentActivitiesDays = 7;
+        const summaryRes = await getDashboardSummary(recentActivitiesDays);
+
+        // If component unmounted, stop
+        if (!isMountedRef.current) return;
+
+        // Update last fetch key to avoid repeat
+        lastFetchKeyRef.current = fetchKey;
+
+        setTotalForms(summaryRes.total_forms || (Array.isArray(forms) ? forms.length : 0));
+        setTotalSubmissions(summaryRes.total_submissions || 0);
+
+        // Use recent_submissions safely
+        if (summaryRes.recent_submissions && Array.isArray(summaryRes.recent_submissions) && summaryRes.recent_submissions.length > 0) {
+          const normalized = summaryRes.recent_submissions
+            .map((r: any) => {
+              const formName = r.form_name ?? r.form?.name ?? r.form_title ?? r.formName ?? null;
+              const dateValue = r.date ?? r.created_at ?? r.timestamp ?? r.createdAt ?? r.submitted_at ?? null;
+              return {
+                id: r.id ?? r._id ?? r.uuid ?? `sub-${Date.now()}-${Math.random()}`,
+                form_name: formName,
+                form_id: r.form_id ?? r.form?._id ?? r.form?.id ?? null,
+                email: r.email ?? r.contact_email ?? r.submitted_by ?? r.data?.email ?? r.submission_data?.email ?? 'N/A',
+                date: dateValue,
+                status: r.status ?? (r.webhook_delivered === false ? 'failed' : 'success'),
+                data: r.data ?? r.submission_data ?? {},
+                raw: r,
+                _hasValidFormName: !!formName,
+                _hasValidDate: !!dateValue && !isNaN(new Date(dateValue).getTime())
+              };
+            })
+            .filter((item: any) => item._hasValidFormName && item._hasValidDate);
+
+          setRecentSubmissions(normalized);
+        } else {
+          setRecentSubmissions([]);
+        }
+
+        if (summaryRes.webhook_stats && summaryRes.webhook_stats.total > 0) {
+          const successRate = (summaryRes.webhook_stats.delivered / summaryRes.webhook_stats.total) * 100;
+          setWebhookSuccessRate(Math.round(successRate));
+        } else {
+          setWebhookSuccessRate(100);
+        }
+
+        if (summaryRes.trend && Array.isArray(summaryRes.trend)) {
+          const tdata = summaryRes.trend.map((item: any) => ({ date: item.date, count: item.count }));
+          setTrendData(tdata);
+
+          const trendAnalytics = summaryRes.trend.map((item: any) => ({
+            date: item.date,
+            value1: item.count || 0,
+            value2: 0,
+            label1: 'Submissions',
+            label2: 'Errors',
+            color1: '#64748b',
+            color2: '#ef4444'
+          }));
+          setAnalytics(trendAnalytics);
+          setInteractiveAnalytics(summaryRes.trend.map((item: any) => ({ date: item.date, submissions: item.count || 0, errors: 0 })));
+        } else {
+          setTrendData([]);
+          setAnalytics([]);
+          setInteractiveAnalytics([]);
+        }
+
+        // Fallback: avoid fetching per-form submission lists for many forms — limit to first 5
+        if ((!summaryRes.total_forms || summaryRes.total_forms === 0) && Array.isArray(forms) && forms.length > 0) {
+          const sampleForms = forms.slice(0, 5);
+          let totalSubmissionsCount = 0;
+          for (const form of sampleForms) {
+            try {
+              const submissionsRes = await getSubmissions(form.id);
+              if (!isMountedRef.current) break;
+              if (submissionsRes && submissionsRes.submissions) {
+                totalSubmissionsCount += submissionsRes.submissions.length;
+              } else if (Array.isArray(submissionsRes)) {
+                totalSubmissionsCount += submissionsRes.length;
+              }
+            } catch (submissionErr) {
+              debug.warn(`[Dashboard] Could not fetch submissions for form ${form.id}:`, submissionErr);
+            }
+          }
+          setTotalSubmissions(totalSubmissionsCount);
+        }
+
+      } catch (err) {
+        debug.error('[Dashboard] Error fetching dashboard data:', err);
+      } finally {
+        if (isMountedRef.current) setRecentLoading(false);
+      }
+
+    }, 300);
+
+    // cleanup for this effect invocation
+    return () => {
+      if (fetchTimeoutRef.current) {
+        window.clearTimeout(fetchTimeoutRef.current);
+        fetchTimeoutRef.current = null;
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trendRange, analyticsRange, user, /* useForms provides stable identity but we compare ids inside */ forms]);
 
   useEffect(() => {
     if (error) {
@@ -1194,7 +1053,7 @@ function DashboardPageImpl() {
             </div>
           </div>
         ) : (
-          <DashboardContent
+          <MemoizedDashboardContent
             user={user}
             forms={forms}
             loading={loading}
@@ -1227,6 +1086,8 @@ function DashboardPageImpl() {
     </AuthLayout>
   );
 }
+
+  const MemoizedDashboardContent = React.memo(DashboardContent);
 
 // Export the implementation directly since we're in pages directory
 export default DashboardPageImpl;

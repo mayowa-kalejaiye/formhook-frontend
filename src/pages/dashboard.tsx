@@ -22,7 +22,7 @@ const DynamicCartesianGrid = dynamic(() => import('recharts').then(mod => mod.Ca
 
 // Components
 import DashboardHeader from '../components/DashboardHeader';
-import { getDashboardSummary, getSubmissions, getFormAnalytics } from '../services/api';
+import { getDashboardSummary, getSubmissions, getFormAnalytics, isRequestCooldownActive } from '../services/api';
 import MetricCard from '../components/dashboard/MetricCard';
 import WelcomeBlock from '../components/dashboard/WelcomeBlock';
 import DashboardSummaryWidget from '../components/dashboard/DashboardSummaryWidget';
@@ -906,6 +906,14 @@ function DashboardPageImpl() {
     // Debounced fetch to avoid rapid repeated API calls when dependencies change
     if (!user) return;
 
+    // If client-side cooldown is active (e.g. backend returned 429/CORS issues), skip fetches
+    if (isRequestCooldownActive()) {
+      debug.warn('[Dashboard] Skipping dashboard fetch due to client-side cooldown/backoff');
+      // ensure we aren't stuck in loading state
+      if (isMountedRef.current) setRecentLoading(false);
+      return;
+    }
+
     const formIds = Array.isArray(forms) ? forms.map((f: any) => f.id).filter(Boolean).slice(0, 50) : [];
     const fetchKey = `${trendRange}|${analyticsRange}|${formIds.length}|${formIds.join(',')}`;
 
@@ -919,6 +927,12 @@ function DashboardPageImpl() {
     fetchTimeoutRef.current = window.setTimeout(async () => {
       // Double-check mounted
       if (!isMountedRef.current) return;
+
+      if (isRequestCooldownActive()) {
+        debug.warn('[Dashboard] Skipping dashboard fetch (cooldown entered before scheduled fetch)');
+        if (isMountedRef.current) setRecentLoading(false);
+        return;
+      }
 
       try {
         setRecentLoading(true);

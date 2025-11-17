@@ -68,18 +68,41 @@ export default function Login() {
   const { toast } = useToast();
   const [loginAttempted, setLoginAttempted] = useState(false);
   const redirectedRef = React.useRef(false);
+  const isDev = process.env.NODE_ENV !== 'production';
+  const debug = {
+    log: (...args: any[]) => { if (isDev) console.log(...args); },
+    warn: (...args: any[]) => { if (isDev) console.warn(...args); },
+    error: (...args: any[]) => { if (isDev) console.error(...args); }
+  };
+
+  const REDIRECT_FLAG = 'formhook_redirected_to_dashboard_at';
+  const shouldPerformRedirect = () => {
+    try {
+      const val = localStorage.getItem(REDIRECT_FLAG);
+      if (!val) return true;
+      const t = Number(val);
+      if (isNaN(t)) return true;
+      // If last redirect was more than 10 seconds ago, allow another
+      return Date.now() - t > 10000;
+    } catch (e) {
+      return true;
+    }
+  };
+  const markRedirectPerformed = () => {
+    try { localStorage.setItem(REDIRECT_FLAG, String(Date.now())); } catch (e) { /* ignore */ }
+  };
 
   // Clear any cached data when login page loads to prevent data leakage
   useEffect(() => {
-    console.log('[Login] Clearing cached data on login page load');
+    debug.log('[Login] Clearing cached data on login page load');
     
     // Clear SWR cache
     if (typeof window !== 'undefined') {
       // Clear all SWR cache keys that might contain user-specific data
       const swr = require('swr');
       if (swr && swr.cache) {
-        console.log('[Login] Clearing SWR cache');
-        swr.cache.clear();
+        debug.log('[Login] Clearing SWR cache');
+        try { swr.cache.clear(); } catch (e) { debug.warn('[Login] SWR cache.clear failed', e); }
       }
     }
     
@@ -93,20 +116,20 @@ export default function Login() {
         }
       }
       keysToRemove.forEach(key => {
-        console.log('[Login] Clearing sessionStorage:', key);
-        sessionStorage.removeItem(key);
+        debug.log('[Login] Clearing sessionStorage:', key);
+        try { sessionStorage.removeItem(key); } catch (e) { debug.warn('[Login] sessionStorage.removeItem failed', e); }
       });
     }
   }, []);
 
   const onSubmit = async (data: { email: string; password: string }) => {
     try {
-      console.log('[Login] Attempting login with:', data.email);
+      debug.log('[Login] Attempting login with:', data.email);
       
       // Clear any existing cached data before login
       if (typeof window !== 'undefined') {
-        console.log('[Login] Clearing cache before new login');
-        localStorage.removeItem('token'); // Remove any old token
+        debug.log('[Login] Clearing cache before new login');
+        try { localStorage.removeItem('token'); } catch (e) { debug.warn('[Login] localStorage.removeItem failed', e); }
       }
       
       setLoginAttempted(false);
@@ -119,7 +142,7 @@ export default function Login() {
         description: "Welcome back! Redirecting to dashboard...",
       });
     } catch (err) {
-      console.error('[Login] Error during login:', err);
+      debug.error('[Login] Error during login:', err);
       setLoginAttempted(true);
       
       // Show error toast
@@ -133,22 +156,25 @@ export default function Login() {
   };
 
   useEffect(() => {
-    // Robust redirect to dashboard if user is logged in — ensure this only runs once.
-    if (user && !loading && typeof window !== 'undefined' && !redirectedRef.current) {
-      // Only redirect once to avoid loops caused by repeated auth updates or router instability.
-      redirectedRef.current = true;
-
-      try {
-        // Prefer client-side navigation first
-        router.replace('/dashboard');
-      } catch (e) {
+    // Robust redirect to dashboard if user is logged in — ensure this only runs once per session/HMR.
+    if (user && !loading && typeof window !== 'undefined') {
+      // Avoid repeated redirects across hot reloads by persisting a short-lived flag in localStorage.
+      if (!redirectedRef.current && shouldPerformRedirect()) {
+        redirectedRef.current = true;
+        markRedirectPerformed();
+        debug.log('[Login] User detected, redirecting to dashboard');
         try {
-          window.location.href = '/dashboard';
-        } catch (err) {
-          /* final fallback: do nothing */
+          router.replace('/dashboard');
+        } catch (e) {
+          try {
+            window.location.href = '/dashboard';
+          } catch (err) {
+            /* final fallback: do nothing */
+          }
         }
+      } else {
+        debug.log('[Login] Redirect suppressed by guard');
       }
-
       return;
     }
 
@@ -164,126 +190,132 @@ export default function Login() {
   }, [user, loading, router, toast]);
 
   return (
-    <div className="relative w-full flex items-center justify-center font-sans overflow-hidden min-h-screen bg-white dark:bg-black">
-      <Toaster />
-      <div className="relative w-full max-w-sm p-6 space-y-6 bg-white dark:bg-black rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-lg dark:shadow-zinc-900/50">
-        <div className="text-center space-y-3">
-          <div className="inline-flex p-2 bg-zinc-100 dark:bg-zinc-900 rounded-md border border-zinc-200 dark:border-zinc-800">
-            <UserIcon />
-          </div>
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-white">Welcome back</h1>
-            <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">Enter your credentials to sign in</p>
-          </div>
-        </div>
-        {/* Social login buttons - disabled */}
-        <div className="grid grid-cols-3 gap-2 opacity-50 pointer-events-none select-none">
-          <button
-            className="flex items-center justify-center h-9 px-3 rounded-md border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-black"
-            title="Login with Provider 1"
-            aria-label="Login with Provider 1"
-          >
-            <svg className="h-6 w-6" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#e5e7eb" /></svg>
-          </button>
-          <button
-            className="flex items-center justify-center h-9 px-3 rounded-md border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-black"
-            title="Login with Provider 2"
-            aria-label="Login with Provider 2"
-          >
-            <svg className="h-5 w-5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#e5e7eb" /></svg>
-          </button>
-          <button
-            className="flex items-center justify-center h-9 px-3 rounded-md border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-black"
-            title="Login with Provider 3"
-            aria-label="Login with Provider 3"
-          >
-            <svg className="h-5 w-5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#e5e7eb" /></svg>
-          </button>
-        </div>
-        {/* OR Divider */}
-        <div className="relative">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t border-zinc-200 dark:border-zinc-800" />
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-white dark:bg-zinc-900 px-2 text-zinc-500 dark:text-zinc-400">
-              Or continue with
-            </span>
-          </div>
-        </div>
-        <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
-          {router.query.verify === 'true' && (
-            <div className="text-blue-600 text-center font-medium bg-blue-50 rounded p-2 border border-blue-100 mb-2">
-              Please check your email to verify your account before signing in.
+    <div className="min-h-screen grid grid-cols-1 md:grid-cols-2">
+      {/* Left marketing/design panel */}
+      <div className="hidden md:flex flex-col justify-center items-start p-12 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 text-white">
+        <div className="max-w-md">
+          <div className="inline-flex items-center gap-3 mb-6">
+            <div className="h-10 w-10 rounded-md bg-white/20 flex items-center justify-center border border-white/30">
+              <UserIcon />
             </div>
-          )}
-          <div className="space-y-2">
-            <label htmlFor="email" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-zinc-900 dark:text-zinc-50">
-              Email
-            </label>
-            <input
-              type="email"
-              id="email"
-              autoComplete="email"
-              {...register("email", { required: "Email is required" })}
-              placeholder="name@example.com"
-              className="flex h-9 w-full rounded-md border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 py-5 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-zinc-500 dark:placeholder:text-zinc-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-950 dark:focus-visible:ring-zinc-300 disabled:cursor-not-allowed disabled:opacity-50"
-            />
-            {errors.email && <span className="text-xs text-red-500">{errors.email.message as string}</span>}
+            <h2 className="text-2xl font-semibold">FormHook</h2>
           </div>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <label htmlFor="password" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-zinc-900 dark:text-zinc-50">
-                Password
-              </label>
-              <a 
-                href="/forgot-password" 
-                className="text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
-              >
-                Forgot password?
-              </a>
+          <h1 className="text-3xl md:text-4xl font-bold leading-tight mb-4">Build beautiful, reliable forms — fast</h1>
+          <p className="text-sm md:text-base text-white/90 mb-6">FormHook helps you collect responses, run webhooks and analyze results without the pain. Lightweight, privacy-first, and easy to integrate.</p>
+
+          <ul className="space-y-3 mb-6">
+            <li className="flex items-start gap-3">
+              <span className="mt-1 inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/20">✓</span>
+              <span className="text-sm">Fast setup — publish forms in minutes</span>
+            </li>
+            <li className="flex items-start gap-3">
+              <span className="mt-1 inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/20">✓</span>
+              <span className="text-sm">Reliable webhooks & delivery analytics</span>
+            </li>
+            <li className="flex items-start gap-3">
+              <span className="mt-1 inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/20">✓</span>
+              <span className="text-sm">Privacy-first: you own the data</span>
+            </li>
+          </ul>
+
+          <div className="flex gap-3">
+            <a href="/signup" className="inline-block rounded-md bg-white text-indigo-700 px-4 py-2 font-semibold">Get started</a>
+            <a href="/pricing" className="inline-block rounded-md border border-white/30 px-4 py-2 text-white/90">See pricing</a>
+          </div>
+        </div>
+      </div>
+
+      {/* Right login panel */}
+      <div className="flex items-center justify-center p-6 bg-white dark:bg-black">
+        <div className="w-full max-w-md">
+          <Toaster />
+          <div className="p-6 space-y-6 bg-white dark:bg-black rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-lg dark:shadow-zinc-900/50">
+            <div className="text-center space-y-3">
+              <div className="inline-flex p-2 bg-zinc-100 dark:bg-zinc-900 rounded-md border border-zinc-200 dark:border-zinc-800">
+                <UserIcon />
+              </div>
+              <div>
+                <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-white">Welcome back</h1>
+                <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">Enter your credentials to sign in</p>
+              </div>
             </div>
-            <div className="relative">
-              <input
-                type={showPassword ? "text" : "password"}
-                id="password"
-                autoComplete="current-password"
-                {...register("password", { required: "Password is required" })}
-                placeholder="Enter your password"
-                className="flex h-9 w-full rounded-md border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 py-5 pr-10 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-zinc-500 dark:placeholder:text-zinc-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-950 dark:focus-visible:ring-zinc-300 disabled:cursor-not-allowed disabled:opacity-50"
-              />
+
+            <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
+              {router.query.verify === 'true' && (
+                <div className="text-blue-600 text-center font-medium bg-blue-50 rounded p-2 border border-blue-100 mb-2">
+                  Please check your email to verify your account before signing in.
+                </div>
+              )}
+              <div className="space-y-2">
+                <label htmlFor="email" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-zinc-900 dark:text-zinc-50">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  id="email"
+                  autoComplete="email"
+                  {...register("email", { required: "Email is required" })}
+                  placeholder="name@example.com"
+                  className="flex h-10 w-full rounded-md border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 text-sm shadow-sm transition-colors placeholder:text-zinc-500 dark:placeholder:text-zinc-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-950 dark:focus-visible:ring-zinc-300 disabled:cursor-not-allowed disabled:opacity-50"
+                />
+                {errors.email && <span className="text-xs text-red-500">{errors.email.message as string}</span>}
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label htmlFor="password" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-zinc-900 dark:text-zinc-50">
+                    Password
+                  </label>
+                  <a 
+                    href="/forgot-password" 
+                    className="text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+                  >
+                    Forgot password?
+                  </a>
+                </div>
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    id="password"
+                    autoComplete="current-password"
+                    {...register("password", { required: "Password is required" })}
+                    placeholder="Enter your password"
+                    className="flex h-10 w-full rounded-md border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 pr-10 text-sm shadow-sm transition-colors placeholder:text-zinc-500 dark:placeholder:text-zinc-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-950 dark:focus-visible:ring-zinc-300 disabled:cursor-not-allowed disabled:opacity-50"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+                  >
+                    {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+                  </button>
+                </div>
+                {errors.password && <span className="text-xs text-red-500">{errors.password.message as string}</span>}
+              </div>
               <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+                type="submit"
+                className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-950 dark:focus-visible:ring-zinc-300 disabled:pointer-events-none disabled:opacity-50 bg-zinc-900 text-zinc-50 shadow hover:bg-zinc-900/90 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-50/90 h-9 px-4 py-2 w-full"
+                disabled={loading}
               >
-                {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+                {loading ? "Logging in..." : "Sign In"}
               </button>
+              {error && <div className="text-red-600 text-center font-medium bg-red-50 rounded p-2 border border-red-100 mt-2">{error}</div>}
+            </form>
+
+            <div className="text-center space-y-2">
+              <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                Don&apos;t have an account?{' '}
+                <a href="/signup" className="font-medium text-zinc-900 dark:text-zinc-50 underline underline-offset-4 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors">
+                  Sign up
+                </a>
+              </p>
+              <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                Need to verify your email?{' '}
+                <a href="/resend-verification" className="font-medium text-zinc-900 dark:text-zinc-50 underline underline-offset-4 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors">
+                  Resend verification
+                </a>
+              </p>
             </div>
-            {errors.password && <span className="text-xs text-red-500">{errors.password.message as string}</span>}
           </div>
-          <button
-            type="submit"
-            className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-950 dark:focus-visible:ring-zinc-300 disabled:pointer-events-none disabled:opacity-50 bg-zinc-900 text-zinc-50 shadow hover:bg-zinc-900/90 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-50/90 h-9 px-4 py-2 w-full"
-            disabled={loading}
-          >
-            {loading ? "Logging in..." : "Sign In"}
-          </button>
-          {error && <div className="text-red-600 text-center font-medium bg-red-50 rounded p-2 border border-red-100 mt-2">{error}</div>}
-        </form>
-        <div className="text-center space-y-2">
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            Don&apos;t have an account?{' '}
-            <a href="/signup" className="font-medium text-zinc-900 dark:text-zinc-50 underline underline-offset-4 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors">
-              Sign up
-            </a>
-          </p>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            Need to verify your email?{' '}
-            <a href="/resend-verification" className="font-medium text-zinc-900 dark:text-zinc-50 underline underline-offset-4 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors">
-              Resend verification
-            </a>
-          </p>
         </div>
       </div>
     </div>

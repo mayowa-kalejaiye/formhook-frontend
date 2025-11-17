@@ -36,6 +36,20 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
   // Use JWT token from localStorage for all authenticated requests
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
   
+  // Client-side cooldown/backoff to avoid hammering API on repeated failures (429/network/CORS)
+  // Uses window.__fh_request_cooldown_until (ms timestamp) and window.__fh_consecutive_failures (counter)
+  try {
+    if (typeof window !== 'undefined') {
+      const cooldown = (window as any).__fh_request_cooldown_until || 0;
+      if (cooldown && Date.now() < cooldown) {
+        // Return a consistent error-like object similar to other branches
+        return { ok: false, status: 429, error: 'Client-side request cooldown active' };
+      }
+    }
+  } catch (e) {
+    // ignore any access errors to window
+  }
+  
   // Token expiry check (optional, UX improvement)
   if (token) {
     const payload = decodeJwt(token);
@@ -61,7 +75,25 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
       headers,
       credentials 
     });
+    // Reset consecutive failure counter on successful network response
+    try {
+      if (typeof window !== 'undefined') {
+        (window as any).__fh_consecutive_failures = 0;
+      }
+    } catch (_) {}
   } catch (networkErr) {
+    // Increment consecutive failure counter and start cooldown after repeated failures
+    try {
+      if (typeof window !== 'undefined') {
+        (window as any).__fh_consecutive_failures = ((window as any).__fh_consecutive_failures || 0) + 1;
+        if ((window as any).__fh_consecutive_failures >= 3) {
+          // 30s cooldown to avoid tight retry loops
+          (window as any).__fh_request_cooldown_until = Date.now() + 30_000;
+          (window as any).__fh_consecutive_failures = 0;
+        }
+      }
+    } catch (_) {}
+
     showToast('Network error', 'Could not connect to the server.', 'destructive');
     // Prevent browser default error popups
     return { ok: false, status: 0, error: 'Network error' };
@@ -70,6 +102,12 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
     showToast('Unknown error', 'No response from server.', 'destructive');
     return { ok: false, status: 0, error: 'No response from server' };
   }
+  // If backend explicitly rate-limited us, start a short client-side cooldown to reduce repeated attempts
+  try {
+    if (res.status === 429 && typeof window !== 'undefined') {
+      (window as any).__fh_request_cooldown_until = Date.now() + 30_000; // 30 seconds
+    }
+  } catch (_) {}
   if (res.status === 401) {
     localStorage.removeItem('token');
     showSessionExpiredToast();
@@ -104,7 +142,25 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
       errorData: errorData // Include the full error data for downstream use
     };
   }
+  // Success: ensure any cooldowns are cleared
+  try {
+    if (typeof window !== 'undefined') {
+      (window as any).__fh_consecutive_failures = 0;
+      (window as any).__fh_request_cooldown_until = 0;
+    }
+  } catch (_) {}
   return res;
+}
+
+// Helper to check if client-side cooldown is currently active
+export function isRequestCooldownActive(): boolean {
+  try {
+    if (typeof window === 'undefined') return false;
+    const until = (window as any).__fh_request_cooldown_until || 0;
+    return !!(until && Date.now() < until);
+  } catch (e) {
+    return false;
+  }
 }
 
 // Cached fetch wrapper for GET requests

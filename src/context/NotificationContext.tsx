@@ -3,7 +3,8 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { 
   getNotifications, 
   getUnreadNotificationCount,
-  Notification 
+  Notification,
+  isRequestCooldownActive
 } from '../services/api';
 
 interface NotificationContextType {
@@ -48,6 +49,12 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
   const refreshNotifications = async () => {
     if (isLoading) return;
     
+    // Respect client-side cooldown/backoff to avoid repeated requests
+    if (isRequestCooldownActive()) {
+      console.log('[Notifications] Skipping fetch due to client-side cooldown/backoff');
+      return;
+    }
+
     setIsLoading(true);
     try {
       console.log('[Notifications] Fetching from API...');

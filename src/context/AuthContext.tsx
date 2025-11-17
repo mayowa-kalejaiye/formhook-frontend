@@ -1,145 +1,110 @@
 "use client";
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useRouter } from 'next/router';
-import { login as apiLogin, signup as apiSignup, loginWithToken as apiLoginWithToken } from '../services/api';
-import { safeReplace } from '../lib/navigation';
-import { apiCache } from '@/utils/cache';
+import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { login as apiLogin, signup as apiSignup, loginWithToken as apiLoginWithToken, getUserProfile } from '../services/api';
 
-interface User {
-  email: string;
+type User = {
+  email?: string;
   verified?: boolean;
   userId?: string;
-}
+  [k: string]: any;
+} | null;
 
-interface AuthContextType {
-  user: User | null;
-  loading: boolean;
+type AuthContextType = {
+  user: User;
+  loading: boolean; // operation in progress
   error: string | null;
-  authReady: boolean;
+  authReady: boolean; // hydration complete
   isAuthenticated: boolean;
   login: (data: { email: string; password: string }) => Promise<void>;
   loginWithToken: (token: string) => Promise<void>;
   signup: (data: { email: string; password: string }) => Promise<any>;
-  logout: () => Promise<void>;
-  getCurrentUser: () => void;
-}
+  logout: () => Promise<void> | void;
+  getCurrentUser: () => Promise<void>;
+  decodeToken: (token: string) => any | null;
+};
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function safeParseJwt(token: string) {
+  try {
+    const parts = token.split('.');
+    if (parts.length < 2) return null;
+    const payload = parts[1];
+    const json = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
+    return JSON.parse(json);
+  } catch (e) {
+    return null;
+  }
+}
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<User>(null);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [info, setInfo] = useState<string | null>(null);
   const [authReady, setAuthReady] = useState(false);
 
-  const router = useRouter();
-
   useEffect(() => {
-    // Wait until auth initialization completes before enforcing redirects
     if (typeof window === 'undefined') return;
-    if (!authReady) return;
-
-    const pathname = window.location.pathname;
-    const isPublicPage = pathname === '/' || pathname === '/login' || pathname === '/signup' ||
-      pathname === '/forgot-password' || pathname === '/reset-password' ||
-      pathname === '/verify-email' || pathname === '/verification-required' ||
-      pathname === '/pricing' || pathname === '/resend-verification';
-
-    let cancelled = false;
     (async () => {
-      const currentUser = await getCurrentUser();
-      if (cancelled) return;
-
-      if (!isPublicPage && !currentUser && pathname !== '/login') {
-        // Only redirect to /login if not already on /login and not during login attempt
-        try {
-          safeReplace(router, '/login');
-        } catch (e) {
-          try { router.replace('/login').catch(() => {}); } catch (_) {}
-        }
-      } else {
-        setLoading(false);
-        if (currentUser) setUser(currentUser);
-        else setUser(null);
-      }
-    })();
-
-    return () => { cancelled = true; };
-  }, [router.pathname, authReady]);
-
-  // On mount, validate token expiry and ensure auth state is clean before child providers run
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    const initAuth = async () => {
-      setLoading(true);
       try {
         const token = localStorage.getItem('token');
-        if (token) {
-          try {
-            const payload = JSON.parse(atob(token.split('.')[1]));
-            if (payload && payload.exp && payload.exp * 1000 < Date.now()) {
-              // Expired
-              localStorage.removeItem('token');
-              setUser(null);
-            }
-          } catch (e) {
-            // Malformed token
-            localStorage.removeItem('token');
-            setUser(null);
-          }
-        } else {
+        if (!token) {
           setUser(null);
+          setAuthReady(true);
+          return;
         }
+        const payload = safeParseJwt(token);
+        if (!payload) {
+          try { localStorage.removeItem('token'); } catch (_) {}
+          setUser(null);
+          setAuthReady(true);
+          return;
+        }
+
+        try {
+          const profile = await getUserProfile();
+          if (profile) {
+            const normalized = { ...profile, userId: profile.id ? String(profile.id) : profile.userId ?? profile.user_id ?? profile.sub ?? profile.id };
+            setUser(normalized);
+          } else {
+            setUser({ email: payload.email, verified: payload.is_verified ?? payload.verified, userId: String(payload.userId ?? payload.user_id ?? payload.sub ?? payload.id) });
+          }
+        } catch (e) {
+          setUser({ email: payload.email, verified: payload.is_verified ?? payload.verified, userId: String(payload.userId ?? payload.user_id ?? payload.sub ?? payload.id) });
+        }
+        setAuthReady(true);
       } catch (e) {
-        // If localStorage access fails, clear any token references
         try { localStorage.removeItem('token'); } catch (_) {}
         setUser(null);
-      } finally {
         setAuthReady(true);
-        setLoading(false);
       }
-    };
-
-    initAuth();
+    })();
   }, []);
 
-  const getCurrentUser = async () => {
-    // Only run on client-side
-    if (typeof window === 'undefined') return null;
-    
-    try {
-      // JWT in localStorage approach per API docs
-      const token = localStorage.getItem('token');
-      if (!token) {
-        setUser(null);
-        return null;
-      }
+  const decodeToken = (token: string) => safeParseJwt(token);
 
-      try {
-        // Decode JWT token to get user info
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        const userInfo = {
-          email: payload.email || payload.sub || '',
-          verified: payload.verified ?? payload.is_verified ?? true,
-          userId: payload.sub || payload.user_id || payload.id
-        };
-        console.log('[Auth] Decoded user from JWT:', userInfo);
-        setUser(userInfo);
-        return userInfo;
-      } catch (e) {
-        // If token is invalid, remove it
-        console.error('[Auth] Invalid token:', e);
-        localStorage.removeItem('token');
-        setUser(null);
-        return null;
+  const setTokenAndUserFromResponse = async (resData: any, providedToken?: string) => {
+    const token = resData?.access_token || resData?.token || providedToken || null;
+    if (!token) throw new Error('No token available');
+    try { localStorage.setItem('token', token); } catch (_) {}
+    const payload = safeParseJwt(token);
+    try {
+      const profile = await getUserProfile();
+      if (profile) {
+        const normalized = { ...profile, userId: profile.id ? String(profile.id) : profile.userId ?? profile.user_id ?? profile.sub ?? profile.id };
+        setUser(normalized);
+        try { if (normalized.userId) localStorage.setItem('userId', String(normalized.userId)); } catch (_) {}
+        return;
       }
-    } catch (error) {
-      console.error('[Auth] getCurrentUser error:', error);
-      setUser(null);
-      return null;
-    }
+    } catch (_) {}
+
+    const userObj = {
+      email: resData?.user?.email || payload?.email || undefined,
+      verified: resData?.user?.is_verified ?? payload?.is_verified ?? payload?.verified ?? undefined,
+      userId: resData?.user?.id ? String(resData.user.id) : payload ? String(payload?.userId ?? payload?.user_id ?? payload?.sub ?? payload?.id) : undefined,
+    };
+    try { if (userObj.userId) localStorage.setItem('userId', String(userObj.userId)); } catch (_) {}
+    setUser(userObj);
   };
 
   const login = async (data: { email: string; password: string }) => {
@@ -147,71 +112,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setError(null);
     try {
       const res = await apiLogin(data);
-      console.log('[Auth] Login response:', res.data);
-      
-      // Backend returns { access_token, token_type, user: { id, email, is_verified } }
-      if (res.data?.access_token) {
-        localStorage.setItem('token', res.data.access_token);
-        
-        // Set user from response user object or decode token
-        // Derive userId from response user object or from JWT `sub` if backend omits `userId` field
-        // Ensure we decode the token that is actually stored in localStorage (avoid mismatches)
-        let tokenUserId: string | undefined;
-        try {
-          const storedToken = localStorage.getItem('token');
-          if (storedToken) {
-            const payload = JSON.parse(atob(storedToken.split('.')[1]));
-            tokenUserId = payload?.userId || payload?.user_id || payload?.sub || payload?.id;
-          }
-        } catch (e) {
-          tokenUserId = undefined;
-        }
-        const userInfo = {
-          email: res.data.user?.email || data.email,
-          verified: res.data.user?.is_verified ?? true,
-          userId: res.data.user?.id || tokenUserId
-        };
-        // Persist userId for any parts of the app that read it directly
-        try { if (userInfo.userId) localStorage.setItem('userId', String(userInfo.userId)); } catch (_) {}
-        console.log('[Auth] Login successful, user:', userInfo);
-        setUser(userInfo);
-          try {
-            // Use safeReplace to avoid rapid sequential navigations
-            safeReplace(router, '/dashboard');
-          } catch (e) {
-            console.warn('[Auth] Failed to invoke safeReplace after login', e);
-          }
-      } else {
-        setUser(null);
-        setError(res.data?.detail || res.data?.message || 'Login failed');
-      }
+      await setTokenAndUserFromResponse(res?.data);
     } catch (err: any) {
-      setUser(null);
-      
-      // Enhanced error handling
-      let errorMsg = 'Login failed';
-      
-      if (err?.response?.status === 401) {
-        errorMsg = 'Invalid email or password.';
-      } else if (err?.response?.status === 403) {
-        errorMsg = err?.response?.data?.detail || 'Access denied. Please verify your email address.';
-      } else if (err?.response?.status === 404) {
-        errorMsg = 'Account not found. Please check your email or sign up.';
-      } else if (err?.response?.status >= 500) {
-        errorMsg = 'Server error. Please try again later.';
-      } else {
-        errorMsg = err?.response?.data?.detail ||
-                   err?.response?.data?.message ||
-                   err?.message ||
-                   'Login failed. Please try again.';
-      }
-      
-      setError(errorMsg);
-      console.error('[Auth] Login error:', {
-        status: err?.response?.status,
-        data: err?.response?.data,
-        message: errorMsg
-      });
+      const msg = err?.response?.data?.detail || err?.response?.data?.message || err?.message || 'Login failed';
+      setError(msg);
+      throw err;
     } finally {
       setLoading(false);
     }
@@ -222,42 +127,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setError(null);
     try {
       const res = await apiLoginWithToken(token);
-      
-      // Handle JWT token approach
-      if (res.data?.access_token) {
-        localStorage.setItem('token', res.data.access_token);
-        
-        // Get user info from token or response
-        // Decode the token that was written to localStorage to ensure consistency
-        let tokenUserId: string | undefined;
-        try {
-          const storedToken = localStorage.getItem('token');
-          if (storedToken) {
-            const payload = JSON.parse(atob(storedToken.split('.')[1]));
-            tokenUserId = payload?.userId || payload?.user_id || payload?.sub || payload?.id;
-          }
-        } catch (e) {
-          tokenUserId = undefined;
-        }
-        const userInfo = {
-          email: res.data.user?.email || '',
-          verified: res.data.user?.is_verified ?? true,
-          userId: res.data.user?.id || tokenUserId
-        };
-        try { if (userInfo.userId) localStorage.setItem('userId', String(userInfo.userId)); } catch (_) {}
-        setUser(userInfo);
-      } else {
-        setUser(null);
-        setError(res.data?.detail || res.data?.message || 'Login failed');
-      }
+      await setTokenAndUserFromResponse(res?.data, token);
     } catch (err: any) {
-      setUser(null);
-      setError(
-        err?.response?.data?.detail ||
-        err?.response?.data?.message ||
-        (typeof err?.response?.data === 'string' ? err.response.data : null) ||
-        'Login with token failed'
-      );
+      try { localStorage.setItem('token', token); } catch (_) {}
+      const payload = safeParseJwt(token);
+      setUser({ email: payload?.email, verified: payload?.is_verified ?? payload?.verified, userId: payload?.userId ?? payload?.user_id ?? payload?.sub ?? payload?.id });
     } finally {
       setLoading(false);
     }
@@ -266,65 +140,49 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signup = async (data: { email: string; password: string }) => {
     setLoading(true);
     setError(null);
-    setInfo(null);
     try {
       const res = await apiSignup(data);
-      // Do NOT auto-login after signup; let backend decide next step (e.g., email verification)
-      // Do not set user or token here
-      if (res.data?.message) {
-        setError(null);
-        setInfo(res.data.message);
-      }
       return res;
     } catch (err: any) {
-      setError(
-        err?.response?.data?.detail ||
-        err?.response?.data?.message ||
-        (typeof err?.response?.data === 'string' ? err.response.data : null) ||
-        'Signup failed'
-      );
-      setInfo(null);
+      const msg = err?.response?.data?.detail || err?.response?.data?.message || err?.message || 'Signup failed';
+      setError(msg);
       throw err;
     } finally {
       setLoading(false);
     }
   };
 
-  const logout = async () => {
-    // Only run on client-side
-    if (typeof window === 'undefined') return;
-
-    // Remove JWT token from localStorage
-    localStorage.removeItem('token');
-    
-    // Clear API cache on logout to prevent data leakage
-    apiCache.clear();
-    
-    // Clear any other user-specific data from localStorage
-    const keysToRemove = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && (key.includes('user') || key.includes('form') || key.includes('cache'))) {
-        keysToRemove.push(key);
-      }
-    }
-    keysToRemove.forEach(key => localStorage.removeItem(key));
-    
-    // Clear user state
-    setUser(null);
-    
-    console.log('[Auth] Logout complete');
+  const getCurrentUser = async () => {
+    try {
+      const profile = await getUserProfile();
+      if (profile) setUser({ ...profile });
+    } catch (e) {}
   };
 
-  return (
-    <AuthContext.Provider value={{ user, loading, error, authReady, isAuthenticated: !!user, login, loginWithToken, signup, logout, getCurrentUser }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  const logout = async () => {
+    try { if (typeof window !== 'undefined') localStorage.removeItem('token'); } catch (_) {}
+    setUser(null);
+  };
+
+  const value: AuthContextType = {
+    user,
+    loading,
+    error,
+    authReady,
+    isAuthenticated: !!user,
+    login,
+    loginWithToken,
+    signup,
+    logout,
+    getCurrentUser,
+    decodeToken,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) throw new Error('useAuth must be used within AuthProvider');
-  return context;
+export const useAuth = (): AuthContextType => {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
+  return ctx;
 };

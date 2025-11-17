@@ -411,16 +411,8 @@ export const revokeApiToken = async () => {
 
 // Auth (public)
 export const signup = (data: { email: string; password: string }) => {
-  if (shouldUseProxy) {
-    // Use the proxy in production to avoid CORS issues
-    return axios.post('/api/proxy', {
-      url: `${API_BASE_URL}/auth/signup`,
-      data: data
-    });
-  } else {
-    // Use direct API call in development
-    return API.post('/auth/signup', data);
-  }
+  // Always use direct API call for JWT auth
+  return API.post('/auth/signup', data);
 };
 
 // Login function using JWT authentication per API docs
@@ -458,42 +450,18 @@ export const login = async (data: { email: string; password: string }) => {
 
 // Token-based login (for password reset links, etc.)
 export const loginWithToken = (token: string) => {
-  if (shouldUseProxy) {
-    // Use the proxy in production to avoid CORS issues
-    return axios.post('/api/proxy', {
-      url: `${API_BASE_URL}/auth/token`,
-      data: { token }
-    });
-  } else {
-    // Use direct API call in development
-    return API.post('/auth/token', { token });
-  }
+  // Always use direct API call for JWT auth
+  return API.post('/auth/token', { token });
 };
 
 export const verifyEmail = (token: string) => {
-  if (shouldUseProxy) {
-    // Use the proxy in production to avoid CORS issues
-    return axios.post('/api/proxy', {
-      url: `${API_BASE_URL}/auth/verify-email`,
-      data: { token }
-    });
-  } else {
-    // Use direct API call in development
-    return API.post('/auth/verify-email', { token });
-  }
+  // Always use direct API call for JWT auth
+  return API.post('/auth/verify-email', { token });
 };
 
 export const requestEmailVerification = (email: string) => {
-  if (shouldUseProxy) {
-    // Use the proxy in production to avoid CORS issues
-    return axios.post('/api/proxy', {
-      url: `${API_BASE_URL}/auth/request-verification`,
-      data: { email }
-    });
-  } else {
-    // Use direct API call in development
-    return API.post('/auth/request-verification', { email });
-  }
+  // Always use direct API call for JWT auth
+  return API.post('/auth/request-verification', { email });
 };
 
 // Forms

@@ -1,6 +1,6 @@
 "use client";
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { login as apiLogin, signup as apiSignup, loginWithToken as apiLoginWithToken, getUserProfile, fetchWithAuth } from '../services/api';
+import { login as apiLogin, signup as apiSignup, loginWithToken as apiLoginWithToken, getUserProfile, fetchWithAuth, isUsingHttpOnlyCookies } from '../services/api';
 import { apiCache } from '@/utils/cache';
 
 type User = {
@@ -48,36 +48,54 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (typeof window === 'undefined') return;
     (async () => {
       try {
-        const token = localStorage.getItem('token');
-        if (!token) {
-          setUser(null);
-          setAuthReady(true);
-          return;
-        }
-        const payload = safeParseJwt(token);
-        if (!payload) {
-          try { localStorage.removeItem('token'); } catch (_) {}
-          setUser(null);
-          setAuthReady(true);
-          return;
-        }
+          const token = localStorage.getItem('token');
+          // If no token is present but the app is configured to use http-only cookies,
+          // attempt to validate the session via the backend (cookie-based session may exist).
+          if (!token) {
+            if (isUsingHttpOnlyCookies()) {
+              try {
+                const profile = await getUserProfile();
+                if (profile) {
+                  const normalized = { ...profile, userId: profile.id ? String(profile.id) : profile.userId ?? profile.user_id ?? profile.sub ?? profile.id };
+                  setUser(normalized);
+                } else {
+                  setUser(null);
+                }
+              } catch (e) {
+                setUser(null);
+              }
+              setAuthReady(true);
+              return;
+            }
 
-        // Validate token with backend. Only set `user` when server confirms the token.
-        try {
-          const profile = await getUserProfile();
-          if (profile) {
-            const normalized = { ...profile, userId: profile.id ? String(profile.id) : profile.userId ?? profile.user_id ?? profile.sub ?? profile.id };
-            setUser(normalized);
-          } else {
-            // Backend did not validate token: remove it and remain unauthenticated
+            setUser(null);
+            setAuthReady(true);
+            return;
+          }
+          const payload = safeParseJwt(token);
+          if (!payload) {
+            try { localStorage.removeItem('token'); } catch (_) {}
+            setUser(null);
+            setAuthReady(true);
+            return;
+          }
+
+          // Validate token with backend. Only set `user` when server confirms the token.
+          try {
+            const profile = await getUserProfile();
+            if (profile) {
+              const normalized = { ...profile, userId: profile.id ? String(profile.id) : profile.userId ?? profile.user_id ?? profile.sub ?? profile.id };
+              setUser(normalized);
+            } else {
+              // Backend did not validate token: remove it and remain unauthenticated
+              try { localStorage.removeItem('token'); } catch (_) {}
+              setUser(null);
+            }
+          } catch (e) {
+            // On error validating token, remove token and remain unauthenticated
             try { localStorage.removeItem('token'); } catch (_) {}
             setUser(null);
           }
-        } catch (e) {
-          // On error validating token, remove token and remain unauthenticated
-          try { localStorage.removeItem('token'); } catch (_) {}
-          setUser(null);
-        }
         setAuthReady(true);
       } catch (e) {
         try { localStorage.removeItem('token'); } catch (_) {}
@@ -91,9 +109,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const setTokenAndUserFromResponse = async (resData: any, providedToken?: string) => {
     const token = resData?.access_token || resData?.token || providedToken || null;
-    if (!token) throw new Error('No token available');
-    try { localStorage.setItem('token', token); } catch (_) {}
-    const payload = safeParseJwt(token);
+    const cookieMode = isUsingHttpOnlyCookies();
+
+    // If a token exists and cookie mode is not in use, persist it locally.
+    if (token && !cookieMode) {
+      try { localStorage.setItem('token', token); } catch (_) {}
+    }
+
+    // Prefer authoritative profile from the backend when possible (works for both cookie and token flows)
     try {
       const profile = await getUserProfile();
       if (profile) {
@@ -102,9 +125,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         try { if (normalized.userId) localStorage.setItem('userId', String(normalized.userId)); } catch (_) {}
         return;
       }
-    } catch (_) {}
+    } catch (_) {
+      // continue to fallback below
+    }
 
-    // If backend didn't provide a profile, prefer server-provided user shape in resData
+    // If backend didn't provide a profile but server returned user in the login response, use that.
     if (resData?.user) {
       const userObj = {
         email: resData.user.email || undefined,
@@ -116,8 +141,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
-    // Token couldn't be validated and no user data returned by server: remove token and do not authenticate
-    try { localStorage.removeItem('token'); } catch (_) {}
+    // No profile and no user info: if using cookie mode, give up but don't throw; ensure local token (if any) cleaned when not cookieMode.
+    if (!cookieMode) {
+      try { localStorage.removeItem('token'); } catch (_) {}
+    }
     setUser(null);
   };
 

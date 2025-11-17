@@ -30,10 +30,14 @@ function decodeJwt(token) {
 // --- Auth Helpers ---
 // Reusable fetchWithAuth helper for protected endpoints
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://formhook-backend.onrender.com';
+// Helper to check if we're using HttpOnly cookies or JWT in localStorage
+export function isUsingHttpOnlyCookies() {
+  return process.env.NEXT_PUBLIC_USE_HTTP_ONLY_COOKIES === 'true';
+}
 export async function fetchWithAuth(url: string, options: RequestInit = {}) {
   const headers = new Headers(options.headers || {});
   
-  // Use JWT token from localStorage for all authenticated requests
+  // Use JWT token from localStorage for all authenticated requests when not using http-only cookies
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
   
   // Client-side cooldown/backoff to avoid hammering API on repeated failures (429/network/CORS)
@@ -65,8 +69,8 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
   // Always prefix with backend base URL unless already absolute
   const fullUrl = url.startsWith('http') ? url : `${API_BASE_URL}${url.startsWith('/') ? url : '/' + url}`;
   
-  // No credentials needed for JWT auth
-  const credentials: RequestCredentials = 'same-origin';
+  // Credentials: include cookies when using http-only cookie mode
+  const credentials: RequestCredentials = isUsingHttpOnlyCookies() ? 'include' : 'same-origin';
   
   let res;
   try {
@@ -245,6 +249,7 @@ const API = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: isUsingHttpOnlyCookies(),
 });
 
 // Add request interceptor to include JWT token in all requests
@@ -689,23 +694,41 @@ export const exportSubmissions = async (
 
 // --- User Profile & Account Management ---
 export const getUserProfile = async () => {
-  try {
-    const res = await fetchWithAuth('/user/profile');
-    if (!res || !res.ok) {
-      // res may be a Response or an error-like object returned by fetchWithAuth
-      const status = res && (res.status || (res as any).status) ? (res as any).status : 'unknown';
-      const err = res && ((res as any).error || (res as any).message) ? ((res as any).error || (res as any).message) : undefined;
-      console.error('[API] getUserProfile failed:', status, err);
-      return null;
+  // Some backends expose the current user at different endpoints (legacy differences).
+  // Try a small set of likely endpoints and return the first successful profile.
+  const candidates = ['/user/profile', '/auth/me', '/users/me', '/api/user/profile'];
+  for (const path of candidates) {
+    try {
+      const res = await fetchWithAuth(path);
+      if (res && (res as any).ok) {
+        if (typeof (res as any).json === 'function') {
+          try {
+            const data = await (res as any).json();
+            return data;
+          } catch (e) {
+            console.warn('[API] getUserProfile: failed to parse JSON from', path, e);
+            return null;
+          }
+        }
+        return null;
+      }
+
+      // Log not-found separately to help debugging
+      const status = res && ((res as any).status || res.status) ? (res as any).status : 'unknown';
+      if (status === 404) {
+        console.debug('[API] getUserProfile: endpoint not found:', path);
+        continue;
+      }
+
+      // For other non-ok responses, log and continue to next candidate
+      console.warn('[API] getUserProfile failed at', path, 'status:', status, 'error:', (res as any).error || (res as any).message);
+    } catch (error) {
+      console.warn('[API] getUserProfile error for', path, error);
     }
-    if (typeof (res as any).json === 'function') {
-      return await (res as any).json();
-    }
-    return null;
-  } catch (error) {
-    console.error('[API] getUserProfile error:', error);
-    return null;
   }
+
+  console.error('[API] getUserProfile: no working profile endpoint found (tried:', candidates.join(', '), ')');
+  return null;
 };
 
 export const updateUserProfile = async (data: {

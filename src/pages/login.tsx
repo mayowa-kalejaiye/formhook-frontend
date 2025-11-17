@@ -150,8 +150,10 @@ export default function Login() {
       
       setLoginAttempted(false);
       await login(data);
+      // Ensure we refresh current user/profile (race-safety for cookie/token modes)
+      try { await getCurrentUser(); } catch (e) { debug.warn('[Login] getCurrentUser failed', e); }
       setLoginAttempted(true);
-      
+
       // Show success message
       toast({
         title: "Login successful",

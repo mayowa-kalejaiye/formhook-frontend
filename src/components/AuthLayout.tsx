@@ -19,7 +19,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         router.replace('/login').catch(() => {});
       }
     }
-  }, [loading, user, router]);
+  }, [loading, user, router, authReady, isAuthenticated]);
 
   if (!authReady || loading || !isAuthenticated) {
     return <div className="flex items-center justify-center min-h-screen">Checking authentication...</div>;

@@ -95,7 +95,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     try { localStorage.setItem('token', token); } catch (_) {}
 
-    // Prefer authoritative profile from the backend after storing token
+    // If the login response already contains the user object, prefer it
+    if (resData?.user) {
+      const userObj = {
+        email: resData.user.email || undefined,
+        verified: resData.user.is_verified ?? resData.user.verified ?? undefined,
+        userId: resData.user.id ? String(resData.user.id) : resData.user.userId ? String(resData.user.userId) : undefined,
+        ...resData.user,
+      } as any;
+      try { if (userObj.userId) localStorage.setItem('userId', String(userObj.userId)); } catch (_) {}
+      setUser(userObj);
+      return;
+    }
+
+    // Otherwise attempt to fetch authoritative profile from backend
     try {
       const profile = await getUserProfile();
       if (profile) {
@@ -105,19 +118,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
     } catch (_) {
-      // continue to fallback below
-    }
-
-    // If backend didn't provide a profile but server returned user in the login response, use that.
-    if (resData?.user) {
-      const userObj = {
-        email: resData.user.email || undefined,
-        verified: resData.user.is_verified ?? undefined,
-        userId: resData.user.id ? String(resData.user.id) : undefined,
-      };
-      try { if (userObj.userId) localStorage.setItem('userId', String(userObj.userId)); } catch (_) {}
-      setUser(userObj);
-      return;
+      // continue to failure
     }
 
     // No profile and no user info: remove token and do not authenticate

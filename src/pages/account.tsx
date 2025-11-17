@@ -43,6 +43,7 @@ import {
   X
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useRouter } from 'next/router';
 import { toast } from '../hooks/use-toast';
 import { Toaster } from '../components/ui/toaster';
 import { 
@@ -89,6 +90,7 @@ interface SecurityLog {
 function UserAccountSettingsContent() {
   const { isCollapsed } = useSidebar();
   const { user } = useAuth();
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState('profile');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -353,9 +355,9 @@ function UserAccountSettingsContent() {
         description: "Your account deletion request has been submitted.",
       });
       
-      // Redirect to login after a delay
+      // Redirect to login after a delay (use SPA navigation)
       setTimeout(() => {
-        window.location.href = '/login';
+        router.replace('/login').catch(() => {});
       }, 3000);
     } catch (error) {
       toast({

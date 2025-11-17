@@ -4,22 +4,23 @@ import { useAuth } from '../context/AuthContext';
 
 export default function PrivateRoute({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, authReady, isAuthenticated } = useAuth();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!authLoading) {
-      if (!user) {
-        // User is not logged in, redirect to login
-        router.replace('/login');
-      } else if (user.verified === false) {
-        // User is logged in but not verified, redirect to verification notice
-        router.replace('/verification-required');
-      } else {
-        // User is logged in and verified (or verification status unknown - legacy users)
-        setLoading(false);
-      }
+    // Wait until auth initialization completes before redirecting
+    if (!authReady) return;
+    if (!isAuthenticated) {
+      router.replace('/login').catch(() => {});
+      return;
     }
+
+    if (user && user.verified === false) {
+      router.replace('/verification-required').catch(() => {});
+      return;
+    }
+
+    setLoading(false);
   }, [user, authLoading, router]);
 
   if (loading || authLoading) {

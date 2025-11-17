@@ -35,28 +35,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const router = useRouter();
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const pathname = window.location.pathname;
-  const isPublicPage = pathname === '/' || pathname === '/login' || pathname === '/signup' || 
-          pathname === '/forgot-password' || pathname === '/reset-password' || 
-          pathname === '/verify-email' || pathname === '/verification-required' ||
-          pathname === '/pricing' || pathname === '/resend-verification';
+    // Wait until auth initialization completes before enforcing redirects
+    if (typeof window === 'undefined') return;
+    if (!authReady) return;
 
-      getCurrentUser().then(currentUser => {
-        if (!isPublicPage && !currentUser && pathname !== '/login') {
-          // Only redirect to /login if not already on /login and not during login attempt
-          router.replace('/login');
-        } else {
-          setLoading(false);
-          if (currentUser) {
-            setUser(currentUser);
-          } else {
-            setUser(null);
-          }
-        }
-      });
-    }
-  }, [router.pathname]);
+    const pathname = window.location.pathname;
+    const isPublicPage = pathname === '/' || pathname === '/login' || pathname === '/signup' ||
+      pathname === '/forgot-password' || pathname === '/reset-password' ||
+      pathname === '/verify-email' || pathname === '/verification-required' ||
+      pathname === '/pricing' || pathname === '/resend-verification';
+
+    let cancelled = false;
+    (async () => {
+      const currentUser = await getCurrentUser();
+      if (cancelled) return;
+
+      if (!isPublicPage && !currentUser && pathname !== '/login') {
+        // Only redirect to /login if not already on /login and not during login attempt
+        router.replace('/login').catch(() => {});
+      } else {
+        setLoading(false);
+        if (currentUser) setUser(currentUser);
+        else setUser(null);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [router.pathname, authReady]);
 
   // On mount, validate token expiry and ensure auth state is clean before child providers run
   useEffect(() => {
@@ -88,6 +93,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(null);
       } finally {
         setAuthReady(true);
+        setLoading(false);
       }
     };
 

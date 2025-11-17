@@ -5,16 +5,18 @@ import { useAuth } from '../context/AuthContext';
 import DashboardHeader from './DashboardHeader';
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user, loading, authReady, isAuthenticated } = useAuth();
   const router = useRouter();
 
   React.useEffect(() => {
-    if (!loading && !user) {
-      router.replace('/login');
+    // Only redirect after auth initialization has finished and we know the auth state
+    if (!authReady) return;
+    if (!isAuthenticated) {
+      router.replace('/login').catch(() => {});
     }
   }, [loading, user, router]);
 
-  if (loading || !user) {
+  if (!authReady || loading || !isAuthenticated) {
     return <div className="flex items-center justify-center min-h-screen">Checking authentication...</div>;
   }
 

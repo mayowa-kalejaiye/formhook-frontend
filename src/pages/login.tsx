@@ -61,6 +61,8 @@ const EyeOffIcon = () => (
 );
 
 export default function Login() {
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => setMounted(true), []);
   const [showPassword, setShowPassword] = useState(false);
   const { register, handleSubmit, formState: { errors } } = useForm<{ email: string; password: string }>();
   const { login, loading, error, user, getCurrentUser } = useAuth();
@@ -226,10 +228,10 @@ export default function Login() {
       </div>
 
       {/* Right login panel */}
-      <div className="flex items-center justify-center p-6 bg-white dark:bg-black">
-        <div className="w-full max-w-md">
-          <Toaster />
-          <div className="p-6 space-y-6 bg-white dark:bg-black rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-lg dark:shadow-zinc-900/50">
+          <div className="flex items-center justify-center p-6 bg-white dark:bg-black">
+            <div className="w-full max-w-md relative z-10">
+          {mounted && <Toaster />}
+              <div className="p-6 space-y-6 bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-lg dark:shadow-zinc-900/50">
             <div className="text-center space-y-3">
               <div className="inline-flex p-2 bg-zinc-100 dark:bg-zinc-900 rounded-md border border-zinc-200 dark:border-zinc-800">
                 <UserIcon />

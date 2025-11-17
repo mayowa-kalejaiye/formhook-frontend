@@ -132,19 +132,28 @@ export default function Login() {
   };
 
   useEffect(() => {
-    // Redirect to dashboard if user is logged in
-    if (user && !loading) {
-      console.log('[Login] User detected, redirecting to dashboard');
-      router.replace("/dashboard");
+    // Robust redirect to dashboard if user is logged in and JWT is present
+    if (user && !loading && typeof window !== 'undefined') {
+      const token = localStorage.getItem('token');
+      if (token) {
+        console.log('[Login] User detected, redirecting to dashboard');
+        try {
+          router.replace('/dashboard');
+        } catch (e) {
+          console.warn('[Login] router.replace failed, using window.location', e);
+          window.location.href = '/dashboard';
+        }
+      } else {
+        console.warn('[Login] No JWT token found after login, not redirecting');
+      }
       return;
     }
-
     // Show verification toast if redirected from verification page
     if (router.query.verify === 'true') {
       toast({ 
-        title: "Email verification required", 
-        description: "Please check your email to verify your account before signing in.", 
-        variant: "default" 
+        title: 'Email verification required', 
+        description: 'Please check your email to verify your account before signing in.', 
+        variant: 'default' 
       });
     }
   }, [user, loading, router, toast]);

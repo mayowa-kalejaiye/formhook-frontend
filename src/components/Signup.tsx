@@ -8,6 +8,7 @@ import {
   getPasswordStrengthLabel, 
   getPasswordStrengthColor 
 } from '../utils/password-validation';
+import { useToast } from '../hooks/use-toast';
 
 const MailIcon: React.FC = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -68,6 +69,8 @@ const Signup: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [step, setStep] = useState<number>(1);
 
+  const { toast } = useToast();
+
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword);
   };
@@ -107,33 +110,52 @@ const Signup: React.FC = () => {
       if (ok) {
         setSuccess(true);
         setError(null);
-        // If backend included a message, log it
         if (res.data?.message) console.log('[Signup] message:', res.data.message);
-        // Redirect to signin after brief delay
-        setTimeout(() => router.push('/signin?verify=true'), 1500);
+        toast({
+          title: 'Account created!',
+          description: 'Please check your email to verify your account before signing in.',
+          variant: 'default',
+        });
+        setTimeout(() => {
+          try {
+            router.push('/signin?verify=true');
+          } catch (e) {
+            console.warn('[Signup] router.push failed, using window.location', e);
+            window.location.href = '/signin?verify=true';
+          }
+        }, 1500);
       } else {
         // Non-2xx: show backend-provided message if any
         const backendMsg = res?.data?.detail || res?.data?.message;
-        if (backendMsg) {
-          setError(backendMsg);
-        } else if (res?.status === 409) {
-          setError('An account with this email already exists. Please sign in or use password reset.');
-        } else {
-          setError('Signup failed. Please check your email for verification or try again.');
-        }
+        const errorMsg = backendMsg || (res?.status === 409
+          ? 'An account with this email already exists. Please sign in or use password reset.'
+          : 'Signup failed. Please check your email for verification or try again.');
+        setError(errorMsg);
+        toast({
+          title: 'Signup failed',
+          description: errorMsg,
+          variant: 'destructive',
+        });
       }
     } catch (err: any) {
       console.error('[Signup] Error:', err);
       // If server returned 409 conflict, show friendly message
       const status = err?.response?.status;
       const data = err?.response?.data;
+      let errorMsg = '';
       if (status === 409) {
-        setError(data?.message || 'An account with this email already exists. Please sign in.');
+        errorMsg = data?.message || 'An account with this email already exists. Please sign in.';
       } else if (data?.message || data?.detail) {
-        setError(data.message || data.detail);
+        errorMsg = data.message || data.detail;
       } else {
-        setError(err?.message || 'Signup failed. Please try again.');
+        errorMsg = err?.message || 'Signup failed. Please try again.';
       }
+      setError(errorMsg);
+      toast({
+        title: 'Signup failed',
+        description: errorMsg,
+        variant: 'destructive',
+      });
     } finally {
       setIsLoading(false);
     }

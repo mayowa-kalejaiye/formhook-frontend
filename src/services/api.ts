@@ -691,11 +691,17 @@ export const exportSubmissions = async (
 export const getUserProfile = async () => {
   try {
     const res = await fetchWithAuth('/user/profile');
-    if (!res.ok) {
-      console.error('[API] getUserProfile failed:', res.status, res.statusText);
+    if (!res || !res.ok) {
+      // res may be a Response or an error-like object returned by fetchWithAuth
+      const status = res && (res.status || (res as any).status) ? (res as any).status : 'unknown';
+      const err = res && ((res as any).error || (res as any).message) ? ((res as any).error || (res as any).message) : undefined;
+      console.error('[API] getUserProfile failed:', status, err);
       return null;
     }
-    return await res.json();
+    if (typeof (res as any).json === 'function') {
+      return await (res as any).json();
+    }
+    return null;
   } catch (error) {
     console.error('[API] getUserProfile error:', error);
     return null;
@@ -714,12 +720,12 @@ export const updateUserProfile = async (data: {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
     });
-    if (!res.ok) {
-      const errorMsg = (res as any).error || 'Failed to update user profile';
-      throw new Error(errorMsg);
+    if (!res || !res.ok) {
+      const errorMsg = (res && ((res as any).error || (res as any).message)) || `Failed to update user profile (status: ${(res as any)?.status || 'unknown'})`;
+      throw new Error(errorMsg as string);
     }
-    if (typeof res.json === 'function') {
-      return await res.json();
+    if (typeof (res as any).json === 'function') {
+      return await (res as any).json();
     }
     return { success: true };
   } catch (error) {

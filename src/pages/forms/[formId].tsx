@@ -514,7 +514,7 @@ export default function FormSettingsPage() {
                 </TabsTrigger>
               </TabsList>
           <TabsContent value="overview">
-            <Card className="mb-8 shadow border border-blue-100 bg-white/90 dark:bg-black/80">
+            <Card className="mb-8 shadow-lg border border-blue-100 dark:border-slate-700 bg-white dark:bg-slate-900">
               <CardHeader>
                 <CardTitle>Form Overview</CardTitle>
                 <CardDescription>Details and embed snippet for this form.</CardDescription>
@@ -553,14 +553,14 @@ export default function FormSettingsPage() {
                 )}
                 <div className="mt-6">
                   <b>Embed Snippet:</b>
-                  <pre className="bg-white rounded p-2 text-xs overflow-x-auto border border-purple-100 mb-2 mt-2">{embedSnippet()}</pre>
+                  <pre className="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 rounded p-2 text-xs overflow-x-auto border border-purple-200 dark:border-slate-600 mb-2 mt-2">{embedSnippet()}</pre>
                   <Button onClick={() => navigator.clipboard.writeText(embedSnippet())}>Copy Snippet</Button>
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
           <TabsContent value="analytics">
-            <Card className="mb-8 shadow border border-blue-100 bg-white/90 dark:bg-black/80">
+            <Card className="mb-8 shadow-lg border border-blue-100 dark:border-slate-700 bg-white dark:bg-slate-900">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <BarChart3 className="h-5 w-5 text-blue-600" />
@@ -693,7 +693,7 @@ export default function FormSettingsPage() {
             </Card>
           </TabsContent>
           <TabsContent value="webhooks">
-            <Card className="mb-8 shadow border border-blue-100 bg-white/90 dark:bg-black/80">
+            <Card className="mb-8 shadow-lg border border-blue-100 dark:border-slate-700 bg-white dark:bg-slate-900">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Webhook className="h-5 w-5 text-blue-600" />
@@ -762,7 +762,7 @@ export default function FormSettingsPage() {
             </Card>
           </TabsContent>
           <TabsContent value="logs">
-            <Card className="mb-8 shadow border border-blue-100 bg-white/90 dark:bg-black/80">
+            <Card className="mb-8 shadow-lg border border-blue-100 dark:border-slate-700 bg-white dark:bg-slate-900">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Activity className="h-5 w-5 text-blue-600" />
@@ -851,7 +851,7 @@ export default function FormSettingsPage() {
             </Card>
           </TabsContent>
           <TabsContent value="submissions">
-            <Card className="shadow-xl border border-blue-100 bg-white/90 dark:bg-black/80">
+            <Card className="shadow-xl border border-blue-100 dark:border-slate-700 bg-white dark:bg-slate-900">
               <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b bg-gradient-to-r from-blue-50/80 to-purple-50/80 dark:from-blue-900/30 dark:to-purple-900/30">
                 <div>
                   <CardTitle className="text-2xl font-bold text-blue-900 dark:text-blue-200 flex items-center gap-2">

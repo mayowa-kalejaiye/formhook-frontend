@@ -122,13 +122,13 @@ function FormCard({ form, onEdit, onDelete, onView }: {
   onView: (id: string) => void;
 }) {
   const statusColors = {
-    active: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200',
-    draft: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-200',
-    inactive: 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300'
+    active: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300 dark:border dark:border-green-700',
+    draft: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300 dark:border dark:border-yellow-700',
+    inactive: 'bg-slate-100 text-slate-800 dark:bg-slate-800/70 dark:text-slate-200 dark:border dark:border-slate-600'
   };
 
   return (
-    <Card className="pro-card group hover:border-slate-300 dark:hover:border-slate-600 transition-all duration-200">
+    <Card className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md hover:border-slate-300 dark:hover:border-slate-600 transition-all duration-200">
       <CardHeader className="pb-3">
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -194,9 +194,9 @@ function FormCard({ form, onEdit, onDelete, onView }: {
         </div>
 
         {form.webhook_url && (
-          <div className="flex items-center gap-2 mb-4 p-2 bg-slate-50 dark:bg-slate-800 rounded-md border border-slate-200 dark:border-slate-700">
-            <Globe className="h-4 w-4 text-slate-600 dark:text-slate-400 flex-shrink-0" />
-            <span className="text-xs text-slate-700 dark:text-slate-300 truncate">
+          <div className="flex items-center gap-2 mb-4 p-2 bg-blue-50 dark:bg-blue-950/40 rounded-md border border-blue-200 dark:border-blue-800">
+            <Globe className="h-4 w-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+            <span className="text-xs text-blue-700 dark:text-blue-300 truncate">
               Webhook configured
             </span>
           </div>
@@ -409,7 +409,7 @@ function FormsPageContent() {
         </div>
 
         {/* Professional Filter and Search Bar */}
-        <div className="flex flex-col gap-3 sm:gap-4 mb-6 p-3 sm:p-4 pro-card">
+        <div className="flex flex-col gap-3 sm:gap-4 mb-6 p-3 sm:p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
             <Input
@@ -478,7 +478,7 @@ function FormsPageContent() {
 
           {/* Professional Stats Summary */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-            <Card className="pro-card">
+            <Card className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-sm">
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-md bg-slate-600 dark:bg-slate-700 text-white">
@@ -574,27 +574,27 @@ function FormsPageContent() {
                     ))}
                   </div>
                 ) : (
-                  <div className="bg-white/90 dark:bg-gray-900/80 rounded-xl border border-gray-200/50 dark:border-gray-700/50 overflow-hidden">
+                  <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm">
                     <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                        <thead className="bg-gray-50/80 dark:bg-gray-800/80">
+                      <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+                        <thead className="bg-slate-50 dark:bg-slate-800">
                           <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Form</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Submissions</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Recent Activity</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-slate-600 dark:text-slate-300 uppercase tracking-wider">Form</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-slate-600 dark:text-slate-300 uppercase tracking-wider">Status</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-slate-600 dark:text-slate-300 uppercase tracking-wider">Created</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-slate-600 dark:text-slate-300 uppercase tracking-wider">Submissions</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-slate-600 dark:text-slate-300 uppercase tracking-wider">Recent Activity</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-slate-600 dark:text-slate-300 uppercase tracking-wider">Actions</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                        <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                           {filteredAndSortedForms.map((form: Form) => (
-                            <tr key={form.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-colors">
+                            <tr key={form.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/70 transition-colors">
                               <td className="px-6 py-4 whitespace-nowrap">
                                 <div className="flex items-center gap-3">
                                   <FormAvatar formName={form.name} size="md" />
                                   <div>
-                                    <div className="font-semibold text-gray-900 dark:text-white">{form.name}</div>
+                                    <div className="font-semibold text-slate-900 dark:text-slate-100">{form.name}</div>
                                     {form.webhook_url && (
                                       <div className="text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1">
                                         <Globe className="h-3 w-3" />
@@ -605,14 +605,14 @@ function FormsPageContent() {
                                 </div>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">
-                                <Badge className={form.status === 'active' ? 'bg-green-100 text-green-800' : form.status === 'draft' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'}>
+                                <Badge className={form.status === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' : form.status === 'draft' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300' : 'bg-slate-100 text-slate-800 dark:bg-slate-800/70 dark:text-slate-200'}>
                                   {form.status || 'Active'}
                                 </Badge>
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 dark:text-slate-400">
                                 {form.created_at ? new Date(form.created_at).toLocaleDateString() : 'N/A'}
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 dark:text-slate-400">
                                 {form.submission_count || 0}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">
@@ -623,10 +623,10 @@ function FormsPageContent() {
                                       <span>{form.recent_submissions} in 7 days</span>
                                     </div>
                                   ) : (
-                                    <span className="text-xs text-gray-400">No recent activity</span>
+                                    <span className="text-xs text-slate-500 dark:text-slate-400">No recent activity</span>
                                   )}
                                   {form.last_submission_at && (
-                                    <span className="text-xs text-gray-400">
+                                    <span className="text-xs text-slate-500 dark:text-slate-400">
                                       Last: {new Date(form.last_submission_at).toLocaleDateString()}
                                     </span>
                                   )}
@@ -636,21 +636,21 @@ function FormsPageContent() {
                                 <div className="flex items-center gap-2">
                                   <Button
                                     onClick={() => handleView(form.id)}
-                                    className="text-xs px-3 py-1 h-8 bg-blue-100 hover:bg-blue-200 text-blue-700 border-0"
+                                    className="text-xs px-3 py-1 h-8 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/40 dark:hover:bg-blue-900/60 text-blue-700 dark:text-blue-300 border-0"
                                   >
                                     <Eye className="h-3 w-3 mr-1" />
                                     View
                                   </Button>
                                   <Button
                                     onClick={() => setEditForm(form)}
-                                    className="text-xs px-3 py-1 h-8 bg-gray-100 hover:bg-gray-200 text-gray-700 border-0"
+                                    className="text-xs px-3 py-1 h-8 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border-0"
                                   >
                                     <Edit3 className="h-3 w-3 mr-1" />
                                     Edit
                                   </Button>
                                   <Button
                                     onClick={() => setDeleteId(form.id)}
-                                    className="text-xs px-3 py-1 h-8 bg-red-100 hover:bg-red-200 text-red-700 border-0"
+                                    className="text-xs px-3 py-1 h-8 bg-red-100 hover:bg-red-200 dark:bg-red-900/40 dark:hover:bg-red-900/60 text-red-700 dark:text-red-300 border-0"
                                   >
                                     <Trash2 className="h-3 w-3 mr-1" />
                                     Delete

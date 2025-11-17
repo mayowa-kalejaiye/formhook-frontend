@@ -294,7 +294,7 @@ function ModernTrendChart({ data, trendRange, chartType, onChartTypeChange, onTr
 function RecentSubmissionsCard({ submissions, loading }: { submissions: any[]; loading: boolean }) {
   if (loading) {
     return (
-      <Card className="bg-white/95 dark:bg-gray-900/95 border-0 shadow-xl rounded-2xl backdrop-blur-sm">
+      <Card className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl rounded-2xl backdrop-blur-sm">
         <CardHeader>
           <CardTitle className="text-xl font-bold">Recent Submissions</CardTitle>
           <CardDescription>Latest form submissions</CardDescription>
@@ -587,9 +587,9 @@ function DashboardContent({
         {/* Quick Actions and System Health - NOW BELOW RECENT SUBMISSIONS */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Quick Actions Panel */}
-          <Card className="bg-white/95 dark:bg-gray-900/95 border-0 shadow-xl rounded-2xl backdrop-blur-sm">
+          <Card className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl rounded-2xl backdrop-blur-sm">
             <CardHeader>
-              <CardTitle className="text-xl font-bold text-gray-900 dark:text-white">
+              <CardTitle className="text-xl font-bold text-slate-900 dark:text-slate-100">
                 Quick Actions
               </CardTitle>
               <CardDescription className="text-gray-600 dark:text-gray-400">
@@ -647,9 +647,9 @@ function DashboardContent({
           </Card>
 
           {/* System Health Panel */}
-          <Card className="bg-white/95 dark:bg-gray-900/95 border-0 shadow-xl rounded-2xl backdrop-blur-sm">
+          <Card className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl rounded-2xl backdrop-blur-sm">
             <CardHeader>
-              <CardTitle className="text-xl font-bold text-gray-900 dark:text-white">
+              <CardTitle className="text-xl font-bold text-slate-900 dark:text-slate-100">
                 System Health
               </CardTitle>
               <CardDescription className="text-gray-600 dark:text-gray-400">

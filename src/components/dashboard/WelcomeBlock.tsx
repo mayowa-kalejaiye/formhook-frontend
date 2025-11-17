@@ -41,7 +41,7 @@ export default function WelcomeBlock({ username, userEmail, stats }: WelcomeBloc
   };
 
   return (
-    <Card className="w-full bg-white dark:bg-gray-800 shadow-xl rounded-2xl p-8 flex flex-col md:flex-row items-center justify-between border border-gray-200 dark:border-gray-700 relative overflow-hidden opacity-100" style={{ visibility: 'visible', opacity: 1 }}>
+    <Card className="w-full bg-white dark:bg-slate-900 shadow-xl rounded-2xl p-8 flex flex-col md:flex-row items-center justify-between border border-slate-200 dark:border-slate-700 relative overflow-hidden opacity-100" style={{ visibility: 'visible', opacity: 1 }}>
       {/* Enhanced FormHook blue accent border */}
       <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-blue-600 to-blue-400 rounded-t-2xl"></div>
       

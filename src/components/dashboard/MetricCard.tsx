@@ -16,7 +16,7 @@ interface MetricCardProps {
 
 export default function MetricCard({ icon: Icon, label, value, loading, tooltip, accent }: MetricCardProps) {
   return (
-    <Card className={`flex flex-col justify-between p-6 min-w-[180px] h-32 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-shadow duration-200 ${accent || ''}`}>
+    <Card className={`flex flex-col justify-between p-6 min-w-[180px] h-32 bg-white dark:bg-slate-900 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 hover:shadow-xl transition-shadow duration-200 ${accent || ''}`}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-900/30">

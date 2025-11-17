@@ -30,7 +30,7 @@ function CustomAreaTooltip({ active, payload, label }: any) {
     const total = payload.reduce((sum: number, item: any) => sum + item.value, 0);
     
     return (
-      <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 backdrop-blur-sm">
+      <div className="bg-white dark:bg-slate-900 p-4 rounded-xl shadow-2xl border border-gray-200 dark:border-slate-600 backdrop-blur-sm">
         <div className="flex items-center gap-2 mb-3">
           <Calendar className="h-4 w-4 text-gray-500" />
           <p className="font-semibold text-gray-900 dark:text-white">{date}</p>
@@ -207,7 +207,7 @@ export function ChartAreaInteractiveBackend({
       </div>
 
       {/* Enhanced Chart */}
-      <Card className="bg-white/95 dark:bg-gray-900/95 border-0 shadow-xl rounded-2xl backdrop-blur-sm overflow-hidden">
+      <Card className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl rounded-2xl backdrop-blur-sm overflow-hidden">
         <CardHeader className="flex items-center gap-2 space-y-0 border-b py-6 sm:flex-row">
           <div className="grid flex-1 gap-1">
             <div className="flex items-center gap-3">
@@ -223,7 +223,7 @@ export function ChartAreaInteractiveBackend({
             </CardDescription>
           </div>
           <Select value={range} onValueChange={setRange}>
-            <SelectTrigger className="w-[160px] rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600" aria-label="Select a value">
+            <SelectTrigger className="w-[160px] rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100" aria-label="Select a value">
               <SelectValue placeholder="Last 3 months" />
             </SelectTrigger>
             <SelectContent className="rounded-xl">

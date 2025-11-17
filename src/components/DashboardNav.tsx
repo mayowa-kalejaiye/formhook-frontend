@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { useSidebar } from "../context/SidebarContext";
+import { safeReplace } from '../lib/navigation';
 import { useNotifications } from "../context/NotificationContext";
 import { 
   LayoutDashboard, 
@@ -66,8 +67,8 @@ export default function DashboardNav() {
     } catch (e) {
       console.warn('[DashboardNav] Logout cleanup error', e);
     }
-    // Redirect to login
-    router.replace('/login');
+    // Redirect to login (throttled)
+    safeReplace(router, '/login');
   };
   
   // Function to check if route is active

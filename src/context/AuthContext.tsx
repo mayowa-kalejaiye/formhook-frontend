@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useRouter } from 'next/router';
 import { login as apiLogin, signup as apiSignup, loginWithToken as apiLoginWithToken } from '../services/api';
+import { safeReplace } from '../lib/navigation';
 import { apiCache } from '@/utils/cache';
 
 interface User {
@@ -52,7 +53,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (!isPublicPage && !currentUser && pathname !== '/login') {
         // Only redirect to /login if not already on /login and not during login attempt
-        router.replace('/login').catch(() => {});
+        try {
+          safeReplace(router, '/login');
+        } catch (e) {
+          try { router.replace('/login').catch(() => {}); } catch (_) {}
+        }
       } else {
         setLoading(false);
         if (currentUser) setUser(currentUser);
@@ -170,15 +175,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         try { if (userInfo.userId) localStorage.setItem('userId', String(userInfo.userId)); } catch (_) {}
         console.log('[Auth] Login successful, user:', userInfo);
         setUser(userInfo);
-        try {
-          // Ensure immediate SPA redirect after successful login so production builds
-          // don't accidentally suppress navigation due to timing/guard logic on the login page.
-          router.replace('/dashboard').catch((err) => {
-            console.warn('[Auth] router.replace failed after login', err);
-          });
-        } catch (e) {
-          console.warn('[Auth] Failed to invoke router.replace after login', e);
-        }
+          try {
+            // Use safeReplace to avoid rapid sequential navigations
+            safeReplace(router, '/dashboard');
+          } catch (e) {
+            console.warn('[Auth] Failed to invoke safeReplace after login', e);
+          }
       } else {
         setUser(null);
         setError(res.data?.detail || res.data?.message || 'Login failed');

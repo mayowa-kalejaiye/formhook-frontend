@@ -33,6 +33,7 @@ import {
 } from './ui/dropdown-menu';
 import { getDashboardSummary } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { safeReplace } from '../lib/navigation';
 import { useNotifications } from '../context/NotificationContext';
 
 export default function DashboardHeader() {
@@ -71,7 +72,7 @@ export default function DashboardHeader() {
 
   const handleLogout = async () => {
     await logout();
-    router.push('/login');
+    safeReplace(router, '/login');
   };
 
   const handleExport = async (format: 'json' | 'csv' | 'txt') => {

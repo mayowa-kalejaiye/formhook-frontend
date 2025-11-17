@@ -12,7 +12,12 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
     // Only redirect after auth initialization has finished and we know the auth state
     if (!authReady) return;
     if (!isAuthenticated) {
-      router.replace('/login').catch(() => {});
+      try {
+        const { safeReplace } = require('../lib/navigation');
+        safeReplace(router, '/login');
+      } catch (e) {
+        router.replace('/login').catch(() => {});
+      }
     }
   }, [loading, user, router]);
 

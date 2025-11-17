@@ -118,10 +118,11 @@ const Signup: React.FC = () => {
         });
         setTimeout(() => {
           try {
-            router.push('/signin?verify=true');
+            // Use safe navigation to avoid rapid redirects
+            const { safePush } = require('../lib/navigation');
+            safePush(router, '/signin?verify=true');
           } catch (e) {
-            console.warn('[Signup] router.push failed, using window.location', e);
-            window.location.href = '/signin?verify=true';
+            try { router.push('/signin?verify=true'); } catch (_) { /* ignore */ }
           }
         }, 1500);
       } else {

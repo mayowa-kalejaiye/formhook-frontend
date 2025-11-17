@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth } from '../context/AuthContext';
+import { safeReplace } from '../lib/navigation';
 
 export default function PrivateRoute({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -11,12 +12,12 @@ export default function PrivateRoute({ children }: { children: React.ReactNode }
     // Wait until auth initialization completes before redirecting
     if (!authReady) return;
     if (!isAuthenticated) {
-      router.replace('/login').catch(() => {});
+      safeReplace(router, '/login');
       return;
     }
 
     if (user && user.verified === false) {
-      router.replace('/verification-required').catch(() => {});
+      safeReplace(router, '/verification-required');
       return;
     }
 

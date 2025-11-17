@@ -1,10 +1,11 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/router';
+import { safeReplace } from '../lib/navigation';
 
 export default function SigninRedirect() {
   const router = useRouter();
   useEffect(() => {
-    router.replace('/login');
+    safeReplace(router, '/login');
   }, [router]);
   return null;
 }

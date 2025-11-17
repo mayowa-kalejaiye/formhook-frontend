@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { useAuth } from "../context/AuthContext";
+import { safeReplace } from '../lib/navigation';
 import { useRouter } from "next/router";
 import { useToast } from "../hooks/use-toast";
 import { Toaster } from "../components/ui/toaster";
@@ -180,10 +181,8 @@ export default function Login() {
         redirectedRef.current = true;
         markRedirectPerformed();
         debug.log('[Login] User detected, redirecting to dashboard', { forceRedirect });
-        // Prefer SPA navigation and avoid full-page reloads; log any router errors in dev.
-        router.replace('/dashboard').catch((err: any) => {
-          debug.warn('[Login] router.replace failed', err);
-        });
+        // Prefer SPA navigation through safeReplace to prevent rapid repeated navigation
+        safeReplace(router, '/dashboard');
       } else {
         debug.log('[Login] Redirect suppressed by guard');
       }

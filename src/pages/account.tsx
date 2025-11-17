@@ -357,7 +357,12 @@ function UserAccountSettingsContent() {
       
       // Redirect to login after a delay (use SPA navigation)
       setTimeout(() => {
-        router.replace('/login').catch(() => {});
+        try {
+          const { safeReplace } = require('../lib/navigation');
+          safeReplace(router, '/login');
+        } catch (e) {
+          try { router.replace('/login').catch(() => {}); } catch (_) {}
+        }
       }, 3000);
     } catch (error) {
       toast({

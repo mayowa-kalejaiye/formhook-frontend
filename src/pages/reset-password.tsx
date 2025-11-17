@@ -43,9 +43,14 @@ const ResetPassword = () => {
         
         setStatus('success');
         setMessage('Login successful!');
-        
-        // Redirect to dashboard after 2 seconds
-        setTimeout(() => router.push('/dashboard'), 2000);
+
+        // Redirect to dashboard after 2 seconds using safeReplace
+        try {
+          const { safeReplace } = require('../lib/navigation');
+          setTimeout(() => safeReplace(router, '/dashboard'), 2000);
+        } catch (e) {
+          setTimeout(() => { try { router.push('/dashboard'); } catch (_) {} }, 2000);
+        }
       } catch (err: any) {
         console.error("Token login error:", err);
         setStatus('error');

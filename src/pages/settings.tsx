@@ -10,6 +10,7 @@ import { Label } from '../components/ui/label';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs';
 import { Badge } from '../components/ui/badge';
 import { useAuth } from '../context/AuthContext';
+import { safeReplace } from '../lib/navigation';
 import { useSidebar } from '../context/SidebarContext';
 import { useTheme } from '../context/ThemeContext';
 import AuthLayout from '../components/AuthLayout';
@@ -54,8 +55,9 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => {
+    if (!hydrated) return;
     if (hydrated && !user) {
-      router.replace('/login');
+      safeReplace(router, '/login');
     }
   }, [hydrated, user, router]);
 

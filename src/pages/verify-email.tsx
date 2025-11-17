@@ -43,8 +43,13 @@ const VerifyEmail = () => {
         if (response.data?.success) {
           setStatus('success');
           setMessage(response.data?.message || 'Email verified successfully!');
-          // Redirect to signin after 3 seconds
-          setTimeout(() => router.push('/login'), 3000);
+          // Redirect to signin after 3 seconds using safeReplace
+          try {
+            const { safeReplace } = require('../lib/navigation');
+            setTimeout(() => safeReplace(router, '/login'), 3000);
+          } catch (e) {
+            setTimeout(() => { try { router.push('/login'); } catch (_) {} }, 3000);
+          }
         } else {
           setStatus('error');
           setMessage(response.data?.message || 'Failed to verify email. Please try again.');

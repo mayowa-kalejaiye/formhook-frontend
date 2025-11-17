@@ -41,7 +41,12 @@ const VerificationRequired = () => {
 
   const handleLogout = async () => {
     await logout();
-    router.push('/login');
+    try {
+      const { safeReplace } = require('../lib/navigation');
+      safeReplace(router, '/login');
+    } catch (e) {
+      try { router.push('/login'); } catch (_) {}
+    }
   };
 
   return (

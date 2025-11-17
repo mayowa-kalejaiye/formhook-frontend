@@ -40,6 +40,7 @@ import { Skeleton } from '../components/ui/skeleton';
 import ToastView from '../components/ToastView';
 import { useForms } from '../context/FormsContext';
 import { useAuth } from '../context/AuthContext';
+import { safeReplace } from '../lib/navigation';
 import { useSidebar } from '../context/SidebarContext';
 import AuthLayout from '../components/AuthLayout';
 import { 
@@ -897,8 +898,9 @@ function DashboardPageImpl() {
   }, []);
 
   useEffect(() => {
+    if (!hydrated) return;
     if (hydrated && !user) {
-      router.replace('/login');
+      safeReplace(router, '/login');
     }
   }, [hydrated, user, router]);
 

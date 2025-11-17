@@ -78,20 +78,33 @@ export default function Login() {
   };
 
   const REDIRECT_FLAG = 'formhook_redirected_to_dashboard_at';
+  const REDIRECT_TTL = 10000;
   const shouldPerformRedirect = () => {
     try {
+      // Check an in-memory flag first (survives module reloads in many dev setups)
+      if (typeof window !== 'undefined' && (window as any).__formhook_redirected) {
+        const ts = Number((window as any).__formhook_redirected);
+        if (!isNaN(ts) && Date.now() - ts <= REDIRECT_TTL) return false;
+      }
+
+      if (typeof window === 'undefined') return true;
       const val = localStorage.getItem(REDIRECT_FLAG);
       if (!val) return true;
       const t = Number(val);
       if (isNaN(t)) return true;
-      // If last redirect was more than 10 seconds ago, allow another
-      return Date.now() - t > 10000;
+      // If last redirect was more than REDIRECT_TTL ago, allow another
+      return Date.now() - t > REDIRECT_TTL;
     } catch (e) {
       return true;
     }
   };
   const markRedirectPerformed = () => {
-    try { localStorage.setItem(REDIRECT_FLAG, String(Date.now())); } catch (e) { /* ignore */ }
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(REDIRECT_FLAG, String(Date.now()));
+        try { (window as any).__formhook_redirected = Date.now(); } catch (e) { /* ignore */ }
+      }
+    } catch (e) { /* ignore */ }
   };
 
   // Clear any cached data when login page loads to prevent data leakage
@@ -165,15 +178,10 @@ export default function Login() {
         redirectedRef.current = true;
         markRedirectPerformed();
         debug.log('[Login] User detected, redirecting to dashboard');
-        try {
-          router.replace('/dashboard');
-        } catch (e) {
-          try {
-            window.location.href = '/dashboard';
-          } catch (err) {
-            /* final fallback: do nothing */
-          }
-        }
+        // Prefer SPA navigation and avoid full-page reloads; log any router errors in dev.
+        router.replace('/dashboard').catch((err: any) => {
+          debug.warn('[Login] router.replace failed', err);
+        });
       } else {
         debug.log('[Login] Redirect suppressed by guard');
       }

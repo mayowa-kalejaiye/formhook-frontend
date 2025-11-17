@@ -15,28 +15,23 @@ const ResendVerification = () => {
       const response = await requestEmailVerification(data.email);
       console.log('[ResendVerification] API response:', response);
       // The backend might return success in different formats, let's handle them all
-      const isSuccess = 
-        response?.data?.success === true || 
-        (response?.status >= 200 && response?.status < 300);
+      const isSuccess = response?.data?.success === true || (response?.status >= 200 && response?.status < 300);
+      const backendMessage = response?.data?.message || response?.data?.detail || null;
       if (isSuccess) {
         setStatus('success');
-        setMessage('Verification email sent successfully! Please check your inbox.');
-        console.log('Verification email sent successfully');
+        setMessage(backendMessage || 'Verification email sent successfully! Please check your inbox.');
+        console.log('[ResendVerification] success:', backendMessage || 'Email queued/sent');
       } else {
         setStatus('error');
-        setMessage(response?.data?.message || response?.data?.detail || 'Failed to send verification email. Please try again.');
-        console.error('Failed to send verification email', response);
+        setMessage(backendMessage || 'Failed to send verification email. Please try again.');
+        console.error('[ResendVerification] failed response:', response);
       }
     } catch (err: any) {
       console.error('[ResendVerification] Error sending verification email:', err);
-      // Show full error details for debugging
       setStatus('error');
-      setMessage(
-        err?.response?.data?.detail || 
-        err?.response?.data?.message || 
-        err?.message ||
-        'An error occurred. Please try again later.'
-      );
+      // Prefer backend-provided details when available
+      const beMsg = err?.response?.data?.message || err?.response?.data?.detail;
+      setMessage(beMsg || err?.message || 'An error occurred. Please try again later.');
     }
   };
 

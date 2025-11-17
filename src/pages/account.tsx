@@ -89,6 +89,30 @@ interface SecurityLog {
 function UserAccountSettingsContent() {
   const { isCollapsed } = useSidebar();
   const { user } = useAuth();
+
+  // Helper to resolve a stable userId across environments.
+  // Falls back to `localStorage.userId` or JWT `sub` if `user.userId` is missing.
+  const resolveUserId = (u?: any) => {
+    try {
+      if (u && u.userId) return String(u.userId);
+      if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem('userId');
+        if (stored) return stored;
+        const token = localStorage.getItem('token');
+        if (token) {
+          try {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            return payload?.userId || payload?.user_id || payload?.sub || payload?.id || '';
+          } catch (e) {
+            return '';
+          }
+        }
+      }
+    } catch (e) {
+      return '';
+    }
+    return '';
+  };
   const [activeTab, setActiveTab] = useState('profile');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -125,7 +149,7 @@ function UserAccountSettingsContent() {
         if (user?.email) {
           console.log('[Account] Using fallback profile from AuthContext');
           setProfile({
-            id: user.userId || '',
+            id: resolveUserId(user) || '',
             email: user.email,
             name: user.email.split('@')[0],
             created_at: new Date().toISOString(),
@@ -155,7 +179,7 @@ function UserAccountSettingsContent() {
       }
       
       setProfile({
-        id: profileData.id || user?.userId || '',
+        id: profileData.id || resolveUserId(user) || '',
         email: profileData.email || user?.email || '',
         name: profileData.name || user?.email?.split('@')[0] || '',
         created_at: profileData.created_at || new Date().toISOString(),
@@ -179,7 +203,7 @@ function UserAccountSettingsContent() {
       if (user?.email) {
         console.log('[Account] Using fallback profile from AuthContext after error');
         setProfile({
-          id: user.userId || '',
+          id: resolveUserId(user) || '',
           email: user.email,
           name: user.email.split('@')[0],
           created_at: new Date().toISOString(),

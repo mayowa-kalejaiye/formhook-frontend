@@ -104,13 +104,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         localStorage.setItem('token', res.data.access_token);
         
         // Set user from response user object or decode token
+        // Derive userId from response user object or from JWT `sub` if backend omits `userId` field
+        let tokenUserId: string | undefined;
+        try {
+          const payload = JSON.parse(atob(res.data.access_token.split('.')[1]));
+          tokenUserId = payload?.userId || payload?.user_id || payload?.sub || payload?.id;
+        } catch (e) {
+          tokenUserId = undefined;
+        }
         const userInfo = {
           email: res.data.user?.email || data.email,
           verified: res.data.user?.is_verified ?? true,
-          userId: res.data.user?.id
+          userId: res.data.user?.id || tokenUserId
         };
+        // Persist userId for any parts of the app that read it directly
+        try { if (userInfo.userId) localStorage.setItem('userId', String(userInfo.userId)); } catch (_) {}
         console.log('[Auth] Login successful, user:', userInfo);
         setUser(userInfo);
+        try {
+          // Ensure immediate SPA redirect after successful login so production builds
+          // don't accidentally suppress navigation due to timing/guard logic on the login page.
+          router.replace('/dashboard').catch((err) => {
+            console.warn('[Auth] router.replace failed after login', err);
+          });
+        } catch (e) {
+          console.warn('[Auth] Failed to invoke router.replace after login', e);
+        }
       } else {
         setUser(null);
         setError(res.data?.detail || res.data?.message || 'Login failed');
@@ -158,11 +177,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         localStorage.setItem('token', res.data.access_token);
         
         // Get user info from token or response
+        let tokenUserId: string | undefined;
+        try {
+          const payload = JSON.parse(atob(res.data.access_token.split('.')[1]));
+          tokenUserId = payload?.userId || payload?.user_id || payload?.sub || payload?.id;
+        } catch (e) {
+          tokenUserId = undefined;
+        }
         const userInfo = {
           email: res.data.user?.email || '',
           verified: res.data.user?.is_verified ?? true,
-          userId: res.data.user?.id
+          userId: res.data.user?.id || tokenUserId
         };
+        try { if (userInfo.userId) localStorage.setItem('userId', String(userInfo.userId)); } catch (_) {}
         setUser(userInfo);
       } else {
         setUser(null);

@@ -67,6 +67,7 @@ export default function Login() {
   const router = useRouter();
   const { toast } = useToast();
   const [loginAttempted, setLoginAttempted] = useState(false);
+  const redirectedRef = React.useRef(false);
 
   // Clear any cached data when login page loads to prevent data leakage
   useEffect(() => {
@@ -132,22 +133,25 @@ export default function Login() {
   };
 
   useEffect(() => {
-    // Robust redirect to dashboard if user is logged in and JWT is present
-    if (user && !loading && typeof window !== 'undefined') {
-      const token = localStorage.getItem('token');
-      if (token) {
-        console.log('[Login] User detected, redirecting to dashboard');
+    // Robust redirect to dashboard if user is logged in — ensure this only runs once.
+    if (user && !loading && typeof window !== 'undefined' && !redirectedRef.current) {
+      // Only redirect once to avoid loops caused by repeated auth updates or router instability.
+      redirectedRef.current = true;
+
+      try {
+        // Prefer client-side navigation first
+        router.replace('/dashboard');
+      } catch (e) {
         try {
-          router.replace('/dashboard');
-        } catch (e) {
-          console.warn('[Login] router.replace failed, using window.location', e);
           window.location.href = '/dashboard';
+        } catch (err) {
+          /* final fallback: do nothing */
         }
-      } else {
-        console.warn('[Login] No JWT token found after login, not redirecting');
       }
+
       return;
     }
+
     // Show verification toast if redirected from verification page
     if (router.query.verify === 'true') {
       toast({ 
@@ -156,6 +160,7 @@ export default function Login() {
         variant: 'default' 
       });
     }
+  // Intentionally exclude `getCurrentUser` here to avoid repeatedly refreshing auth state from the effect.
   }, [user, loading, router, toast]);
 
   return (

@@ -1,6 +1,6 @@
 "use client";
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { login as apiLogin, signup as apiSignup, loginWithToken as apiLoginWithToken, getUserProfile, fetchWithAuth, isUsingHttpOnlyCookies } from '../services/api';
+import { login as apiLogin, signup as apiSignup, loginWithToken as apiLoginWithToken, getUserProfile, fetchWithAuth } from '../services/api';
 import { apiCache } from '@/utils/cache';
 
 type User = {
@@ -49,25 +49,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     (async () => {
       try {
           const token = localStorage.getItem('token');
-          // If no token is present but the app is configured to use http-only cookies,
-          // attempt to validate the session via the backend (cookie-based session may exist).
           if (!token) {
-            if (isUsingHttpOnlyCookies()) {
-              try {
-                const profile = await getUserProfile();
-                if (profile) {
-                  const normalized = { ...profile, userId: profile.id ? String(profile.id) : profile.userId ?? profile.user_id ?? profile.sub ?? profile.id };
-                  setUser(normalized);
-                } else {
-                  setUser(null);
-                }
-              } catch (e) {
-                setUser(null);
-              }
-              setAuthReady(true);
-              return;
-            }
-
             setUser(null);
             setAuthReady(true);
             return;
@@ -109,14 +91,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const setTokenAndUserFromResponse = async (resData: any, providedToken?: string) => {
     const token = resData?.access_token || resData?.token || providedToken || null;
-    const cookieMode = isUsingHttpOnlyCookies();
+    if (!token) throw new Error('No token available');
 
-    // If a token exists and cookie mode is not in use, persist it locally.
-    if (token && !cookieMode) {
-      try { localStorage.setItem('token', token); } catch (_) {}
-    }
+    try { localStorage.setItem('token', token); } catch (_) {}
 
-    // Prefer authoritative profile from the backend when possible (works for both cookie and token flows)
+    // Prefer authoritative profile from the backend after storing token
     try {
       const profile = await getUserProfile();
       if (profile) {
@@ -141,10 +120,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
-    // No profile and no user info: if using cookie mode, give up but don't throw; ensure local token (if any) cleaned when not cookieMode.
-    if (!cookieMode) {
-      try { localStorage.removeItem('token'); } catch (_) {}
-    }
+    // No profile and no user info: remove token and do not authenticate
+    try { localStorage.removeItem('token'); } catch (_) {}
     setUser(null);
   };
 

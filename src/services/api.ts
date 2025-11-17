@@ -30,10 +30,6 @@ function decodeJwt(token) {
 // --- Auth Helpers ---
 // Reusable fetchWithAuth helper for protected endpoints
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://formhook-backend.onrender.com';
-// Helper to check if we're using HttpOnly cookies or JWT in localStorage
-export function isUsingHttpOnlyCookies() {
-  return process.env.NEXT_PUBLIC_USE_HTTP_ONLY_COOKIES === 'true';
-}
 export async function fetchWithAuth(url: string, options: RequestInit = {}) {
   const headers = new Headers(options.headers || {});
   
@@ -69,8 +65,8 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
   // Always prefix with backend base URL unless already absolute
   const fullUrl = url.startsWith('http') ? url : `${API_BASE_URL}${url.startsWith('/') ? url : '/' + url}`;
   
-  // Credentials: include cookies when using http-only cookie mode
-  const credentials: RequestCredentials = isUsingHttpOnlyCookies() ? 'include' : 'same-origin';
+  // Credentials: same-origin by default for JWT Bearer flows
+  const credentials: RequestCredentials = 'same-origin';
   
   let res;
   try {
@@ -249,7 +245,7 @@ const API = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: isUsingHttpOnlyCookies(),
+  withCredentials: false,
 });
 
 // Add request interceptor to include JWT token in all requests

@@ -14,6 +14,8 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   error: string | null;
+  authReady: boolean;
+  isAuthenticated: boolean;
   login: (data: { email: string; password: string }) => Promise<void>;
   loginWithToken: (token: string) => Promise<void>;
   signup: (data: { email: string; password: string }) => Promise<any>;
@@ -28,6 +30,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+  const [authReady, setAuthReady] = useState(false);
 
   const router = useRouter();
 
@@ -54,6 +57,41 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
     }
   }, [router.pathname]);
+
+  // On mount, validate token expiry and ensure auth state is clean before child providers run
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const initAuth = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (token) {
+          try {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            if (payload && payload.exp && payload.exp * 1000 < Date.now()) {
+              // Expired
+              localStorage.removeItem('token');
+              setUser(null);
+            }
+          } catch (e) {
+            // Malformed token
+            localStorage.removeItem('token');
+            setUser(null);
+          }
+        } else {
+          setUser(null);
+        }
+      } catch (e) {
+        // If localStorage access fails, clear any token references
+        try { localStorage.removeItem('token'); } catch (_) {}
+        setUser(null);
+      } finally {
+        setAuthReady(true);
+      }
+    };
+
+    initAuth();
+  }, []);
 
   const getCurrentUser = async () => {
     // Only run on client-side
@@ -270,7 +308,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, error, login, loginWithToken, signup, logout, getCurrentUser }}>
+    <AuthContext.Provider value={{ user, loading, error, authReady, isAuthenticated: !!user, login, loginWithToken, signup, logout, getCurrentUser }}>
       {children}
     </AuthContext.Provider>
   );

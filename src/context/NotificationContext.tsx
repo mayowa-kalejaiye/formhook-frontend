@@ -6,6 +6,7 @@ import {
   Notification,
   isRequestCooldownActive
 } from '../services/api';
+import { useAuth } from './AuthContext';
 
 interface NotificationContextType {
   unreadCount: number;
@@ -35,6 +36,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [lastChecked, setLastChecked] = useState<Date | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const { authReady, isAuthenticated } = useAuth();
 
   // Load last checked time from localStorage on mount
   useEffect(() => {
@@ -48,17 +50,9 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
   // Refresh notifications from backend
   const refreshNotifications = async () => {
     if (isLoading) return;
-
-    // If there's no auth token, don't attempt notification fetches (prevents 401 noise)
-    try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-      if (!token) {
-        // If provider is still mounted but user logged out, ensure we don't keep polling
-        console.log('[Notifications] No auth token, skipping fetch');
-        return;
-      }
-    } catch (e) {
-      // If accessing localStorage fails for some reason, bail out safely
+    // Guard: don't fetch until auth is ready and user is authenticated
+    if (!authReady || !isAuthenticated) {
+      console.log('[Notifications] Auth not ready or not authenticated; skipping fetch');
       return;
     }
 
@@ -109,32 +103,25 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
 
   // Initial load and periodic refresh
   useEffect(() => {
-    // Check if user is logged in
-    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-    if (!token) {
-      console.log('[Notifications] No auth token, skipping notification fetch');
+    // Wait for auth to be initialized before starting notification polling
+    if (!authReady) return;
+    if (!isAuthenticated) {
+      console.log('[Notifications] User not authenticated; skipping notification polling');
       return;
     }
 
-    // Initial check after component mounts
+    // Initial check after auth ready
     const initialTimer = setTimeout(() => {
       refreshNotifications();
-    }, 2000); // Wait 2 seconds for auth to be ready
+    }, 2000);
 
-    // Then check every 30 seconds. The interval callback will stop polling if token is removed.
+    // Then check every 30 seconds
     const interval = setInterval(() => {
-      try {
-        const t = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-        if (!t) {
-          console.log('[Notifications] Auth token removed; stopping notification polling');
-          clearInterval(interval);
-          return;
-        }
-      } catch (e) {
+      if (!authReady || !isAuthenticated) {
+        console.log('[Notifications] Auth changed; stopping notification polling');
         clearInterval(interval);
         return;
       }
-
       refreshNotifications();
     }, 30000);
 
@@ -142,7 +129,8 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
       clearTimeout(initialTimer);
       clearInterval(interval);
     };
-  }, []);
+  // Re-run when auth state changes
+  }, [authReady, isAuthenticated]);
 
   const contextValue: NotificationContextType = {
     unreadCount,

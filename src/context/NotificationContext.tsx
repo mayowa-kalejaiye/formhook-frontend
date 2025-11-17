@@ -48,7 +48,20 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
   // Refresh notifications from backend
   const refreshNotifications = async () => {
     if (isLoading) return;
-    
+
+    // If there's no auth token, don't attempt notification fetches (prevents 401 noise)
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      if (!token) {
+        // If provider is still mounted but user logged out, ensure we don't keep polling
+        console.log('[Notifications] No auth token, skipping fetch');
+        return;
+      }
+    } catch (e) {
+      // If accessing localStorage fails for some reason, bail out safely
+      return;
+    }
+
     // Respect client-side cooldown/backoff to avoid repeated requests
     if (isRequestCooldownActive()) {
       console.log('[Notifications] Skipping fetch due to client-side cooldown/backoff');
@@ -108,8 +121,20 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
       refreshNotifications();
     }, 2000); // Wait 2 seconds for auth to be ready
 
-    // Then check every 30 seconds
+    // Then check every 30 seconds. The interval callback will stop polling if token is removed.
     const interval = setInterval(() => {
+      try {
+        const t = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        if (!t) {
+          console.log('[Notifications] Auth token removed; stopping notification polling');
+          clearInterval(interval);
+          return;
+        }
+      } catch (e) {
+        clearInterval(interval);
+        return;
+      }
+
       refreshNotifications();
     }, 30000);
 

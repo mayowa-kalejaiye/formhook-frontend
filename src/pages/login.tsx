@@ -173,11 +173,13 @@ export default function Login() {
   useEffect(() => {
     // Robust redirect to dashboard if user is logged in — ensure this only runs once per session/HMR.
     if (user && !loading && typeof window !== 'undefined') {
-      // Avoid repeated redirects across hot reloads by persisting a short-lived flag in localStorage.
-      if (!redirectedRef.current && shouldPerformRedirect()) {
+      // If the user just attempted a login, prefer redirecting immediately even if a
+      // recent redirect flag exists (this avoids suppressing a legitimate fresh login).
+      const forceRedirect = loginAttempted === true;
+      if ((!redirectedRef.current && shouldPerformRedirect()) || forceRedirect) {
         redirectedRef.current = true;
         markRedirectPerformed();
-        debug.log('[Login] User detected, redirecting to dashboard');
+        debug.log('[Login] User detected, redirecting to dashboard', { forceRedirect });
         // Prefer SPA navigation and avoid full-page reloads; log any router errors in dev.
         router.replace('/dashboard').catch((err: any) => {
           debug.warn('[Login] router.replace failed', err);

@@ -130,6 +130,14 @@ export default function Login() {
       });
 
       try {
+        // Debug: ensure token and cookie present before redirect
+        try {
+          debug.log('[Login] post-login localStorage.token:', typeof window !== 'undefined' ? localStorage.getItem('token') : null);
+          debug.log('[Login] post-login document.cookie:', typeof document !== 'undefined' ? document.cookie : null);
+          debug.log('[Login] __fh_last_auth:', (window as any).__fh_last_auth);
+        } catch (e) {
+          debug.warn('[Login] debug logging failed', e);
+        }
         // Prefer a direct router replace for immediate navigation
         router.replace('/dashboard');
       } catch (e) {

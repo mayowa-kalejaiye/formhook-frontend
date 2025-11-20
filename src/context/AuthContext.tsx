@@ -112,6 +112,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (!token) throw new Error('No token available');
 
     try { localStorage.setItem('token', token); } catch (_) {}
+    // Also set a client-side cookie so Edge Middleware (which checks cookies)
+    // can see the token during server-side navigation. Prefer a session cookie
+    // whose expiry matches the JWT `exp` claim if present.
+    try {
+      if (typeof document !== 'undefined') {
+        try {
+          const payload = safeParseJwt(token);
+          let cookieStr = `token=${token}; path=/;`;
+          if (payload && payload.exp) {
+            const expires = new Date(payload.exp * 1000).toUTCString();
+            cookieStr += ` expires=${expires};`;
+          }
+          // Note: not setting HttpOnly here because JavaScript must set cookie for middleware visibility
+          document.cookie = cookieStr;
+        } catch (e) {
+          // fallback to simple cookie
+          document.cookie = `token=${token}; path=/;`;
+        }
+      }
+    } catch (_) {}
 
     // Support two backend shapes:
     // A) { access_token, user: { ... } }
@@ -232,6 +252,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // Clear client-side stored auth
       try { localStorage.removeItem('token'); } catch (_) {}
       try { localStorage.removeItem('userId'); } catch (_) {}
+
+      // Clear any client-side cookie token used by middleware
+      try {
+        if (typeof document !== 'undefined') {
+          document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+        }
+      } catch (_) {}
 
       // Clear any API caches
       try { apiCache.clear(); } catch (_) {}

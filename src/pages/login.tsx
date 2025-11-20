@@ -69,8 +69,6 @@ export default function Login() {
   const { login, loading, error, user, authReady, getCurrentUser } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
-  const [loginAttempted, setLoginAttempted] = useState(false);
-  const redirectedRef = React.useRef(false);
   const isDev = process.env.NODE_ENV !== 'production';
   const debug = {
     log: (...args: any[]) => { if (isDev) console.log(...args); },
@@ -121,20 +119,26 @@ export default function Login() {
         try { localStorage.removeItem('token'); } catch (e) { debug.warn('[Login] localStorage.removeItem failed', e); }
       }
       
-      setLoginAttempted(false);
       await login(data);
-      // Ensure we refresh current user/profile (race-safety for cookie/token modes)
+      // Refresh current user/profile (race-safety for cookie/token modes)
       try { await getCurrentUser(); } catch (e) { debug.warn('[Login] getCurrentUser failed', e); }
-      setLoginAttempted(true);
 
-      // Show success message
+      // Show success message then redirect immediately — avoid effect race conditions
       toast({
         title: "Login successful",
         description: "Welcome back! Redirecting to dashboard...",
       });
+
+      try {
+        // Prefer a direct router replace for immediate navigation
+        router.replace('/dashboard');
+      } catch (e) {
+        // Fallback to safeReplace if router.replace fails for any reason
+        try { safeReplace(router, '/dashboard'); } catch (_) {}
+      }
     } catch (err) {
       debug.error('[Login] Error during login:', err);
-      setLoginAttempted(true);
+      
       
       // Show error toast
       const errorMessage = error || 'Login failed. Please try again.';
@@ -152,7 +156,10 @@ export default function Login() {
 
     // If user is not present or we are still loading, optionally show verification
     // toast but do not attempt a redirect yet.
-    if (!user || loading || typeof window === 'undefined') {
+    if (typeof window === 'undefined') return;
+
+    // If not authenticated yet, show verification notice when applicable
+    if (!user || loading) {
       if (router.query.verify === 'true') {
         toast({
           title: 'Email verification required',
@@ -163,21 +170,14 @@ export default function Login() {
       return;
     }
 
-    // At this point auth is ready and we have a user. Keep redirect guard simple:
-    // - Use an in-memory flag to avoid duplicate navigations
-    // - Allow a forced redirect immediately after a loginAttempt
-    const forceRedirect = loginAttempted === true;
-    if (isDev) console.log('[Login] redirect decision', { user, loading, loginAttempted, redirectedRef: redirectedRef.current, authReady, forceRedirect });
-
-    if (!redirectedRef.current || forceRedirect) {
-      redirectedRef.current = true;
-      debug.log('[Login] User detected, redirecting to dashboard', { forceRedirect });
+    // If we have an authenticated user after hydration, redirect to dashboard
+    try {
       safeReplace(router, '/dashboard');
-    } else {
-      debug.log('[Login] Redirect suppressed by guard (already redirected)');
+    } catch (e) {
+      router.replace('/dashboard').catch(() => {});
     }
   // Intentionally exclude `getCurrentUser` here to avoid repeatedly refreshing auth state from the effect.
-  }, [user, loading, authReady, loginAttempted, router, toast]);
+  }, [user, loading, authReady, router, toast]);
 
   return (
     <div className="min-h-screen grid grid-cols-1 md:grid-cols-2">

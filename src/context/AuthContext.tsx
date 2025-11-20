@@ -1,5 +1,6 @@
 "use client";
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { useRouter } from 'next/router';
 import { login as apiLogin, signup as apiSignup, loginWithToken as apiLoginWithToken, getUserProfile, fetchWithAuth } from '../services/api';
 import { apiCache } from '@/utils/cache';
 
@@ -44,6 +45,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [error, setError] = useState<string | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const isDev = typeof process !== 'undefined' && process.env && process.env.NODE_ENV !== 'production';
+  // Router for redirects
+  const router = useRouter();
 
   useEffect(() => {
     const isDev = typeof process !== 'undefined' && process.env && process.env.NODE_ENV !== 'production';
@@ -181,7 +184,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const payload = await apiLogin(data);
       await setTokenAndUserFromResponse(payload);
     } catch (err: any) {
-      const msg = err?.response?.data?.detail || err?.response?.data?.message || err?.message || 'Login failed';
+      const msg = err?.serverData?.detail || err?.serverData?.message || err?.response?.data?.detail || err?.response?.data?.message || err?.message || 'Login failed';
       setError(msg);
       throw err;
     } finally {
@@ -263,7 +266,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // Clear any API caches
       try { apiCache.clear(); } catch (_) {}
 
+      // Unregister service worker (best-effort) to avoid cached authenticated assets
+      try {
+        if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+          navigator.serviceWorker.ready
+            .then((reg) => { reg.unregister().catch(() => {}); })
+            .catch(() => {});
+        }
+      } catch (_) {}
+
       setUser(null);
+
+      // Redirect to login and replace history so Back doesn't return to protected page
+      try {
+        if (router && typeof router.replace === 'function') {
+          router.replace('/login');
+        } else if (typeof window !== 'undefined') {
+          window.location.replace('/login');
+        }
+      } catch (_) {
+        try { if (typeof window !== 'undefined') window.location.replace('/login'); } catch (_) {}
+      }
     } finally {
       setLoading(false);
     }

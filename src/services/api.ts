@@ -512,8 +512,22 @@ export const login = async (data: { email: string; password: string }) => {
       enhancedError.name = 'NetworkError';
       throw enhancedError;
     }
-    
-    throw error;
+
+    // Surface backend error details where available (prefer `detail` or `message`)
+    const serverData = error.response?.data;
+    const serverMsg = serverData?.detail || serverData?.message || (typeof serverData === 'string' ? serverData : null) || error.message;
+
+    const err = new Error(serverMsg || 'Login failed');
+    (err as any).status = error.response?.status;
+    (err as any).serverData = serverData;
+
+    // If unauthorized, give a clearer message
+    if (error.response?.status === 401) {
+      err.message = serverMsg || 'Invalid credentials. Please check your email and password.';
+      err.name = 'UnauthorizedError';
+    }
+
+    throw err;
   }
 };
 

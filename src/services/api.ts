@@ -482,9 +482,18 @@ export const login = async (data: { email: string; password: string }) => {
   try {
     // Direct POST to backend /auth/login endpoint
     const response = await API.post('/auth/login', data);
-    // Return the raw backend payload (must contain access_token + user)
-    if (isDev) console.log('[API] Login response raw:', response.data);
-    return response.data;
+    // Return a normalized payload: always provide { access_token, user }
+    const raw = response.data;
+    if (isDev) console.log('[API] Login response raw:', raw);
+    try {
+      const normalized = normalizeLoginPayload(raw);
+      if (isDev) console.log('[API] Login response normalized:', normalized);
+      return normalized;
+    } catch (e) {
+      // Fall back to returning raw data if normalization fails for unexpected shapes
+      if (isDev) console.warn('[API] Failed to normalize login response, returning raw payload', e);
+      return raw;
+    }
   } catch (error: any) {
     console.error('[API] Login error details:', {
       message: error.message,
@@ -507,6 +516,51 @@ export const login = async (data: { email: string; password: string }) => {
     throw error;
   }
 };
+
+// Normalize login payloads to a canonical shape: { access_token, token_type?, user? }
+export function normalizeLoginPayload(resData: any, providedToken?: string) {
+  const token = resData?.access_token || resData?.token || providedToken || null;
+  if (!token) throw new Error('No token available in login payload');
+
+  // Prefer explicit `user` object
+  let user = resData?.user;
+
+  if (!user) {
+    // Build possible user from root fields
+    const possible = {
+      email: resData?.email,
+      verified: resData?.verified ?? resData?.is_verified,
+      userId: resData?.id ?? resData?.userId ?? resData?.sub,
+      ...resData,
+    };
+    const hasUserFields = Boolean(possible.email || possible.userId);
+    if (hasUserFields) user = possible;
+  }
+
+  if (user) {
+    const userObj = {
+      email: user.email ?? undefined,
+      verified: user.verified ?? user.is_verified ?? undefined,
+      userId: String(user.userId ?? user.id ?? user.sub),
+      ...user,
+    } as any;
+
+    return {
+      access_token: token,
+      token_type: resData?.token_type ?? resData?.tokenType,
+      user: userObj,
+      raw: resData,
+    };
+  }
+
+  // No usable user data found — still return token so callers can hydrate from JWT
+  return {
+    access_token: token,
+    token_type: resData?.token_type ?? resData?.tokenType,
+    user: null,
+    raw: resData,
+  };
+}
 
 // Token-based login (for password reset links, etc.)
 export const loginWithToken = (token: string) => {

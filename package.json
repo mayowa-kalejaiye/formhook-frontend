@@ -8,7 +8,8 @@
     "prebuild": "npm run generate-og-rasters",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:normalize": "npx ts-node src/__tests__/normalizeLoginPayload.test.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

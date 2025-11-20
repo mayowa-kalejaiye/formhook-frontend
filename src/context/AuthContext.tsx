@@ -157,9 +157,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await apiLogin(data);
-      // Support API wrappers that return either the axios response or raw response data.
-      const payload = (res && (res as any).data) ? (res as any).data : res;
+      // `api.login` now returns a normalized payload: { access_token, user }
+      const payload = await apiLogin(data);
       await setTokenAndUserFromResponse(payload);
     } catch (err: any) {
       const msg = err?.response?.data?.detail || err?.response?.data?.message || err?.message || 'Login failed';
@@ -174,6 +173,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(true);
     setError(null);
     try {
+      // `api.loginWithToken` may return axios response; normalize shape if needed
       const res = await apiLoginWithToken(token);
       const payload = (res && (res as any).data) ? (res as any).data : res;
       await setTokenAndUserFromResponse(payload, token);

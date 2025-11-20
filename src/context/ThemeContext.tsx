@@ -16,9 +16,9 @@ const getInitialTheme = (): Theme => {
   
   try {
     const stored = localStorage.getItem('theme') as Theme | null;
-    return stored || 'system';
+    return stored || 'light';
   } catch {
-    return 'system';
+    return 'light';
   }
 };
 
@@ -46,6 +46,21 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [theme, setThemeState] = useState<Theme>(() => getInitialTheme());
 
   useEffect(() => {
+    // If there's no stored user preference, default to light and persist it.
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('theme');
+        if (!stored) {
+          setThemeState('light');
+          try { localStorage.setItem('theme', 'light'); } catch {}
+          applyThemeImmediately('light');
+          return;
+        }
+      } catch {
+        // ignore
+      }
+    }
+
     // Apply theme immediately on mount to prevent flashing
     applyThemeImmediately(theme);
   }, []);

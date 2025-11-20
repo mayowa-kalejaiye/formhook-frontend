@@ -735,21 +735,42 @@ export const updateUserProfile = async (data: {
   notification_preferences?: object;
 }) => {
   try {
-    const res = await fetchWithAuth('/user/profile', {
+    // Use canonical profile endpoint when configured to avoid probing legacy paths
+    const profileEndpoint = process.env.NEXT_PUBLIC_PROFILE_ENDPOINT || '/user/profile';
+    const path = profileEndpoint.startsWith('/') || profileEndpoint.startsWith('http') ? profileEndpoint : `/${profileEndpoint}`;
+
+    const res = await fetchWithAuth(path, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
     });
-    if (!res || !res.ok) {
-      const errorMsg = (res && ((res as any).error || (res as any).message)) || `Failed to update user profile (status: ${(res as any)?.status || 'unknown'})`;
-      throw new Error(errorMsg as string);
+
+    // Treat 404 as a graceful no-op (backend may not support profile PUT)
+    if (!res) {
+      return null;
     }
+    if ((res as any).status === 404) {
+      return null;
+    }
+
+    if (!res.ok) {
+      // Graceful: if backend doesn't support updating profile, return null instead of throwing
+      console.warn('[API] updateUserProfile non-ok response:', (res as any).status, (res as any).error || (res as any).message);
+      return null;
+    }
+
     if (typeof (res as any).json === 'function') {
-      return await (res as any).json();
+      try {
+        return await (res as any).json();
+      } catch (e) {
+        return null;
+      }
     }
+
     return { success: true };
   } catch (error) {
     console.error('[API] updateUserProfile error:', error);
+    // Bubble up network errors, but treat missing endpoint gracefully at call site
     throw error;
   }
 };

@@ -113,23 +113,40 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     try { localStorage.setItem('token', token); } catch (_) {}
 
-    // Prefer the user returned directly in the login response (backend returns it)
-    const userResp = resData?.user;
+    // Support two backend shapes:
+    // A) { access_token, user: { ... } }
+    // B) { access_token, id, email, verified, ... }
+    let userResp = resData?.user;
+
     if (!userResp) {
-      // Defensive: if backend unexpectedly omitted user, clear token and fail loudly
-      try { localStorage.removeItem('token'); } catch (_) {}
+      const possible = {
+        email: resData?.email,
+        verified: resData?.verified ?? resData?.is_verified,
+        userId: resData?.id ?? resData?.userId ?? resData?.sub,
+        ...resData,
+      };
+
+      const hasUserFields = Boolean(possible.email || possible.userId);
+      if (hasUserFields) userResp = possible;
+    }
+
+    if (!userResp) {
+      // Keep token if present but warn — avoid the bug that cleared token when
+      // backend returned user fields at root instead of inside `user`.
+      console.warn('[Auth] Login response missing usable user data:', resData);
+      // Do not clear token here — keep JWT-hydrated state (other flows may validate)
       setUser(null);
-      try { (window as any).__fh_last_auth = { ts: Date.now(), source: 'none', user: null }; } catch (_) {}
-      if (isDev) console.log('[Auth] cleared user, login response missing user');
+      try { (window as any).__fh_last_auth = { ts: Date.now(), source: 'login_missing_user', raw: resData }; } catch (_) {}
       return;
     }
 
     const userObj = {
-      email: userResp.email || undefined,
-      verified: userResp.is_verified ?? userResp.verified ?? undefined,
-      userId: userResp.id ? String(userResp.id) : userResp.userId ? String(userResp.userId) : undefined,
+      email: userResp.email ?? undefined,
+      verified: userResp.verified ?? userResp.is_verified ?? undefined,
+      userId: String(userResp.userId ?? userResp.id ?? userResp.sub),
       ...userResp,
     } as any;
+
     try { if (userObj.userId) localStorage.setItem('userId', String(userObj.userId)); } catch (_) {}
     setUser(userObj);
     try { (window as any).__fh_last_auth = { ts: Date.now(), source: 'login_response', user: userObj }; } catch (_) {}

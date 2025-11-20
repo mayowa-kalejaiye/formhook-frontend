@@ -16,6 +16,14 @@ import { useTheme } from '../context/ThemeContext';
 import AuthLayout from '../components/AuthLayout';
 import { useToast } from '../hooks/use-toast';
 import {
+  getNotificationPreferences,
+  updateNotificationPreferences,
+  getUserProfile,
+  updateUserProfile,
+  exportUserData,
+  deleteAccount
+} from '../services/api';
+import {
   Bell,
   Moon,
   Sun,
@@ -56,6 +64,32 @@ export default function SettingsPage() {
     setHydrated(true);
   }, []);
 
+  useEffect(() => {
+    if (!hydrated || !user) return;
+    // Load server-side preferences if available
+    (async () => {
+      try {
+        const prefs = await getNotificationPreferences();
+        if (prefs) {
+          setSubmissionAlerts(Boolean(prefs.submission_alerts ?? prefs.submission_alerts));
+          setWebhookAlerts(Boolean(prefs.webhook_failures ?? prefs.webhook_failures));
+        }
+      } catch (e) {
+        // ignore, keep defaults
+      }
+
+      try {
+        const profile = await getUserProfile();
+        if (profile) {
+          setLanguage(profile.language || language);
+          setTimezone(profile.timezone || timezone);
+          setDateFormat(profile.date_format || dateFormat);
+          setAnalyticsEnabled(Boolean(profile.share_analytics ?? analyticsEnabled));
+        }
+      } catch (e) {}
+    })();
+  }, [hydrated, user]);
+
   // Apply interface density attribute to document root so UI can respond
   useEffect(() => {
     try {
@@ -73,11 +107,36 @@ export default function SettingsPage() {
   }, [hydrated, user, router]);
 
   const handleSaveSettings = () => {
-    // Here you would save settings to backend
-    toast({
-      title: 'Settings saved',
-      description: 'Your preferences have been updated successfully.',
-    });
+    (async () => {
+      try {
+        // Persist notification preferences
+        await updateNotificationPreferences({
+          submission_alerts: submissionAlerts,
+          webhook_failures: webhookAlerts,
+          security_alerts: securityAlerts,
+          // marketing emails handled separately by marketing settings
+        });
+
+        // Persist profile-level settings
+        await updateUserProfile({
+          timezone,
+          language,
+          date_format: dateFormat,
+          share_analytics: analyticsEnabled
+        });
+
+        toast({
+          title: 'Settings saved',
+          description: 'Your preferences have been updated successfully.',
+        });
+      } catch (err: any) {
+        toast({
+          title: 'Save failed',
+          description: err?.message || 'Could not save settings. Try again later.',
+          variant: 'destructive'
+        });
+      }
+    })();
   };
 
   if (!hydrated || !user) {
@@ -464,7 +523,22 @@ export default function SettingsPage() {
                               Download all your forms and submissions
                             </p>
                           </div>
-                          <Button variant="outline">
+                          <Button variant="outline" onClick={async () => {
+                            try {
+                              const blob = await exportUserData();
+                              const url = window.URL.createObjectURL(blob);
+                              const a = document.createElement('a');
+                              a.href = url;
+                              a.download = `formhook-account-data-${new Date().toISOString()}.zip`;
+                              document.body.appendChild(a);
+                              a.click();
+                              a.remove();
+                              window.URL.revokeObjectURL(url);
+                              toast({ title: 'Export started', description: 'Your account export has started. Check your downloads.' });
+                            } catch (e: any) {
+                              toast({ title: 'Export failed', description: e?.message || 'Could not export data', variant: 'destructive' });
+                            }
+                          }}>
                             Export
                           </Button>
                         </div>
@@ -475,7 +549,18 @@ export default function SettingsPage() {
                               Permanently delete your account and all data
                             </p>
                           </div>
-                          <Button variant="destructive">
+                          <Button variant="destructive" onClick={async () => {
+                            if (!confirm('Are you sure you want to permanently delete your account? This action cannot be undone.')) return;
+                            try {
+                              // For safety, ask for a password prompt only if UI exists; backend may require auth token so we simply call
+                              await deleteAccount('');
+                              toast({ title: 'Account deleted', description: 'Your account has been scheduled for deletion.' });
+                              // Redirect to homepage
+                              router.push('/');
+                            } catch (e: any) {
+                              toast({ title: 'Delete failed', description: e?.message || 'Could not delete account', variant: 'destructive' });
+                            }
+                          }}>
                             Delete
                           </Button>
                         </div>

@@ -4,8 +4,6 @@ import Link from 'next/link';
 
 // Dynamic Chart Components
 import dynamic from 'next/dynamic';
-import { ChartBarStackedAnalytics } from '../components/ChartBarStackedAnalytics';
-import { ChartAreaInteractiveBackend } from '../components/ChartAreaInteractiveBackend';
 
 // Dynamic Recharts Components
 const DynamicResponsiveContainer = dynamic(() => import('recharts').then(mod => mod.ResponsiveContainer), { ssr: false });
@@ -22,7 +20,7 @@ const DynamicCartesianGrid = dynamic(() => import('recharts').then(mod => mod.Ca
 
 // Components
 import DashboardHeader from '../components/DashboardHeader';
-import { getDashboardSummary, getSubmissions, getFormAnalytics, isRequestCooldownActive } from '../services/api';
+import { getDashboardSummary, getSubmissions, getFormAnalytics, getFormGeoAnalytics, isRequestCooldownActive } from '../services/api';
 import MetricCard from '../components/dashboard/MetricCard';
 import WelcomeBlock from '../components/dashboard/WelcomeBlock';
 import DashboardSummaryWidget from '../components/dashboard/DashboardSummaryWidget';
@@ -524,7 +522,41 @@ function DashboardContent({
   setRefreshing,
   previousPeriodForms,
   previousPeriodSubmissions,
+  geoCountries,
+  deviceTop,
+  osTop,
 }) {
+  // Inline chart component: submissions vs errors over time (Area + Line)
+  const SubmissionsSummaryChart = React.memo(function SubmissionsSummaryChart({ data }: { data: Array<{ date: string; submissions: number; errors: number }> }) {
+    const chartData = (data || []).map(d => ({
+      date: d.date ? new Date(d.date).toLocaleDateString() : '',
+      submissions: d.submissions || 0,
+      errors: d.errors || 0
+    }));
+
+    const hasData = chartData.length > 0 && chartData.some(d => d.submissions || d.errors);
+
+    return (
+      <div className="mt-6">
+        {hasData ? (
+          <div className="w-full h-52">
+            <DynamicResponsiveContainer width="100%" height="100%">
+              <DynamicAreaChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                <DynamicCartesianGrid strokeDasharray="3 3" stroke="#e6eefb" />
+                <DynamicXAxis dataKey="date" tick={{ fontSize: 11, fill: '#64748b' }} />
+                <DynamicYAxis tick={{ fontSize: 11, fill: '#64748b' }} />
+                <DynamicTooltip contentStyle={{ background: '#fff', border: '1px solid #e6eefb' }} />
+                <DynamicArea type="monotone" dataKey="submissions" stroke="#3B82F6" fillOpacity={0.18} fill="#3B82F6" />
+                <DynamicArea type="monotone" dataKey="errors" stroke="#ef4444" fillOpacity={0.08} fill="#ef4444" />
+              </DynamicAreaChart>
+            </DynamicResponsiveContainer>
+          </div>
+        ) : (
+          <div className="text-sm text-slate-500">No trend data available</div>
+        )}
+      </div>
+    );
+  });
   const handleRefresh = () => {
     setRefreshing(true);
     // Simulate refresh
@@ -779,51 +811,104 @@ function DashboardContent({
 
         {/* Professional Analytics Charts */}
         <div className="space-y-6">
-          <Card className="pro-card">
-            <CardHeader>
-              <CardTitle className="text-xl font-semibold text-slate-900 dark:text-slate-100">
-                Submissions vs Errors Analytics
-              </CardTitle>
-              <CardDescription className="text-slate-600 dark:text-slate-400">
-                Detailed breakdown of successful submissions and errors over time
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ChartBarStackedAnalytics
-                data={analytics.length ? analytics : [{ 
-                  date: '2025-09-22T12:00:00.000Z', 
-                  value1: 0, 
-                  value2: 0, 
-                  label1: 'Submissions', 
-                  label2: 'Errors' 
-                }]}
-                title="Submissions vs Errors"
-                description="Stacked bar chart of submissions and errors by day."
-                label1="Submissions"
-                label2="Errors"
-                color1="#64748b"
-                color2="#ef4444"
-              />
-            </CardContent>
-          </Card>
+          {/* Replaced legacy charts with compact summary + geo/device/os cards */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <Card className="pro-card lg:col-span-1">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-xl font-semibold text-slate-900 dark:text-slate-100">Submissions Summary</CardTitle>
+                  <CardDescription className="text-slate-600 dark:text-slate-400">Overview of submissions and errors (no bar charts)</CardDescription>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                    <p className="text-sm text-slate-500">Total Submissions</p>
+                    <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{(totalSubmissions || 0).toLocaleString()}</p>
+                  </div>
+                  <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                    <p className="text-sm text-slate-500">Errors / Failed Webhooks</p>
+                    <p className="text-2xl font-bold text-rose-600">{Math.round(((100 - (webhookSuccessRate || 100)) / 100) * (totalSubmissions || 0)) || 0}</p>
+                  </div>
+                  <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                    <p className="text-sm text-slate-500">Webhook Success Rate</p>
+                    <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{(webhookSuccessRate || 100).toFixed(1)}%</p>
+                  </div>
+                </div>
+                <div className="mt-4 text-sm text-slate-600 dark:text-slate-400">
+                  <p>We use webhook delivery stats to infer errors when explicit submission error markers are not available. If you need a different interpretation, open the form Submissions page for more detail.</p>
+                </div>
+                {/* Chart: submissions vs errors over time (area chart) */}
+                <SubmissionsSummaryChart data={interactiveAnalytics} />
+              </CardContent>
+            </Card>
+            <Card className="pro-card lg:col-span-2">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-xl font-semibold text-slate-900 dark:text-slate-100">Traffic Breakdown</CardTitle>
+                  <CardDescription className="text-slate-600 dark:text-slate-400">Countries, Devices & Operating Systems</CardDescription>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="p-4 border rounded-md">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-sm font-medium">Countries</h4>
+                      <span className="text-xs text-slate-500">Visitors</span>
+                    </div>
+                    {/* Countries list */}
+                    <div className="space-y-2 h-40 overflow-auto">
+                      {geoCountries && geoCountries.length > 0 ? geoCountries.map((c: any) => (
+                        <div key={c.name} className="flex items-center justify-between">
+                          <div className="text-sm text-slate-700 dark:text-slate-200">{c.name}</div>
+                          <div className="text-sm text-slate-500">{c.count}</div>
+                        </div>
+                      )) : (
+                        <div className="text-sm text-slate-500">No country data available</div>
+                      )}
+                    </div>
+                  </div>
 
-          <Card className="pro-card">
-            <CardHeader>
-              <CardTitle className="text-xl font-semibold text-slate-900 dark:text-slate-100">
-                Interactive Analytics Dashboard
-              </CardTitle>
-              <CardDescription className="text-slate-600 dark:text-slate-400">
-                Advanced analytics with customizable time ranges and metrics
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ChartAreaInteractiveBackend 
-                range={analyticsRange} 
-                setRange={setAnalyticsRange} 
-                analyticsData={interactiveAnalytics}
-              />
-            </CardContent>
-          </Card>
+                  <div className="p-4 border rounded-md">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-sm font-medium">Devices</h4>
+                      <div className="flex items-center gap-2">
+                        <button className="text-xs text-slate-500">Browsers</button>
+                        <button className="text-xs text-slate-500">Platforms</button>
+                      </div>
+                    </div>
+                    <div className="space-y-2 h-40 overflow-auto">
+                      {deviceTop && deviceTop.length > 0 ? deviceTop.map((d: any) => (
+                        <div key={d.name} className="flex items-center justify-between">
+                          <div className="text-sm text-slate-700 dark:text-slate-200">{d.name}</div>
+                          <div className="text-sm text-slate-500">{d.count}</div>
+                        </div>
+                      )) : (
+                        <div className="text-sm text-slate-500">No device/browser data available</div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="p-4 border rounded-md">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-sm font-medium">Operating Systems</h4>
+                      <span className="text-xs text-slate-500">Visitors</span>
+                    </div>
+                    <div className="space-y-2 h-40 overflow-auto">
+                      {osTop && osTop.length > 0 ? osTop.map((o: any) => (
+                        <div key={o.name} className="flex items-center justify-between">
+                          <div className="text-sm text-slate-700 dark:text-slate-200">{o.name}</div>
+                          <div className="text-sm text-slate-500">{o.count}</div>
+                        </div>
+                      )) : (
+                        <div className="text-sm text-slate-500">No OS data available</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
         {/* Simple Footer */}
@@ -861,6 +946,9 @@ function DashboardPageImpl() {
   const [interactiveAnalytics, setInteractiveAnalytics] = useState<Array<{ date: string; submissions: number; errors: number; }>>([]);
   const [analyticsRange, setAnalyticsRange] = useState('7d');
   const [recentLoading, setRecentLoading] = useState(false);
+  const [geoCountries, setGeoCountries] = useState<any[]>([]);
+  const [deviceTop, setDeviceTop] = useState<any[]>([]);
+  const [osTop, setOsTop] = useState<any[]>([]);
   // Add states for previous period data to calculate trends
   const [previousPeriodForms, setPreviousPeriodForms] = useState(0);
   const [previousPeriodSubmissions, setPreviousPeriodSubmissions] = useState(0);
@@ -986,25 +1074,99 @@ function DashboardPageImpl() {
         }
 
         if (summaryRes.trend && Array.isArray(summaryRes.trend)) {
-          const tdata = summaryRes.trend.map((item: any) => ({ date: item.date, count: item.count }));
+          const tdata = summaryRes.trend.map((item: any) => ({ date: item.date, count: item.submissions ?? item.count ?? 0 }));
           setTrendData(tdata);
 
           const trendAnalytics = summaryRes.trend.map((item: any) => ({
             date: item.date,
-            value1: item.count || 0,
-            value2: 0,
+            value1: (item.submissions ?? item.count) || 0,
+            value2: (item.failed_webhooks ?? item.failed ?? item.errors ?? 0) || 0,
             label1: 'Submissions',
             label2: 'Errors',
-            color1: '#64748b',
+            color1: '#3B82F6',
             color2: '#ef4444'
           }));
           setAnalytics(trendAnalytics);
-          setInteractiveAnalytics(summaryRes.trend.map((item: any) => ({ date: item.date, submissions: item.count || 0, errors: 0 })));
+          setInteractiveAnalytics(summaryRes.trend.map((item: any) => ({ date: item.date, submissions: (item.submissions ?? item.count) || 0, errors: (item.failed_webhooks ?? item.failed ?? item.errors ?? 0) || 0 })));
         } else {
           setTrendData([]);
           setAnalytics([]);
           setInteractiveAnalytics([]);
         }
+
+        // Fetch geo / device / os breakdown for first form (best-effort)
+        (async () => {
+          try {
+            const firstFormId = Array.isArray(forms) && forms.length > 0 ? forms[0].id : null;
+            if (!firstFormId) {
+              setGeoCountries([]);
+              setDeviceTop([]);
+              setOsTop([]);
+            } else {
+              // Geo
+                try {
+                const geo = await getFormGeoAnalytics(firstFormId);
+                // Normalise possible backend shapes
+                const countriesSrc = geo?.country_stats || geo?.countries || [];
+                const countries = Array.isArray(countriesSrc) ? countriesSrc.map((c: any) => ({ name: c.name || c.country || c.key, count: c.count || c.value || 0 })) : [];
+                setGeoCountries(countries.slice(0, 20));
+              } catch (e) {
+                setGeoCountries([]);
+              }
+
+              // Devices / OS from recent submissions
+              try {
+                const subs = await getSubmissions(firstFormId, { limit: 200 });
+                const uaList = Array.isArray(subs) ? subs : (subs && subs.submissions ? subs.submissions : []);
+                const browserCounts: Record<string, number> = {};
+                const osCounts: Record<string, number> = {};
+
+                const detectBrowser = (ua: string) => {
+                  if (!ua) return 'Unknown';
+                  const l = ua.toLowerCase();
+                  if (l.includes('chrome') && !l.includes('edg') && !l.includes('opr')) return 'Chrome';
+                  if (l.includes('firefox')) return 'Firefox';
+                  if (l.includes('safari') && !l.includes('chrome')) return 'Safari';
+                  if (l.includes('edg') || l.includes('edge')) return 'Edge';
+                  if (l.includes('opr') || l.includes('opera')) return 'Opera';
+                  if (l.includes('mobile') || l.includes('iphone') || l.includes('android')) return 'Mobile';
+                  return 'Other';
+                };
+
+                const detectOS = (ua: string) => {
+                  if (!ua) return 'Unknown';
+                  const l = ua.toLowerCase();
+                  if (l.includes('windows')) return 'Windows';
+                  if (l.includes('mac os') || l.includes('macintosh') || l.includes('macos')) return 'macOS';
+                  if (l.includes('android')) return 'Android';
+                  if (l.includes('iphone') || l.includes('ipad') || l.includes('ios')) return 'iOS';
+                  if (l.includes('linux')) return 'Linux';
+                  return 'Other';
+                };
+
+                for (const s of uaList) {
+                  const ua = s.user_agent || s.userAgent || s.metadata?.userAgent || s.data?.user_agent || s.headers?.['user-agent'] || s.raw?.userAgent || '';
+                  if (!ua) continue;
+                  const b = detectBrowser(ua);
+                  const o = detectOS(ua);
+                  browserCounts[b] = (browserCounts[b] || 0) + 1;
+                  osCounts[o] = (osCounts[o] || 0) + 1;
+                }
+
+                const browserArr = Object.keys(browserCounts).map(k => ({ name: k, count: browserCounts[k] })).sort((a, b) => b.count - a.count);
+                const osArr = Object.keys(osCounts).map(k => ({ name: k, count: osCounts[k] })).sort((a, b) => b.count - a.count);
+
+                setDeviceTop(browserArr.slice(0, 10));
+                setOsTop(osArr.slice(0, 10));
+              } catch (e) {
+                setDeviceTop([]);
+                setOsTop([]);
+              }
+            }
+          } catch (e) {
+            // ignore
+          }
+        })();
 
         // Fallback: avoid fetching per-form submission lists for many forms — limit to first 5
         if ((!summaryRes.total_forms || summaryRes.total_forms === 0) && Array.isArray(forms) && forms.length > 0) {
@@ -1096,6 +1258,9 @@ function DashboardPageImpl() {
             setRefreshing={setRefreshing}
             previousPeriodForms={previousPeriodForms}
             previousPeriodSubmissions={previousPeriodSubmissions}
+            geoCountries={geoCountries}
+            deviceTop={deviceTop}
+            osTop={osTop}
           />
         )}
       </div>

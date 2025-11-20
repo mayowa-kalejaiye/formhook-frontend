@@ -37,6 +37,16 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
   const [lastChecked, setLastChecked] = useState<Date | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const { authReady, isAuthenticated } = useAuth();
+  const isDev = typeof process !== 'undefined' && process.env && process.env.NODE_ENV !== 'production';
+
+  // Polling configuration
+  const DEFAULT_POLL_INTERVAL = Number(process.env.NEXT_PUBLIC_NOTIFICATION_POLL_MS) || 60000; // 60s default
+  const maxBackoff = 10 * 60 * 1000; // 10 minutes
+
+  // Backoff and lifecycle refs
+  const failureCountRef = React.useRef(0);
+  const activeRef = React.useRef(true);
+  const pollTimerRef = React.useRef<number | null>(null);
 
   // Load last checked time from localStorage on mount
   useEffect(() => {
@@ -52,7 +62,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     if (isLoading) return;
     // Guard: don't fetch until auth is ready and user is authenticated
     if (!authReady || !isAuthenticated) {
-      console.log('[Notifications] Auth not ready or not authenticated; skipping fetch');
+      if (isDev) console.log('[Notifications] Auth not ready or not authenticated; skipping fetch');
       return;
     }
 
@@ -64,7 +74,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
 
     setIsLoading(true);
     try {
-      console.log('[Notifications] Fetching from API...');
+      if (isDev) console.log('[Notifications] Fetching from API...');
       
       // Fetch notifications and unread count in parallel
       const [notificationsData, unreadCountData] = await Promise.all([
@@ -72,7 +82,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         getUnreadNotificationCount()
       ]);
 
-      console.log('[Notifications] Received:', {
+      if (isDev) console.log('[Notifications] Received:', {
         notifications: notificationsData.notifications?.length || 0,
         unreadCount: unreadCountData
       });
@@ -83,9 +93,14 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
       }
       
       setUnreadCount(unreadCountData || notificationsData.unread || 0);
+      // Reset failure count on success
+      failureCountRef.current = 0;
 
     } catch (error) {
-      console.error('[Notifications] Error fetching:', error);
+      // Log but do not spam prod logs
+      if (isDev) console.error('[Notifications] Error fetching:', error);
+      // Increment failure counter for backoff
+      failureCountRef.current = Math.min(16, (failureCountRef.current || 0) + 1);
       // Don't throw error - fail gracefully
     } finally {
       setIsLoading(false);
@@ -103,31 +118,51 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
 
   // Initial load and periodic refresh
   useEffect(() => {
-    // Wait for auth to be initialized before starting notification polling
-    if (!authReady) return;
-    if (!isAuthenticated) {
-      console.log('[Notifications] User not authenticated; skipping notification polling');
+    activeRef.current = true;
+
+    // Start polling only when auth ready and user authenticated
+    const startPolling = () => {
+      // Kick off an initial immediate refresh after a short delay
+      const startDelay = 1000;
+      pollTimerRef.current = window.setTimeout(async function poll() {
+        if (!activeRef.current) return;
+        if (!authReady || !isAuthenticated) {
+          if (isDev) console.log('[Notifications] Auth not ready or not authenticated; pausing polling');
+          return;
+        }
+
+        // If tab is hidden, back off and schedule later
+        if (typeof document !== 'undefined' && document.hidden) {
+          if (isDev) console.log('[Notifications] Document hidden; skipping this poll cycle');
+          // schedule next check later
+          const nextHiddenDelay = Math.min(maxBackoff, DEFAULT_POLL_INTERVAL * 3);
+          pollTimerRef.current = window.setTimeout(poll, nextHiddenDelay);
+          return;
+        }
+
+        await refreshNotifications();
+
+        // Determine next interval using exponential backoff on failures
+        const failures = failureCountRef.current || 0;
+        const backoff = failures > 0 ? Math.min(maxBackoff, DEFAULT_POLL_INTERVAL * Math.pow(2, failures)) : DEFAULT_POLL_INTERVAL;
+        const next = Math.max(5000, backoff); // at least 5s
+        pollTimerRef.current = window.setTimeout(poll, next);
+      }, startDelay);
+    };
+
+    if (!authReady || !isAuthenticated) {
+      if (isDev) console.log('[Notifications] User not authenticated; skipping notification polling');
       return;
     }
 
-    // Initial check after auth ready
-    const initialTimer = setTimeout(() => {
-      refreshNotifications();
-    }, 2000);
-
-    // Then check every 30 seconds
-    const interval = setInterval(() => {
-      if (!authReady || !isAuthenticated) {
-        console.log('[Notifications] Auth changed; stopping notification polling');
-        clearInterval(interval);
-        return;
-      }
-      refreshNotifications();
-    }, 30000);
+    startPolling();
 
     return () => {
-      clearTimeout(initialTimer);
-      clearInterval(interval);
+      activeRef.current = false;
+      if (pollTimerRef.current) {
+        clearTimeout(pollTimerRef.current as number);
+        pollTimerRef.current = null;
+      }
     };
   // Re-run when auth state changes
   }, [authReady, isAuthenticated]);

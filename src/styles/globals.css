@@ -99,13 +99,14 @@ h1, h2, h3, h4, h5, h6,
     --card-foreground: 210 40% 98%;
     --popover: 222.2 47% 7%;
     --popover-foreground: 210 40% 98%;
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    /* Use blue hues for primary/accent to align with site theme */
+    --primary: 210 90% 56%; /* bright blue */
+    --primary-foreground: 210 40% 98%;
     --secondary: 217.2 32.6% 20%;
     --secondary-foreground: 210 40% 98%;
     --muted: 217.2 32.6% 20%;
     --muted-foreground: 215 20.2% 70%;
-    --accent: 217.2 32.6% 20%;
+    --accent: 210 80% 50%; /* blue accent */
     --accent-foreground: 210 40% 98%;
     --destructive: 0 62.8% 50%;
     --destructive-foreground: 210 40% 98%;

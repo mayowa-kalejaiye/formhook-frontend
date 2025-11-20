@@ -7,10 +7,12 @@ import DashboardHeader from './DashboardHeader';
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   const { user, loading, authReady, isAuthenticated } = useAuth();
   const router = useRouter();
+  const isDev = typeof process !== 'undefined' && process.env && process.env.NODE_ENV !== 'production';
 
   React.useEffect(() => {
     // Only redirect after auth initialization has finished and we know the auth state
     if (!authReady) return;
+    if (isDev) console.log('[AuthLayout] authReady:', authReady, 'isAuthenticated:', isAuthenticated, 'user:', user);
     if (!isAuthenticated) {
       try {
         const { safeReplace } = require('../lib/navigation');

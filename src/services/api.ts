@@ -1,6 +1,8 @@
 import * as React from 'react';
 import { apiCache, CacheTTL } from '@/utils/cache';
 
+const isDev = typeof process !== 'undefined' && process.env && process.env.NODE_ENV !== 'production';
+
 // Add global type for window.toast (shadcn/ui toast)
 declare global {
   interface Window {
@@ -475,13 +477,14 @@ export const signup = (data: { email: string; password: string }) => {
 // Login function using JWT authentication per API docs
 // Backend returns: { access_token, token_type, user: { id, email, is_verified } }
 export const login = async (data: { email: string; password: string }) => {
-  console.log('[API] Login attempt:', data.email);
-  console.log('[API] Backend URL:', API_BASE_URL);
+  if (isDev) console.log('[API] Login attempt:', data.email);
+  if (isDev) console.log('[API] Backend URL:', API_BASE_URL);
   try {
     // Direct POST to backend /auth/login endpoint
     const response = await API.post('/auth/login', data);
-    console.log('[API] Login response:', { status: response.status, hasToken: !!response.data?.access_token });
-    return response;
+    // Return the raw backend payload (must contain access_token + user)
+    if (isDev) console.log('[API] Login response raw:', response.data);
+    return response.data;
   } catch (error: any) {
     console.error('[API] Login error details:', {
       message: error.message,
@@ -690,41 +693,39 @@ export const exportSubmissions = async (
 
 // --- User Profile & Account Management ---
 export const getUserProfile = async () => {
-  // Some backends expose the current user at different endpoints (legacy differences).
-  // Try a small set of likely endpoints and return the first successful profile.
-  const candidates = ['/user/profile', '/auth/me', '/users/me', '/api/user/profile'];
-  for (const path of candidates) {
-    try {
-      const res = await fetchWithAuth(path);
-      if (res && (res as any).ok) {
-        if (typeof (res as any).json === 'function') {
-          try {
-            const data = await (res as any).json();
-            return data;
-          } catch (e) {
-            console.warn('[API] getUserProfile: failed to parse JSON from', path, e);
-            return null;
-          }
-        }
-        return null;
-      }
-
-      // Log not-found separately to help debugging
-      const status = res && ((res as any).status || res.status) ? (res as any).status : 'unknown';
-      if (status === 404) {
-        console.debug('[API] getUserProfile: endpoint not found:', path);
-        continue;
-      }
-
-      // For other non-ok responses, log and continue to next candidate
-      console.warn('[API] getUserProfile failed at', path, 'status:', status, 'error:', (res as any).error || (res as any).message);
-    } catch (error) {
-      console.warn('[API] getUserProfile error for', path, error);
-    }
+  // Use a single canonical profile endpoint configured via env.
+  // This avoids probing multiple legacy endpoints and hitting 404s.
+  const profileEndpoint = process.env.NEXT_PUBLIC_PROFILE_ENDPOINT;
+  if (!profileEndpoint) {
+    // No profile endpoint configured — backend should return user in /auth/login response.
+    return null;
   }
 
-  console.error('[API] getUserProfile: no working profile endpoint found (tried:', candidates.join(', '), ')');
-  return null;
+  // Ensure endpoint string is a path or absolute URL
+  const path = profileEndpoint.startsWith('/') || profileEndpoint.startsWith('http') ? profileEndpoint : `/${profileEndpoint}`;
+  try {
+    const res = await fetchWithAuth(path);
+    if (res && (res as any).ok) {
+      if (typeof (res as any).json === 'function') {
+        try {
+          const data = await (res as any).json();
+          return data;
+        } catch (e) {
+          console.warn('[API] getUserProfile: failed to parse JSON from', path, e);
+          return null;
+        }
+      }
+      return null;
+    }
+
+    // Non-ok responses
+    const status = (res && ((res as any).status || (res as any).status === 0)) ? (res as any).status : 'unknown';
+    console.warn('[API] getUserProfile failed at', path, 'status:', status, 'error:', (res as any).error || (res as any).message);
+    return null;
+  } catch (error) {
+    console.warn('[API] getUserProfile error for', path, error);
+    return null;
+  }
 };
 
 export const updateUserProfile = async (data: {
@@ -887,7 +888,7 @@ export const revokeFormToken = async (formId: string) => {
 export const getUserApiTokens = async () => {
   // Backend doesn't support multiple user-level API tokens
   // Tokens are per-form, not per-user
-  console.log('[API] User-level API tokens not supported, use per-form tokens instead');
+  if (isDev) console.log('[API] User-level API tokens not supported, use per-form tokens instead');
   return [];
 };
 

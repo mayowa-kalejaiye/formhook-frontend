@@ -66,7 +66,7 @@ export default function Login() {
   React.useEffect(() => setMounted(true), []);
   const [showPassword, setShowPassword] = useState(false);
   const { register, handleSubmit, formState: { errors } } = useForm<{ email: string; password: string }>();
-  const { login, loading, error, user, getCurrentUser } = useAuth();
+  const { login, loading, error, user, authReady, getCurrentUser } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
   const [loginAttempted, setLoginAttempted] = useState(false);
@@ -78,35 +78,8 @@ export default function Login() {
     error: (...args: any[]) => { if (isDev) console.error(...args); }
   };
 
-  const REDIRECT_FLAG = 'formhook_redirected_to_dashboard_at';
-  const REDIRECT_TTL = 10000;
-  const shouldPerformRedirect = () => {
-    try {
-      // Check an in-memory flag first (survives module reloads in many dev setups)
-      if (typeof window !== 'undefined' && (window as any).__formhook_redirected) {
-        const ts = Number((window as any).__formhook_redirected);
-        if (!isNaN(ts) && Date.now() - ts <= REDIRECT_TTL) return false;
-      }
-
-      if (typeof window === 'undefined') return true;
-      const val = localStorage.getItem(REDIRECT_FLAG);
-      if (!val) return true;
-      const t = Number(val);
-      if (isNaN(t)) return true;
-      // If last redirect was more than REDIRECT_TTL ago, allow another
-      return Date.now() - t > REDIRECT_TTL;
-    } catch (e) {
-      return true;
-    }
-  };
-  const markRedirectPerformed = () => {
-    try {
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(REDIRECT_FLAG, String(Date.now()));
-        try { (window as any).__formhook_redirected = Date.now(); } catch (e) { /* ignore */ }
-      }
-    } catch (e) { /* ignore */ }
-  };
+  // Redirect guard simplified: rely on an in-memory flag to avoid duplicate
+  // navigations and a `loginAttempted` force flag when appropriate.
 
   // Clear any cached data when login page loads to prevent data leakage
   useEffect(() => {
@@ -174,33 +147,37 @@ export default function Login() {
   };
 
   useEffect(() => {
-    // Robust redirect to dashboard if user is logged in — ensure this only runs once per session/HMR.
-    if (user && !loading && typeof window !== 'undefined') {
-      // If the user just attempted a login, prefer redirecting immediately even if a
-      // recent redirect flag exists (this avoids suppressing a legitimate fresh login).
-      const forceRedirect = loginAttempted === true;
-      if ((!redirectedRef.current && shouldPerformRedirect()) || forceRedirect) {
-        redirectedRef.current = true;
-        markRedirectPerformed();
-        debug.log('[Login] User detected, redirecting to dashboard', { forceRedirect });
-        // Prefer SPA navigation through safeReplace to prevent rapid repeated navigation
-        safeReplace(router, '/dashboard');
-      } else {
-        debug.log('[Login] Redirect suppressed by guard');
+    // Wait for auth hydration to complete before making redirect decisions
+    if (!authReady) return;
+
+    // If user is not present or we are still loading, optionally show verification
+    // toast but do not attempt a redirect yet.
+    if (!user || loading || typeof window === 'undefined') {
+      if (router.query.verify === 'true') {
+        toast({
+          title: 'Email verification required',
+          description: 'Please check your email to verify your account before signing in.',
+          variant: 'default'
+        });
       }
       return;
     }
 
-    // Show verification toast if redirected from verification page
-    if (router.query.verify === 'true') {
-      toast({ 
-        title: 'Email verification required', 
-        description: 'Please check your email to verify your account before signing in.', 
-        variant: 'default' 
-      });
+    // At this point auth is ready and we have a user. Keep redirect guard simple:
+    // - Use an in-memory flag to avoid duplicate navigations
+    // - Allow a forced redirect immediately after a loginAttempt
+    const forceRedirect = loginAttempted === true;
+    if (isDev) console.log('[Login] redirect decision', { user, loading, loginAttempted, redirectedRef: redirectedRef.current, authReady, forceRedirect });
+
+    if (!redirectedRef.current || forceRedirect) {
+      redirectedRef.current = true;
+      debug.log('[Login] User detected, redirecting to dashboard', { forceRedirect });
+      safeReplace(router, '/dashboard');
+    } else {
+      debug.log('[Login] Redirect suppressed by guard (already redirected)');
     }
   // Intentionally exclude `getCurrentUser` here to avoid repeatedly refreshing auth state from the effect.
-  }, [user, loading, router, toast]);
+  }, [user, loading, authReady, loginAttempted, router, toast]);
 
   return (
     <div className="min-h-screen grid grid-cols-1 md:grid-cols-2">

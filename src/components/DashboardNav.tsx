@@ -172,10 +172,10 @@ export default function DashboardNav() {
             <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">
               Higher productivity with better organization
             </p>
-            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2">
               <Link
                 href="/pricing"
-                className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2 transition-colors"
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2 transition-colors"
               >
                 <Crown className="h-4 w-4" />
                 Upgrade
@@ -277,7 +277,7 @@ export default function DashboardNav() {
                 <div className="flex items-center gap-2">
                   <Link
                     href="/pricing"
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2 transition-colors"
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2 transition-colors"
                   >
                     <Crown className="h-4 w-4" />
                     Upgrade

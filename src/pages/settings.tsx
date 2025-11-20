@@ -49,10 +49,21 @@ export default function SettingsPage() {
   const [language, setLanguage] = useState('en');
   const [timezone, setTimezone] = useState('UTC');
   const [dateFormat, setDateFormat] = useState('MM/DD/YYYY');
+  const [interfaceDensity, setInterfaceDensity] = useState('comfortable');
+  const [itemsPerPage, setItemsPerPage] = useState('20');
 
   useEffect(() => {
     setHydrated(true);
   }, []);
+
+  // Apply interface density attribute to document root so UI can respond
+  useEffect(() => {
+    try {
+      if (typeof document !== 'undefined') {
+        document.documentElement.setAttribute('data-density', interfaceDensity);
+      }
+    } catch (e) {}
+  }, [interfaceDensity]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -173,7 +184,7 @@ export default function SettingsPage() {
                             Adjust the spacing and sizing of UI elements
                           </p>
                         </div>
-                        <Select defaultValue="comfortable">
+                        <Select value={interfaceDensity} onValueChange={setInterfaceDensity}>
                           <SelectTrigger className="w-40">
                             <SelectValue />
                           </SelectTrigger>
@@ -373,17 +384,17 @@ export default function SettingsPage() {
                           Number of items shown in tables
                         </p>
                       </div>
-                      <Select defaultValue="20">
-                        <SelectTrigger className="w-32">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="10">10</SelectItem>
-                          <SelectItem value="20">20</SelectItem>
-                          <SelectItem value="50">50</SelectItem>
-                          <SelectItem value="100">100</SelectItem>
-                        </SelectContent>
-                      </Select>
+                        <Select value={itemsPerPage} onValueChange={setItemsPerPage}>
+                          <SelectTrigger className="w-32">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="10">10</SelectItem>
+                            <SelectItem value="20">20</SelectItem>
+                            <SelectItem value="50">50</SelectItem>
+                            <SelectItem value="100">100</SelectItem>
+                          </SelectContent>
+                        </Select>
                     </div>
                   </CardContent>
                 </Card>

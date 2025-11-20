@@ -188,11 +188,11 @@ export default function DashboardHeader() {
                 <ChevronDown className="h-4 w-4 text-gray-400" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56 bg-white dark:bg-gray-800">
+            <DropdownMenuContent align="end" className="w-56 bg-white dark:bg-gray-800 text-slate-900 dark:text-slate-100">
               <DropdownMenuLabel>
                 <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">My Account</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 truncate" title={user?.email}>
+                  <p className="text-sm font-medium text-slate-900 dark:text-slate-100">My Account</p>
+                  <p className="text-xs text-slate-600 dark:text-slate-300 truncate" title={user?.email}>
                     {user?.email}
                   </p>
                 </div>
@@ -232,12 +232,12 @@ export default function DashboardHeader() {
           
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button 
-                variant="default" 
-                size="sm" 
-                className="bg-[#00B8A9] hover:bg-[#00A599] text-white px-4 py-2 rounded-lg flex items-center gap-1.5 text-sm"
-                disabled={isExporting}
-              >
+                <Button 
+                  variant="default" 
+                  size="sm" 
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-1.5 text-sm"
+                  disabled={isExporting}
+                >
                 {isExporting ? (
                   <>
                     <Download className="h-3.5 w-3.5 animate-pulse" />
@@ -251,7 +251,7 @@ export default function DashboardHeader() {
                 )}
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48 bg-white dark:bg-gray-800">
+            <DropdownMenuContent align="end" className="w-48 bg-white dark:bg-gray-800 text-slate-900 dark:text-slate-100">
               <DropdownMenuLabel>Export Dashboard</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => handleExport('json')} className="cursor-pointer">

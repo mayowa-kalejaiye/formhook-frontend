@@ -787,6 +787,8 @@ export const updateUserProfile = async (data: {
   timezone?: string;
   language?: string;
   notification_preferences?: object;
+  date_format?: string;
+  share_analytics?: boolean;
 }) => {
   try {
     // Use canonical profile endpoint when configured to avoid probing legacy paths

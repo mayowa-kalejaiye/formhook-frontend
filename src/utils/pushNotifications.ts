@@ -33,6 +33,14 @@ export async function requestNotificationPermission(): Promise<NotificationPermi
 
 // Register service worker for push notifications
 export async function registerServiceWorker(): Promise<ServiceWorkerRegistration | null> {
+  // Do not register service worker during local development to avoid caching
+  // stale assets and interfering with visual changes. Only register in
+  // production-like environments.
+  if (typeof process !== 'undefined' && process.env && process.env.NODE_ENV !== 'production') {
+    console.info('[PushNotifications] Skipping service worker registration in non-production environment');
+    return null;
+  }
+
   if (!isPushNotificationSupported()) {
     console.warn('[PushNotifications] Service workers not supported');
     return null;

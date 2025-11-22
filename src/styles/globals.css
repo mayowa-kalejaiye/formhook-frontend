@@ -2,86 +2,22 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Force Light Mode Overrides --------------------------------------------------
-   Some builds or user/system preferences may trigger  -mode styles.
-   These high-specificity overrides ensure the app displays in light mode only.
-   This is an immediate mitigation; for a long-term fix remove ` :` variants
-   from component classNames or regenerate Tailwind without  -mode variants.
-*/
+/* Minimal light-mode setup — let Tailwind utilities control colors and
+   component classes. Avoid global `!important` color overrides so utility
+   classes like `text-blue-800` and `bg-blue-500` can apply as intended. */
 
 :root { color-scheme: light; }
 
-html, body, #__next {
-  background-color: #ffffff !important;
-  color: #0f172a !important; /* slate-900 */
-}
-
-/* Prefer body-level background/text to win over  -mode rules */
-body * {
-  background-color: transparent !important;
-  color: inherit !important;
-}
-
-
 body {
-  @apply bg-gray-50 text-gray-900;
+  background-color: #f9fafb; /* bg-gray-50 */
+  color: #0f172a; /* text-slate-900 / gray-900 */
 }
 
 /* Prevent horizontal scrolling site-wide which can cause mobile pages to shift */
-/* Remove forced minimum height to prevent white space below content */
 html, body, #__next {
   overflow-x: hidden;
-  min-height: 0 !important;
-  height: auto !important;
-}
-
-/* Prevent flash of invisible content */
-.dashboard-button, .dashboard-title, .create-form-button {
-  opacity: 1 !important;
-  visibility: visible !important;
-  color: inherit !important;
-}
-
-/* Ensure buttons are always visible */
-button[class*="bg-gradient"], 
-button[class*="bg-blue"], 
-button[class*="bg-purple"],
-a[class*="bg-gradient"],
-a[class*="bg-blue"], 
-a[class*="bg-purple"] {
-  opacity: 1 !important;
-  visibility: visible !important;
-}
-
-/* Ensure text visibility */
-h1, h2, h3, h4, h5, h6,
-[class*="text-"],
-[class*="font-"] {
-  opacity: 1 !important;
-  visibility: visible !important;
-}
-
-/*   mode utility classes for better contrast */
-@layer utilities {
-  .text-readable-  {
-    @apply text-slate-900;
-  }
-  
-  .text-muted-  {
-    @apply text-slate-600;
-  }
-  
-  .bg-card-  {
-    @apply bg-white;
-  }
-  
-  .border-card-  {
-    @apply border-slate-200;
-  }
-  
-  .hover-card-  {
-    @apply hover:bg-slate-50;
-  }
+  min-height: 0;
+  height: auto;
 }
 
 @layer base {
@@ -113,5 +49,5 @@ h1, h2, h3, h4, h5, h6,
     --chart-5: 27 87% 67%;
   }
 
-  /*   mode variables removed; app uses light variables only */
+  /* Keep light variables; do not globally override colors with !important. */
 }

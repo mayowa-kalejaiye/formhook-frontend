@@ -242,12 +242,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setError(null);
     try {
       // Attempt to tell the backend to invalidate this token/session if endpoint exists.
+      // If the backend uses HttpOnly cookies for auth, call the logout endpoint
+      // with `credentials: 'include'` so the cookie is sent and can be cleared.
       try {
-        const res = await fetchWithAuth('/auth/logout', { method: 'POST' });
-        // Accept any non-fatal response; backend may return 404 if not implemented.
-        if (res && (res as any).ok === false) {
-          // ignore non-ok responses
-        }
+        const apiBase = (process.env.NEXT_PUBLIC_API_BASE_URL || 'https://formhook-backend.onrender.com').replace(/\/$/, '');
+        await fetch(`${apiBase}/auth/logout`, { method: 'POST', credentials: 'include' });
       } catch (e) {
         // ignore network errors during logout call
       }

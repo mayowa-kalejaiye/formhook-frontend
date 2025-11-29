@@ -41,7 +41,7 @@ import {
   FileText
 } from 'lucide-react';
 import { getForms, getWebhookDeliveries, updateFormWebhook, retryPendingWebhooks } from '../services/api';
-import { toast } from '../hooks/use-toast';
+import { toast, showApiError } from '../hooks/use-toast';
 import { Toaster } from '../components/ui/toaster';
 import Link from 'next/link';
 
@@ -168,11 +168,7 @@ function WebhooksPageContent() {
       }
     } catch (error) {
       console.error('Failed to load forms:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load forms. Please try again.",
-        variant: "destructive",
-      });
+      showApiError(error);
       setForms([]);
     } finally {
       setLoading(false);
@@ -220,11 +216,7 @@ function WebhooksPageContent() {
       }
     } catch (error) {
       console.error('Failed to load webhook deliveries:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load webhook delivery logs",
-        variant: "destructive",
-      });
+      showApiError(error);
       setWebhookDeliveries([]);
     } finally {
       setLoading(false);
@@ -245,11 +237,7 @@ function WebhooksPageContent() {
       }, 2000);
     } catch (error) {
       console.error('Failed to retry webhooks:', error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to retry webhooks. Please try again.",
-        variant: "destructive",
-      });
+      showApiError(error);
     } finally {
       setRetryLoading(false);
     }
@@ -303,11 +291,7 @@ function WebhooksPageContent() {
       setWebhookHeaders({});
     } catch (error) {
       console.error('Failed to save webhook config:', error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to update webhook configuration. Please try again.",
-        variant: "destructive",
-      });
+      showApiError(error);
     } finally {
       setLoading(false);
     }
@@ -411,7 +395,7 @@ function WebhooksPageContent() {
       
     } catch (error) {
       console.error('Webhook test failed:', error);
-      
+
       const testResult: WebhookTest = {
         id: Date.now().toString(),
         url: testUrl,
@@ -421,14 +405,10 @@ function WebhooksPageContent() {
         timestamp: new Date().toISOString(),
         error: error instanceof Error ? error.message : 'Network error or request failed'
       };
-      
+
       setTestResults(prev => [testResult, ...prev.slice(0, 9)]);
-      
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to test webhook. Check URL and network connection.",
-        variant: "destructive",
-      });
+
+      showApiError(error);
     } finally {
       setTestLoading(false);
     }

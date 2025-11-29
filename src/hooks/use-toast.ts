@@ -188,4 +188,76 @@ function useToast() {
   }
 }
 
-export { useToast, toast }
+// Convert API/error objects into friendly toast messages and display them
+type ShowApiErrorOptions = {
+  actionLabel?: string;
+  action?: () => void;
+  fallbackTitle?: string;
+};
+
+// Convert API/error objects into friendly toast messages and display them
+function showApiError(err: any, opts?: ShowApiErrorOptions) {
+  // Normalize a wide range of error shapes
+  const status = err?.status ?? err?.response?.status ?? err?.statusCode ?? 0;
+  const server = err?.server ?? err?.response?.data ?? err?.response?.data?.detail ?? null;
+
+  // Prefer explicit message fields, then server messages, then fallback to err.message
+  const rawMessage = err?.message || server?.detail || server?.message || server || (typeof server === 'string' ? server : undefined);
+  let title = opts?.fallbackTitle ?? (err?.title || server?.title || 'Error');
+  let description = rawMessage || 'An unexpected error occurred.';
+  let variant: any = 'destructive';
+
+  // Map common status codes to clearer titles/descriptions
+  if (status === 401) {
+    title = 'Authentication Required';
+    description = rawMessage || 'Please sign in to continue.';
+  } else if (status === 403) {
+    title = 'Permission Denied';
+    description = rawMessage || 'You do not have permission to perform this action.';
+  } else if (status === 404) {
+    title = 'Not Found';
+    description = rawMessage || 'Requested resource not found.';
+  } else if (status === 0) {
+    title = 'Network Error';
+    description = rawMessage || 'Unable to reach the server. Please check your connection.';
+  } else if (status >= 400 && status < 500) {
+    // Client errors: prefer server message but keep title generic
+    title = opts?.fallbackTitle ?? (err?.title || 'Request Error');
+    description = rawMessage || description;
+  } else if (status >= 500) {
+    title = opts?.fallbackTitle ?? (err?.title || 'Server Error');
+    description = rawMessage || 'The server encountered an error. Please try again later.';
+  }
+
+  // Build toast payload
+  const toastPayload: any = { title, description, variant };
+
+  // If caller supplied an action label and handler, attach it to the toast
+  if (opts?.actionLabel && typeof opts?.action === 'function') {
+    toastPayload.action = {
+      label: opts.actionLabel,
+      onClick: opts.action,
+    };
+  } else if (status === 401) {
+    // Attach a default sign-in action for authentication errors when running in the browser
+    if (typeof window !== 'undefined') {
+      toastPayload.action = {
+        label: 'Sign in',
+        onClick: () => {
+          try { window.location.href = '/login'; } catch (_) {}
+        }
+      };
+    }
+  }
+
+  // Use the exported toast function to show message, fall back to window.toast if needed
+  try {
+    toast(toastPayload);
+  } catch (e) {
+    if (typeof window !== 'undefined' && (window as any).toast) {
+      (window as any).toast(toastPayload);
+    }
+  }
+}
+
+export { useToast, toast, showApiError }

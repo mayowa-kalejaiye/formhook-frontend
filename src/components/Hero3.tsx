@@ -172,7 +172,7 @@ const Hero3: React.FC = () => {
   return (
     <div className="bg-white dark:bg-black w-full overflow-x-hidden">
       {/* Keep nav constrained but make hero full-bleed */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-6">
         <header className="py-6">
           <nav className="flex items-center justify-between">
             <div className="text-2xl font-bold text-black dark:text-white">
@@ -189,9 +189,9 @@ const Hero3: React.FC = () => {
       </div>
 
       {/* Full-bleed hero so it spans the full viewport width on mobile */}
-      <section className="w-full min-h-screen flex items-center justify-center py-20 lg:py-32">
-        <div className="w-full px-4 sm:px-6 lg:px-8">
-          <div className="mx-auto" style={{ maxWidth: '72rem' }}>
+      <section className="w-full min-h-[calc(100vh-6rem)] flex items-center justify-center py-12 lg:py-20">
+        <div className="w-full px-4 sm:px-6 lg:px-6">
+          <div className="mx-auto" style={{ maxWidth: '90rem' }}>
             {/* Hero Content */}
             <main className="flex flex-col items-center justify-center">
           {/* Headline */}
@@ -217,9 +217,9 @@ const Hero3: React.FC = () => {
 
           {/* Code Preview */}
           <div className="mt-12 flex flex-col items-center w-full">
-            <div className="bg-black text-white rounded-xl shadow-lg p-6 w-full max-w-2xl text-left font-mono text-base relative border border-gray-800">
+            <div className="bg-black text-white rounded-xl shadow-lg p-6 w-full max-w-2xl lg:max-w-4xl text-left font-mono text-sm md:text-base relative border border-gray-800">
               <div className="absolute top-3 right-4 text-xs text-gray-400 select-none">html</div>
-              <pre className="overflow-x-auto whitespace-pre leading-relaxed"><code>{`<form action=\"https://api.formhook.dev/forms/abc123/submit\" method=\"POST\">\n  <input name=\"email\" type=\"email\" />\n  <button type=\"submit\">Notify me</button>\n</form>`}</code></pre>
+              <pre className="overflow-auto whitespace-pre-wrap break-words leading-relaxed"><code>{`<form action=\"https://api.formhook.dev/forms/abc123/submit\" method=\"POST\">\n  <input name=\"email\" type=\"email\" />\n  <button type=\"submit\">Notify me</button>\n</form>`}</code></pre>
             </div>
             <div className="mt-2 text-xs text-gray-400">Copy, edit, and deploy in seconds</div>
           </div>

@@ -31,7 +31,7 @@ function decodeJwt(token) {
 }
 // --- Auth Helpers ---
 // Reusable fetchWithAuth helper for protected endpoints
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://formhook-backend.onrender.com';
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://formhook-backend.onrender.com';
 export async function fetchWithAuth(url: string, options: RequestInit = {}) {
   const headers = new Headers(options.headers || {});
   
@@ -278,22 +278,36 @@ export const updateFormWebhook = async (
     // Invalidate form cache when updating
     invalidateCache(`/forms/${formId}`);
     
-    const res = await fetchWithAuth(`/forms/${formId}`, {
+    // Try PATCH first (preferred) but some backends disallow PATCH on this route.
+    let res: any = await fetchWithAuth(`/forms/${formId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
-    
-    if (!res.ok) {
-      const errorMsg = (res as any).error || 'Failed to update webhook';
-      console.error('[API] Error updating webhook:', errorMsg);
-      throw new Error(errorMsg);
+
+    // If server responds with 405 Method Not Allowed, retry using PUT for compatibility
+    if (res && (res as any).status === 405) {
+      console.warn('[API] PATCH not allowed, retrying update with PUT');
+      res = await fetchWithAuth(`/forms/${formId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
     }
-    
+
+    if (!res || !res.ok) {
+      const status = (res && (res as any).status) || 0;
+      const errorMsg = (res as any).error || (res && res.errorData && (res.errorData.detail || res.errorData.message)) || `Failed to update form (status: ${status})`;
+      console.error('[API] Error updating webhook/form:', { status, error: errorMsg, raw: res });
+      const err = new Error(errorMsg);
+      (err as any).status = status;
+      throw err;
+    }
+
     if (typeof res.json === 'function') {
       return await res.json();
     }
-    
+
     return { success: true };
   } catch (error) {
     console.error('[API] Exception in updateFormWebhook:', error);
@@ -453,6 +467,58 @@ export const getDashboardSummary = async (days?: number) => {
         failed: 0
       }
     };
+  }
+};
+
+// Subscription APIs
+export const getCurrentSubscription = async () => {
+  try {
+    const res = await fetchWithAuth('/subscription/current');
+    if (!res) return null;
+    if ((res as any).ok) {
+      if (typeof (res as any).json === 'function') {
+        try {
+          return await (res as any).json();
+        } catch (e) {
+          console.warn('[API] getCurrentSubscription: failed to parse JSON', e);
+          return null;
+        }
+      }
+      return null;
+    }
+
+    // Non-ok response: try to extract error details
+    const errBody = (res as any).error || (res as any).message || null;
+    console.warn('[API] getCurrentSubscription non-ok response:', (res as any).status, errBody);
+    return null;
+  } catch (error) {
+    console.error('[API] getCurrentSubscription error:', error);
+    return null;
+  }
+};
+
+export const getSubscriptionUsage = async (params?: { days?: number }) => {
+  try {
+    let url = '/subscription/usage';
+    if (params?.days) url += `?days=${params.days}`;
+    const res = await fetchWithAuth(url);
+    if (!res) return null;
+    if ((res as any).ok) {
+      if (typeof (res as any).json === 'function') {
+        try {
+          return await (res as any).json();
+        } catch (e) {
+          console.warn('[API] getSubscriptionUsage: failed to parse JSON', e);
+          return null;
+        }
+      }
+      return null;
+    }
+    console.warn('[API] getSubscriptionUsage non-ok response:', (res as any).status);
+    return null;
+  } catch (error) {
+    console.error('[API] getSubscriptionUsage error:', error);
+    return null;
   }
 };
 
@@ -965,13 +1031,37 @@ export const revokeFormToken = async (formId: string) => {
       method: 'DELETE'
     });
     if (!res.ok) {
-      const errorMsg = (res as any).error || 'Failed to revoke form token';
-      throw new Error(errorMsg);
+      // Extract structured error details from our fetchWithAuth wrapper
+      let errorMsg = 'Failed to revoke form token';
+      let serverData: any = null;
+      try {
+        if ((res as any).errorData) {
+          serverData = (res as any).errorData;
+          errorMsg = serverData?.detail || serverData?.message || JSON.stringify(serverData);
+        } else if ((res as any).error) {
+          errorMsg = (res as any).error;
+        } else if (typeof (res as any).json === 'function') {
+          try {
+            const parsed = await (res as any).json();
+            serverData = parsed;
+            errorMsg = parsed?.detail || parsed?.message || errorMsg;
+          } catch (_) {}
+        }
+      } catch (_) {}
+
+      return {
+        ok: false,
+        status: (res as any).status || 0,
+        error: errorMsg || 'Failed to revoke form token',
+        server: serverData || null
+      };
     }
-    return { success: true };
+
+    return { ok: true };
   } catch (error) {
     console.error('[API] revokeFormToken error:', error);
-    throw error;
+    // Network or unexpected exception - return structured error
+    return { ok: false, status: 0, error: error?.message || 'Network error' };
   }
 };
 

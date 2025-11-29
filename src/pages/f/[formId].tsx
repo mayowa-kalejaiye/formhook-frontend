@@ -16,7 +16,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../..
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
-import { toast } from '../../hooks/use-toast';
+import { toast, showApiError } from '../../hooks/use-toast';
 import { Toaster } from '../../components/ui/toaster';
 import { 
   Send, 
@@ -118,7 +118,8 @@ export default function PublicFormPage() {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 90000);
       
-      const response = await fetch(`https://formhook-backend.onrender.com/forms/${formId}/submit`, {
+      // Post to our server-side proxy so we avoid client-side CORS/auth issues
+      const response = await fetch(`/api/public/forms/${formId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -171,11 +172,8 @@ export default function PublicFormPage() {
         errorMessage = 'Unable to connect to the server. The backend may be starting up (this takes ~30 seconds on first request) or there may be a network issue. Please try again.';
       }
       
-      toast({ 
-        title: 'Submission Failed', 
-        description: errorMessage,
-        variant: 'destructive'
-      });
+      // Use centralized API error toast helper so messages reflect server/network errors
+      showApiError({ ...err, message: errorMessage });
     } finally {
       setSubmitting(false);
     }

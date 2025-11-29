@@ -14,7 +14,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/ta
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { Toaster } from '../../components/ui/toaster';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../../components/ui/dialog';
-import { toast } from '../../hooks/use-toast';
+import { toast, showApiError } from '../../hooks/use-toast';
 import { FormBuilderModal } from './new';
 import AuthLayout from '../../components/AuthLayout';
 import { 
@@ -327,11 +327,7 @@ function FormsPageContent() {
         });
       }
     } catch (error) {
-      toast({
-        title: 'Failed to create form',
-        description: error.message || 'Network error occurred',
-        variant: 'destructive',
-      });
+      showApiError(error);
     } finally {
       setSubmitting(false);
     }
@@ -344,8 +340,8 @@ function FormsPageContent() {
       toast({ title: 'Form updated', variant: 'default' });
       setEditForm(null);
       mutate();
-    } catch {
-      toast({ title: 'Failed to update form', variant: 'destructive' });
+    } catch (error) {
+      showApiError(error);
     } finally {
       setSubmitting(false);
     }
@@ -358,8 +354,8 @@ function FormsPageContent() {
       toast({ title: 'Form deleted', variant: 'default' });
       setDeleteId(null);
       mutate();
-    } catch {
-      toast({ title: 'Failed to delete form', variant: 'destructive' });
+    } catch (error) {
+      showApiError(error);
     } finally {
       setDeleting(false);
     }

@@ -14,7 +14,7 @@ import { safeReplace } from '../lib/navigation';
 import { useSidebar } from '../context/SidebarContext';
 import { useTheme } from '../context/ThemeContext';
 import AuthLayout from '../components/AuthLayout';
-import { useToast } from '../hooks/use-toast';
+import { useToast, showApiError } from '../hooks/use-toast';
 import {
   getNotificationPreferences,
   updateNotificationPreferences,
@@ -130,11 +130,7 @@ export default function SettingsPage() {
           description: 'Your preferences have been updated successfully.',
         });
       } catch (err: any) {
-        toast({
-          title: 'Save failed',
-          description: err?.message || 'Could not save settings. Try again later.',
-          variant: 'destructive'
-        });
+        showApiError(err);
       }
     })();
   };
@@ -536,7 +532,7 @@ export default function SettingsPage() {
                               window.URL.revokeObjectURL(url);
                               toast({ title: 'Export started', description: 'Your account export has started. Check your downloads.' });
                             } catch (e: any) {
-                              toast({ title: 'Export failed', description: e?.message || 'Could not export data', variant: 'destructive' });
+                              showApiError(e);
                             }
                           }}>
                             Export
@@ -558,7 +554,7 @@ export default function SettingsPage() {
                               // Redirect to homepage
                               router.push('/');
                             } catch (e: any) {
-                              toast({ title: 'Delete failed', description: e?.message || 'Could not delete account', variant: 'destructive' });
+                              showApiError(e);
                             }
                           }}>
                             Delete

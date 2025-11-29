@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form";
 import { useAuth } from "../context/AuthContext";
 import { safeReplace } from '../lib/navigation';
 import { useRouter } from "next/router";
-import { useToast } from "../hooks/use-toast";
+import { useToast, showApiError } from "../hooks/use-toast";
 import { Toaster } from "../components/ui/toaster";
 
 const UserIcon = () => (
@@ -146,15 +146,8 @@ export default function Login() {
       }
     } catch (err) {
       debug.error('[Login] Error during login:', err);
-      
-      
-      // Show error toast
-      const errorMessage = error || 'Login failed. Please try again.';
-      toast({
-        title: "Login failed",
-        description: errorMessage,
-        variant: "destructive",
-      });
+      // Use centralized API error -> toast helper for consistent messages
+      showApiError(err || { message: error || 'Login failed. Please try again.' });
     }
   };
 

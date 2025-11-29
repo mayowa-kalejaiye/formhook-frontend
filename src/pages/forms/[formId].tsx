@@ -5,7 +5,7 @@ import BottomGradientRadial from '../../components/BottomGradientRadial';
 import AuthLayout from '../../components/AuthLayout';
 import { Input } from '../../components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../../components/ui/dialog';
-import { toast } from '../../hooks/use-toast';
+import { toast, showApiError } from '../../hooks/use-toast';
 import { Toaster } from '../../components/ui/toaster';
 import { 
   getForm, 
@@ -97,14 +97,8 @@ export default function FormSettingsPage() {
         setWebhookEnabled(!!data.webhook_enabled);
       } catch (e) {
         console.error('[FormDetail] Error loading form:', e);
-        const errorMessage = e instanceof Error ? e.message : 'Failed to load form';
-        if (errorMessage.includes('404') || errorMessage.includes('not found')) {
-          toast({ title: 'Form Not Found', description: 'This form does not exist or you do not have access to it.', variant: 'destructive' });
-        } else if (errorMessage.includes('401') || errorMessage.includes('unauthorized')) {
-          toast({ title: 'Authentication Required', description: 'Please log in to access this form.', variant: 'destructive' });
-        } else {
-          toast({ title: 'Error', description: errorMessage, variant: 'destructive' });
-        }
+        // Use centralized API error handling to show user-friendly toasts
+        showApiError(e);
       } finally {
         setLoading(false);
       }
@@ -233,13 +227,7 @@ export default function FormSettingsPage() {
       }
     } catch (e) {
       console.error('[FormDetail] Error loading submissions:', e);
-      const errorMessage = e instanceof Error ? e.message : 'Failed to load submissions';
-      
-      if (errorMessage.includes('404')) {
-        toast({ title: 'Submissions Not Available', description: 'Submissions endpoint not found.', variant: 'destructive' });
-      } else {
-        toast({ title: 'Submissions Error', description: errorMessage, variant: 'destructive' });
-      }
+      showApiError(e);
       setSubmissions([]);
       setTotalSubmissions(0);
     } finally {
@@ -258,7 +246,7 @@ export default function FormSettingsPage() {
       setWebhookLogs(data || []);
     } catch (e) {
       console.error('[FormDetail] Error loading webhook logs:', e);
-      toast({ title: 'Error', description: 'Failed to load webhook logs', variant: 'destructive' });
+      showApiError(e);
     } finally {
       setWebhookLogsLoading(false);
     }
@@ -279,7 +267,7 @@ export default function FormSettingsPage() {
       setWebhookEnabled(!!data.webhook_enabled);
     } catch (e) {
       console.error('[FormDetail] Error updating webhook:', e);
-      toast({ title: 'Error', description: 'Failed to update webhook', variant: 'destructive' });
+      showApiError(e);
     }
   };
 
@@ -303,7 +291,7 @@ export default function FormSettingsPage() {
       setForm(updatedForm);
     } catch (error: any) {
       console.error('[FormDetail] Error generating token:', error);
-      toast({ title: 'Error', description: error.message || 'Failed to generate token', variant: 'destructive' });
+      showApiError(error);
     } finally {
       setTokenLoading(false);
     }
@@ -314,18 +302,28 @@ export default function FormSettingsPage() {
     if (!window.confirm('This will break any form submissions using the current token. Continue?')) return;
     setTokenLoading(true);
     try {
-      await revokeFormToken(formId as string);
+      const result = await revokeFormToken(formId as string);
+      if (!result || result.ok === false) {
+        // Let centralized handler adaptively show the right toast message
+        // Pass the structured result so showApiError can inspect status/server message
+        showApiError(result as any, { fallbackTitle: 'Revoke Token Failed' });
+        setTokenLoading(false);
+        return;
+      }
+
+      // Success
       setToken(null);
       setShowToken(false);
       setRequireToken(false);
       toast({ title: 'Token revoked', description: 'API token revoked.' });
-      
+
       // Reload form to get updated require_token flag
       const updatedForm = await getForm(formId as string);
       setForm(updatedForm);
     } catch (error: any) {
       console.error('[FormDetail] Error revoking token:', error);
-      toast({ title: 'Error', description: error.message || 'Failed to revoke token', variant: 'destructive' });
+      // Use centralized API error handling for unexpected errors
+      showApiError(error);
     } finally {
       setTokenLoading(false);
     }
@@ -550,6 +548,41 @@ export default function FormSettingsPage() {
                       <div className="text-sm text-yellow-600 mt-2">You must generate a token before submissions or webhooks will work.</div>
                     )}
                   </div>
+                )}
+                {/* Developer Help Card: API Token Usage */}
+                {requireToken && (
+                  <Card className="mb-6 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+                    <CardHeader>
+                      <CardTitle>API Token — Quick Start</CardTitle>
+                      <CardDescription>How to submit programmatically when "Require Token" is enabled.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3 text-sm">
+                        <div>
+                          <strong>Server-to-server (recommended):</strong>
+                          <pre className="mt-2 bg-slate-50 dark:bg-slate-900 p-2 text-xs font-mono overflow-x-auto">{`curl -X POST https://api.yourdomain.com/forms/${form?.id || '<FORM_ID>'}/submit \
+  -H "Authorization: Bearer <FORM_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"data":{"email":"user@example.com"}}'`}</pre>
+                        </div>
+
+                        <div>
+                          <strong>Browser + server proxy (keeps token secret):</strong>
+                          <pre className="mt-2 bg-slate-50 dark:bg-slate-900 p-2 text-xs font-mono overflow-x-auto">{`// Browser -> Your server -> FormHook
+// On your server, forward request and add Authorization header
+fetch('https://api.yourdomain.com/forms/${form?.id || '<FORM_ID>'}/submit', {
+  method: 'POST',
+  headers: { 'Authorization': 'Bearer <FORM_TOKEN>', 'Content-Type': 'application/json' },
+  body: JSON.stringify(payload)
+});`}</pre>
+                        </div>
+
+                        <div className="text-xs text-gray-500">
+                          Note: Tokens must be stored server-side only. Do not expose them in client-side JavaScript or embed them into public pages.
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
                 )}
                 <div className="mt-6">
                   <b>Embed Snippet:</b>

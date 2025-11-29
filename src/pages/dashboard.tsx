@@ -20,7 +20,7 @@ const DynamicCartesianGrid = dynamic(() => import('recharts').then(mod => mod.Ca
 
 // Components
 import DashboardHeader from '../components/DashboardHeader';
-import { getDashboardSummary, getSubmissions, getFormAnalytics, getFormGeoAnalytics, isRequestCooldownActive } from '../services/api';
+import { getDashboardSummary, getSubmissions, getFormAnalytics, getFormGeoAnalytics, isRequestCooldownActive, getCurrentSubscription, getSubscriptionUsage, API_BASE_URL } from '../services/api';
 import MetricCard from '../components/dashboard/MetricCard';
 import WelcomeBlock from '../components/dashboard/WelcomeBlock';
 import DashboardSummaryWidget from '../components/dashboard/DashboardSummaryWidget';
@@ -525,6 +525,7 @@ function DashboardContent({
   geoCountries,
   deviceTop,
   osTop,
+  subscriptionInfo,
 }) {
   // Inline chart component: submissions vs errors over time (Area + Line)
   const SubmissionsSummaryChart = React.memo(function SubmissionsSummaryChart({ data }: { data: Array<{ date: string; submissions: number; errors: number }> }) {
@@ -704,7 +705,72 @@ function DashboardContent({
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              
+              {/* Subscription / Quota (from user plan) */}
+              <div>
+                {subscriptionInfo ? (
+                  <>
+                    <div className="flex items-center justify-between mb-2">
+                      <div>
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Plan</span>
+                        <div className="text-sm text-gray-500">{subscriptionInfo.plan_name || subscriptionInfo.plan || 'Free'}</div>
+                      </div>
+                      <div className="text-right text-sm text-gray-500">
+                        <div>{subscriptionInfo.next_billing_date ? `Next: ${new Date(subscriptionInfo.next_billing_date).toLocaleDateString()}` : ''}</div>
+                      </div>
+                    </div>
+
+                    {/* Quota bars if present */}
+                    {typeof subscriptionInfo.submissions_used !== 'undefined' && typeof subscriptionInfo.submissions_limit !== 'undefined' && (
+                      <div className="mb-2">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-sm text-gray-600">Submissions</span>
+                          <span className="text-sm font-medium text-gray-900">{subscriptionInfo.submissions_used}/{subscriptionInfo.submissions_limit}</span>
+                        </div>
+                        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                          <div className="h-2 bg-blue-600 rounded-full" style={{ width: `${Math.min(100, (subscriptionInfo.submissions_used / Math.max(1, subscriptionInfo.submissions_limit)) * 100)}%` }}></div>
+                        </div>
+                      </div>
+                    )}
+
+                    {typeof subscriptionInfo.api_calls_used !== 'undefined' && typeof subscriptionInfo.api_calls_limit !== 'undefined' && (
+                      <div className="mb-2">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-sm text-gray-600">API Calls</span>
+                          <span className="text-sm font-medium text-gray-900">{subscriptionInfo.api_calls_used}/{subscriptionInfo.api_calls_limit}</span>
+                        </div>
+                        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                          <div className="h-2 bg-emerald-500 rounded-full" style={{ width: `${Math.min(100, (subscriptionInfo.api_calls_used / Math.max(1, subscriptionInfo.api_calls_limit)) * 100)}%` }}></div>
+                        </div>
+                      </div>
+                    )}
+
+                    {typeof subscriptionInfo.storage_used !== 'undefined' && typeof subscriptionInfo.storage_limit !== 'undefined' && (
+                      <div className="mb-2">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-sm text-gray-600">Storage</span>
+                          <span className="text-sm font-medium text-gray-900">{subscriptionInfo.storage_used} / {subscriptionInfo.storage_limit}{subscriptionInfo.storage_unit ? ` ${subscriptionInfo.storage_unit}` : ''}</span>
+                        </div>
+                        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                          <div className="h-2 bg-indigo-500 rounded-full" style={{ width: `${Math.min(100, (subscriptionInfo.storage_used / Math.max(1, subscriptionInfo.storage_limit)) * 100)}%` }}></div>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Subscription</span>
+                      <div className="text-sm text-gray-500">No plan details available</div>
+                    </div>
+                    <div>
+                      <Button asChild variant="outline">
+                        <Link href="/subscriptions">View plans</Link>
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* Webhook Health */}
               <div>
                 <div className="flex items-center justify-between mb-2">
@@ -939,6 +1005,7 @@ function DashboardPageImpl() {
   const [totalForms, setTotalForms] = useState(0);
   const [totalSubmissions, setTotalSubmissions] = useState(0);
   const [webhookSuccessRate, setWebhookSuccessRate] = useState(100);
+  const [subscriptionInfo, setSubscriptionInfo] = useState<any | null>(null);
   const [trendData, setTrendData] = useState<{ date: string; count: number }[]>([]);
   const [trendRange, setTrendRange] = useState<TrendRange>('7d');
   const [trendChartType, setTrendChartType] = useState<'bar' | 'line' | 'area'>('area');
@@ -1039,6 +1106,49 @@ function DashboardPageImpl() {
 
         setTotalForms(summaryRes.total_forms || (Array.isArray(forms) ? forms.length : 0));
         setTotalSubmissions(summaryRes.total_submissions || 0);
+        // Capture subscription/billing info if backend includes it in the dashboard summary
+        if (summaryRes.subscription) {
+          setSubscriptionInfo(summaryRes.subscription);
+        } else if (summaryRes.billing) {
+          setSubscriptionInfo(summaryRes.billing);
+        } else if (summaryRes.account && summaryRes.account.subscription) {
+          setSubscriptionInfo(summaryRes.account.subscription);
+        } else {
+          setSubscriptionInfo(null);
+        }
+
+        // Prefer fetching the canonical subscription endpoint when available.
+        // In local development, avoid hitting the backend subscription endpoints
+        // if the API host differs from the page origin to prevent CORS failures.
+        try {
+          let shouldCallSubscriptionEndpoints = true;
+          if (typeof window !== 'undefined') {
+            try {
+              const apiOrigin = new URL(API_BASE_URL).origin;
+              const pageOrigin = window.location.origin;
+              if (apiOrigin !== pageOrigin && process.env.NODE_ENV !== 'production') {
+                shouldCallSubscriptionEndpoints = false;
+              }
+            } catch (err) {
+              if (process.env.NODE_ENV !== 'production') shouldCallSubscriptionEndpoints = false;
+            }
+          }
+
+          if (shouldCallSubscriptionEndpoints) {
+            const currentSub = await getCurrentSubscription();
+            if (currentSub) {
+              setSubscriptionInfo(currentSub);
+            } else {
+              // fallback: try usage endpoint for richer usage_info
+              const usage = await getSubscriptionUsage({ days: 30 });
+              if (usage) setSubscriptionInfo(usage);
+            }
+          } else {
+            console.warn('[Dashboard] Skipping subscription endpoints due to cross-origin API in development; using summary fallback.');
+          }
+        } catch (e) {
+          console.warn('[Dashboard] subscription fetch failed, using summary fallback', e);
+        }
 
         // Use recent_submissions safely
         if (summaryRes.recent_submissions && Array.isArray(summaryRes.recent_submissions) && summaryRes.recent_submissions.length > 0) {
@@ -1261,6 +1371,7 @@ function DashboardPageImpl() {
             geoCountries={geoCountries}
             deviceTop={deviceTop}
             osTop={osTop}
+            subscriptionInfo={subscriptionInfo}
           />
         )}
       </div>

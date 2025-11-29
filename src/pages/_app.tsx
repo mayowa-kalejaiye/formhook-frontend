@@ -1,6 +1,8 @@
 import '../styles/globals.css';
 import type { AppProps } from 'next/app';
 import Script from 'next/script';
+import dynamic from 'next/dynamic';
+import { Analytics } from '@vercel/analytics/next';
 
 import { AuthProvider } from '../context/AuthContext';
 import { ThemeProvider } from '../context/ThemeContext';
@@ -37,6 +39,12 @@ function MyApp({ Component, pageProps }: AppProps) {
         }}
       />
 
+      {/* Speed Insights: client-only import to avoid SSR issues */}
+      {/* Dynamically load to prevent build-time/SSR errors when running in non-browser environments */}
+      <SpeedInsightsClient />
+      {/* Vercel Analytics: collects client-side usage for Vercel Analytics dashboard */}
+      <Analytics />
+
       <ThemeProvider>
         <AuthProvider>
           <NotificationProvider>
@@ -51,3 +59,13 @@ function MyApp({ Component, pageProps }: AppProps) {
 }
 
 export default MyApp;
+
+// Dynamically import SpeedInsights client-side only.
+const SpeedInsightsClient = dynamic(
+  // Try a few possible export shapes from the package and fall back to the module itself.
+  async () => {
+    const mod = await import('@vercel/speed-insights/react');
+    return mod?.default ?? mod.SpeedInsights ?? (() => null);
+  },
+  { ssr: false }
+);

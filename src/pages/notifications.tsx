@@ -17,7 +17,7 @@ import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
-import { useToast } from '../hooks/use-toast';
+import { useToast, showApiError } from '../hooks/use-toast';
 import { 
   Bell, 
   Mail, 
@@ -73,11 +73,7 @@ export default function NotificationsPage() {
       }
     } catch (error) {
       console.error('[NotificationsPage] Error loading notifications:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load notifications',
-        variant: 'destructive'
-      });
+      showApiError(error);
     } finally {
       setIsLoading(false);
     }
@@ -126,11 +122,7 @@ export default function NotificationsPage() {
       refreshNotifications();
     } catch (error) {
       console.error('[NotificationsPage] Error marking as read:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to mark notification as read',
-        variant: 'destructive'
-      });
+      showApiError(error);
     }
   };
 
@@ -153,11 +145,7 @@ export default function NotificationsPage() {
       refreshNotifications();
     } catch (error) {
       console.error('[NotificationsPage] Error archiving:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to archive notification',
-        variant: 'destructive'
-      });
+      showApiError(error);
     }
   };
 
@@ -183,11 +171,7 @@ export default function NotificationsPage() {
       refreshNotifications();
     } catch (error) {
       console.error('[NotificationsPage] Error deleting:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to delete notification',
-        variant: 'destructive'
-      });
+      showApiError(error);
     }
   };
 
@@ -208,11 +192,7 @@ export default function NotificationsPage() {
       refreshNotifications();
     } catch (error) {
       console.error('[NotificationsPage] Error marking all as read:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to mark all as read',
-        variant: 'destructive'
-      });
+      showApiError(error);
     }
   };
 

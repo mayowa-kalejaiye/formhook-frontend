@@ -13,7 +13,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs'
 import { Skeleton } from '../components/ui/skeleton';
 import Link from 'next/link';
 import { getForms, getSubmissions } from '../services/api';
-import { toast } from '../hooks/use-toast';
+import { toast, showApiError } from '../hooks/use-toast';
 import { 
   Search, 
   Filter, 
@@ -636,16 +636,12 @@ function SubmissionsPageContent() {
         
       } catch (err) {
         console.error('[SubmissionsPage] Error fetching data:', err);
-        
+
         // Only show error and update state if component is still mounted
         if (isMounted) {
-          // Show error message instead of using mock data
-          toast({
-            title: 'Error',
-            description: 'Failed to load submissions. Please check your connection and try again.',
-            variant: 'destructive'
-          });
-          
+          // Use centralized API error toast so messages reflect server responses
+          showApiError(err as any);
+
           // Don't clear existing data on error - keep what we have
         }
       } finally {
@@ -819,11 +815,7 @@ function SubmissionsPageContent() {
       
     } catch (err) {
       console.error('[SubmissionsPage] Error refreshing data:', err);
-      toast({
-        title: 'Refresh Failed',
-        description: 'Failed to refresh submissions data. Please try again.',
-        variant: 'destructive'
-      });
+      showApiError(err as any);
     } finally {
       setRefreshing(false);
     }

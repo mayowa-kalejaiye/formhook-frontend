@@ -197,37 +197,50 @@ export default function PushNotificationSettings() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Permission Status */}
-        <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-          <div>
-            <p className="font-medium text-sm">Permission Status</p>
-            <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-              {permission === 'granted' && 'Notifications allowed'}
-              {permission === 'denied' && 'Notifications blocked'}
-              {permission === 'default' && 'Not requested yet'}
+        {!isSubscribed ? (
+          <>
+            {/* Permission Status */}
+            <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+              <div>
+                <p className="font-medium text-sm">Permission Status</p>
+                <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                  {permission === 'granted' && 'Notifications allowed'}
+                  {permission === 'denied' && 'Notifications blocked'}
+                  {permission === 'default' && 'Not requested yet'}
+                </p>
+              </div>
+              <Badge variant={
+                permission === 'granted' ? 'default' : 
+                permission === 'denied' ? 'destructive' : 
+                'secondary'
+              }>
+                {permission === 'granted' && <Check className="h-3 w-3 mr-1" />}
+                {permission === 'denied' && <X className="h-3 w-3 mr-1" />}
+                {permission}
+              </Badge>
+            </div>
+
+            {/* Description */}
+            <div className="text-sm text-gray-600 dark:text-gray-400">
+              <p className="mb-2">Get instant notifications for:</p>
+              <ul className="list-disc list-inside space-y-1 ml-2">
+                <li>New form submissions</li>
+                <li>Webhook delivery failures</li>
+                <li>Security alerts</li>
+                <li>Important milestones</li>
+              </ul>
+            </div>
+          </>
+        ) : (
+          <div className="p-4 rounded-lg border border-emerald-200 bg-emerald-50 dark:bg-emerald-900/20 dark:border-emerald-800">
+            <p className="text-sm font-semibold text-emerald-900 dark:text-emerald-100 flex items-center gap-2">
+              <Check className="h-4 w-4" /> Push notifications are enabled and active on this device.
+            </p>
+            <p className="text-xs text-emerald-800/80 dark:text-emerald-200/80 mt-1">
+              You can send a test or disable them anytime below.
             </p>
           </div>
-          <Badge variant={
-            permission === 'granted' ? 'default' : 
-            permission === 'denied' ? 'destructive' : 
-            'secondary'
-          }>
-            {permission === 'granted' && <Check className="h-3 w-3 mr-1" />}
-            {permission === 'denied' && <X className="h-3 w-3 mr-1" />}
-            {permission}
-          </Badge>
-        </div>
-
-        {/* Description */}
-        <div className="text-sm text-gray-600 dark:text-gray-400">
-          <p className="mb-2">Get instant notifications for:</p>
-          <ul className="list-disc list-inside space-y-1 ml-2">
-            <li>New form submissions</li>
-            <li>Webhook delivery failures</li>
-            <li>Security alerts</li>
-            <li>Important milestones</li>
-          </ul>
-        </div>
+        )}
 
         {/* Controls */}
         <div className="flex gap-2">
@@ -264,7 +277,7 @@ export default function PushNotificationSettings() {
         </div>
 
         {/* Help Text for Denied Permission */}
-        {permission === 'denied' && (
+        {!isSubscribed && permission === 'denied' && (
           <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
             <p className="text-sm text-red-800 dark:text-red-200">
               <strong>Notifications are blocked.</strong> To enable them:

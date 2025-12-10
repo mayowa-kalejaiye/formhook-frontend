@@ -13,7 +13,7 @@ import {
   SubscriptionTier
 } from '@/types/subscription';
 
-type IconType = (props: { className?: string }) => JSX.Element;
+type IconType = React.ComponentType<{ className?: string }>;
 
 interface PlanCardProps {
   plan: BillingPlan;

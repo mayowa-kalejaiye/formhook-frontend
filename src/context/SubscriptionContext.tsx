@@ -50,6 +50,7 @@ interface SubscriptionContextValue {
   isTrialing: boolean;
   isTrialExpired: boolean;
   isStarterTier: boolean;
+  isFreeTier: boolean;
   isPaidPlan: boolean;
   isActive: boolean;
   isPastDue: boolean;
@@ -206,6 +207,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     subscriptionStatus === 'trial_expired' ||
     (hasValidTrialEnd ? trialEndsTimestamp! <= Date.now() : false);
   const isStarterTier = tierKey === 'starter';
+  const isFreeTier = isStarterTier;
   const isPaidPlan = !isStarterTier;
   const isActive = subscriptionStatus === 'active';
   const isPastDue = subscriptionStatus === 'past_due';
@@ -286,6 +288,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     isTrialing,
     isTrialExpired,
     isStarterTier,
+    isFreeTier,
     isPaidPlan,
     isActive,
     isPastDue,
@@ -319,6 +322,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     isTrialExpired,
     isTrialing,
     isStarterTier,
+    isFreeTier,
     isPaidPlan,
     isActive,
     isPastDue,

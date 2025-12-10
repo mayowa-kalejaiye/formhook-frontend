@@ -354,7 +354,7 @@ function ApiTokensPageContent() {
                   <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
                     <code className="text-sm text-gray-800 dark:text-gray-200">
                       {`curl -X POST \\
-  https://api.formhook.com/submit/your-form-id \\
+  https://api.formhookapp.com/submit/your-form-id \\
   -H "Authorization: Bearer YOUR_API_TOKEN" \\
   -H "Content-Type: application/json" \\
   -d '{"email": "user@example.com", "message": "Hello"}'`}
@@ -365,7 +365,7 @@ function ApiTokensPageContent() {
                   <h3 className="font-semibold text-gray-900 dark:text-white mb-3">JavaScript Example</h3>
                   <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
                     <code className="text-sm text-gray-800 dark:text-gray-200">
-                      {`fetch('https://api.formhook.com/submit/form-id', {
+                      {`fetch('https://api.formhookapp.com/submit/form-id', {
   method: 'POST',
   headers: {
     'Authorization': 'Bearer YOUR_API_TOKEN',

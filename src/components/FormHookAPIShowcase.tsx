@@ -11,7 +11,7 @@ const integrations = [
     name: "HTML Form",
     type: "Frontend Integration",
     description: "Direct HTML form submission",
-    code: `<form action="https://api.formhook.com/submit/your-endpoint" method="POST">
+    code: `<form action="https://api.formhookapp.com/submit/your-endpoint" method="POST">
   <input name="email" type="email" required>
   <input name="message" type="text" required>
   <button type="submit">Submit</button>
@@ -31,7 +31,7 @@ function ContactForm() {
   
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const response = await fetch('https://api.formhook.com/submit/your-endpoint', {
+    const response = await fetch('https://api.formhookapp.com/submit/your-endpoint', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(formData)
@@ -73,7 +73,7 @@ app.post('/webhook', (req, res) => {
     type: "RESTful API",
     description: "Server-side form processing",
     code: `// Server-side submission
-const response = await fetch('https://api.formhook.com/submit/your-endpoint', {
+const response = await fetch('https://api.formhookapp.com/submit/your-endpoint', {
   method: 'POST',
   headers: {
     'Authorization': 'Bearer your-api-key',
@@ -111,7 +111,7 @@ export default {
   },
   methods: {
     async submitForm() {
-      await fetch('https://api.formhook.com/submit/your-endpoint', {
+      await fetch('https://api.formhookapp.com/submit/your-endpoint', {
         method: 'POST',
         body: JSON.stringify(this.form)
       });
@@ -132,7 +132,7 @@ export default {
 
 // Or use the WordPress plugin
 add_action('wp_enqueue_scripts', function() {
-  wp_enqueue_script('formhook', 'https://cdn.formhook.com/formhook.js');
+  wp_enqueue_script('formhook', 'https://cdn.formhookapp.com/formhook.js');
 });
 
 // Initialize FormHook
@@ -178,7 +178,7 @@ FormHook.init({
     code: `// pages/api/contact.js
 export default async function handler(req, res) {
   if (req.method === 'POST') {
-    const response = await fetch('https://api.formhook.com/submit/your-endpoint', {
+    const response = await fetch('https://api.formhookapp.com/submit/your-endpoint', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(req.body)

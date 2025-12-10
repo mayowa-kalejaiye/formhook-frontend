@@ -180,7 +180,7 @@ const Hero3: React.FC = () => {
             </div>
             <div className="hidden md:flex items-center space-x-8">
               <a href="#how-it-works" className="text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors cursor-pointer">Features</a>
-              <a href="#docs" className="text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors cursor-pointer">Docs</a>
+              <a href="/docs" className="text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors cursor-pointer">Docs</a>
               <a href="/pricing" className="text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors cursor-pointer">Pricing</a>
               <a href="/signin" className="bg-black dark:bg-white text-white dark:text-black px-6 py-2 rounded-md hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors cursor-pointer">Sign In</a>
             </div>
@@ -210,7 +210,7 @@ const Hero3: React.FC = () => {
               Try It Free
               <ArrowRightIcon className="h-5 w-5" />
             </a>
-            <a href="#docs" className="border-2 border-blue-600 dark:border-blue-400 text-blue-700 dark:text-blue-400 px-8 py-4 rounded-md font-semibold hover:bg-blue-50 dark:hover:bg-blue-900 transition-colors text-lg cursor-pointer">
+            <a href="/docs" className="border-2 border-blue-600 dark:border-blue-400 text-blue-700 dark:text-blue-400 px-8 py-4 rounded-md font-semibold hover:bg-blue-50 dark:hover:bg-blue-900 transition-colors text-lg cursor-pointer">
               Read Docs
             </a>
           </div>

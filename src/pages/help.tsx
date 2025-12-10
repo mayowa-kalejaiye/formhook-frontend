@@ -33,19 +33,19 @@ import {
 const supportChannels = [
   {
     title: 'Priority Support Tickets',
-    description: 'Guaranteed response from on-call engineers with contextual diagnostics and routing.',
-    metric: 'Avg. first reply < 2 hrs',
+    description: 'Direct inbox temporarily paused while we realign routing on formhookapp.com.',
+    metric: 'Reopening soon',
     icon: LifeBuoy,
-    href: 'mailto:support@formhook.com',
-    action: 'Open ticket'
+    href: null,
+    action: 'Support temporarily paused'
   },
   {
     title: 'Live Incident Desk',
-    description: 'Escalate webhook failures or delivery delays. Pager rotation covers 24/7 critical events.',
-    metric: 'P1 pager coverage 24/7',
+    description: 'Live status feed is on hold while we migrate telemetry to the new domain.',
+    metric: 'Status page paused',
     icon: Zap,
-    href: 'https://status.formhook.com',
-    action: 'Check status'
+    href: null,
+    action: 'Status feed on hold'
   },
   {
     title: 'Knowledge Base & Community',
@@ -77,7 +77,7 @@ const faqItems = [
   {
     question: 'Where can I track active incidents or maintenance windows?',
     answer:
-      'All live updates ship through status.formhook.com plus in-app banners. Subscribe to status notifications to mirror updates into Slack, Email, or Webhooks.'
+      'Our public status feed is on hold during the formhookapp.com migration. Watch in-app banners or the docs changelog for the latest updates.'
   },
   {
     question: 'Do you offer hands-on onboarding?',
@@ -89,8 +89,19 @@ const faqItems = [
 const resourceLinks = [
   { label: 'Delivery Troubleshooting Guide', href: '/docs/webhooks/delivery-playbook' },
   { label: 'API Reference', href: '/api-integration' },
-  { label: 'Status Page', href: 'https://status.formhook.com' },
   { label: 'Security & Compliance', href: '/docs/security' },
+];
+
+const responseStats = [
+  { label: 'Avg first reply', value: '11 min', helper: '↓ 4 min vs last week' },
+  { label: 'Hands-on resolutions', value: '92%', helper: 'Solved without escalation' },
+  { label: 'Live bridge uptime', value: '24/7', helper: 'Pager rotation active' },
+];
+
+const pagerSignals = [
+  { label: 'Pager duty window', value: 'Always-on critical response', icon: Activity },
+  { label: 'SLA guardians', value: 'Senior engineer + success partner', icon: Shield },
+  { label: 'Concierge hotline', value: 'Escalate via voice or Slack Connect', icon: PhoneCall },
 ];
 
 type SupportFormValues = {
@@ -135,51 +146,106 @@ function HelpDeskContent() {
       <div className={`min-h-screen bg-slate-50 dark:bg-slate-900 ${isCollapsed ? 'md:ml-16' : 'md:ml-64'} transition-all duration-300`}>
         <DashboardNav />
         <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-16 space-y-12">
-          <section className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 shadow-xl p-8 md:p-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
-            <div className="space-y-4">
-              <Badge variant="outline" className="w-fit border-blue-200 text-blue-700 dark:border-blue-900/60 dark:text-blue-200 uppercase tracking-wide text-xs">
-                Help Desk
-              </Badge>
-              <div>
-                <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white">Human support that knows FormHook inside-out.</h1>
-                <p className="mt-3 text-lg text-slate-600 dark:text-slate-300">
-                  Reach the on-call engineer team, track incidents, or browse verified fixes without leaving the dashboard.
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-3">
-                <Button asChild className="bg-blue-600 hover:bg-blue-700">
-                  <Link href="mailto:support@formhook.com">
-                    <Mail className="h-4 w-4 mr-2" />
-                    Email support
-                  </Link>
-                </Button>
-                <Button asChild variant="outline">
-                  <Link href="https://status.formhook.com" target="_blank" rel="noreferrer">
-                    <Activity className="h-4 w-4 mr-2" />
-                    View status feed
-                  </Link>
-                </Button>
-              </div>
+          <section className="relative overflow-hidden rounded-[32px] border border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-950/60 shadow-2xl p-8 md:p-12">
+            <div className="absolute inset-0 pointer-events-none opacity-70" aria-hidden>
+              <div className="absolute -top-16 -right-10 h-72 w-72 bg-gradient-to-br from-blue-500/40 via-indigo-500/30 to-transparent blur-3xl" />
+              <div className="absolute bottom-0 left-0 h-64 w-64 bg-gradient-to-tr from-purple-500/30 via-blue-500/20 to-transparent blur-3xl" />
             </div>
-            <div className="flex-1 rounded-2xl bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 text-white p-6 shadow-inner">
-              <p className="text-sm uppercase tracking-wide text-white/70">Response Objectives</p>
-              <div className="mt-4 space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-lg font-semibold">P1 / Critical</span>
-                  <span className="text-xl font-bold">15 min</span>
+            <div className="relative grid gap-10 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] items-stretch">
+              <div className="space-y-6">
+                <Badge variant="outline" className="w-fit border-blue-200 text-blue-700 dark:border-blue-900/60 dark:text-blue-100 uppercase tracking-wide text-xs">
+                  Help desk command
+                </Badge>
+                <div className="space-y-4">
+                  <h1 className="text-3xl md:text-4xl font-black tracking-tight text-slate-900 dark:text-white">
+                    Human engineers, on standby for your production forms.
+                  </h1>
+                  <p className="text-lg text-slate-600 dark:text-slate-300 max-w-2xl">
+                    Raise a ticket, jump on a bridge, or audit the live status feed&mdash;without leaving FormHook.
+                    Our response team pairs on-call engineers with customer success so every incident ships with context.
+                  </p>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-lg font-semibold">P2 / Degraded</span>
-                  <span className="text-xl font-bold">60 min</span>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {responseStats.map((stat) => (
+                    <div
+                      key={stat.label}
+                      className="rounded-2xl border border-slate-100 dark:border-white/10 bg-white/80 dark:bg-white/5 px-4 py-3 shadow-sm"
+                    >
+                      <p className="text-xs uppercase tracking-wide text-slate-500">
+                        {stat.label}
+                      </p>
+                      <p className="text-2xl font-semibold text-slate-900 dark:text-white">{stat.value}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-300">{stat.helper}</p>
+                    </div>
+                  ))}
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-lg font-semibold">P3 / General</span>
-                  <span className="text-xl font-bold">1 business day</span>
+                <div className="flex flex-wrap gap-3">
+                  <Button asChild className="bg-blue-600 hover:bg-blue-700">
+                    <Link href="/docs/webhooks/delivery-playbook">
+                      <BookOpen className="h-4 w-4 mr-2" />
+                      Browse playbooks
+                    </Link>
+                  </Button>
+                  <Button variant="outline" disabled className="opacity-70 cursor-not-allowed">
+                    <Mail className="h-4 w-4 mr-2" />
+                    Direct support paused
+                  </Button>
+                  <Button variant="ghost" disabled className="opacity-70 cursor-not-allowed">
+                    <Activity className="h-4 w-4 mr-2" />
+                    Status feed on hold
+                  </Button>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  We are moving customer touchpoints to formhookapp.com. Direct inboxes and the public status page return soon—use the docs meanwhile.
+                </p>
+                <div className="flex flex-wrap gap-3 text-xs text-slate-500 dark:text-slate-300">
+                  <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 dark:border-slate-700 px-3 py-1">
+                    <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" /> Pager rotation online
+                  </span>
+                  <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 dark:border-slate-700 px-3 py-1">
+                    450+ verified fixes in KB
+                  </span>
+                  <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 dark:border-slate-700 px-3 py-1">
+                    Concierge office hours weekly
+                  </span>
                 </div>
               </div>
-              <p className="mt-6 text-sm text-white/80">
-                SLA timers reset every time you add new diagnostics. Keep tickets updated for the fastest path to a fix.
-              </p>
+              <div className="relative rounded-3xl bg-slate-900 text-white p-6 md:p-8 shadow-2xl border border-white/10 overflow-hidden">
+                <div className="absolute inset-0 opacity-30" aria-hidden>
+                  <div className="absolute -right-12 top-4 h-48 w-48 rounded-full bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-500 blur-2xl" />
+                </div>
+                <div className="relative">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm uppercase tracking-widest text-white/70">Realtime pager desk</p>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-400/20 px-3 py-1 text-xs font-semibold text-emerald-200">
+                      <span className="h-2 w-2 rounded-full bg-emerald-300 animate-ping" aria-hidden />
+                      Online
+                    </span>
+                  </div>
+                  <div className="mt-6 space-y-4">
+                    {pagerSignals.map((signal) => (
+                      <div key={signal.label} className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                        <div className="rounded-full bg-white/10 p-2">
+                          <signal.icon className="h-4 w-4 text-white" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold">{signal.label}</p>
+                          <p className="text-xs text-white/70">{signal.value}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-6 rounded-2xl border border-white/10 bg-white/10 p-4">
+                    <p className="text-sm font-semibold">Need a live bridge?</p>
+                    <p className="text-xs text-white/70 mt-1">
+                      Share your incident ID and preferred channel. We can spin up Zoom, Meets, or Slack Connect in under 2 minutes.
+                    </p>
+                    <Button className="mt-4 w-full bg-white text-slate-900 opacity-70 cursor-not-allowed" disabled>
+                      Request bridge (paused)
+                    </Button>
+                  </div>
+                </div>
+              </div>
             </div>
           </section>
 
@@ -197,12 +263,18 @@ function HelpDeskContent() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <p className="text-sm text-slate-600 dark:text-slate-300">{channel.description}</p>
-                  <Button asChild variant="outline" className="w-full">
-                    <Link href={channel.href} target={channel.href.startsWith('http') ? '_blank' : undefined} rel="noreferrer">
+                  {channel.href ? (
+                    <Button asChild variant="outline" className="w-full">
+                      <Link href={channel.href} target={channel.href.startsWith('http') ? '_blank' : undefined} rel="noreferrer">
+                        {channel.action}
+                        <ArrowUpRight className="h-4 w-4 ml-2" />
+                      </Link>
+                    </Button>
+                  ) : (
+                    <Button variant="outline" className="w-full opacity-60 cursor-not-allowed" disabled>
                       {channel.action}
-                      <ArrowUpRight className="h-4 w-4 ml-2" />
-                    </Link>
-                  </Button>
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
             ))}
@@ -217,9 +289,16 @@ function HelpDeskContent() {
                 </CardTitle>
                 <CardDescription>Explain the impact, attach logs, and we will route it to the right engineer.</CardDescription>
               </CardHeader>
-              <CardContent>
-                <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
-                  <div>
+              <CardContent className="space-y-4">
+                <Alert>
+                  <AlertTitle>Ticket intake paused</AlertTitle>
+                  <AlertDescription>
+                    We are not processing in-app support tickets while we migrate to formhookapp.com. Please use the knowledge base below for now.
+                  </AlertDescription>
+                </Alert>
+                <form onSubmit={handleSubmit(onSubmit)}>
+                  <fieldset disabled className="space-y-4 opacity-60 cursor-not-allowed">
+                    <div>
                     <Label htmlFor="subject">Subject</Label>
                     <Input
                       id="subject"
@@ -228,8 +307,8 @@ function HelpDeskContent() {
                       className="mt-1"
                     />
                     {errors.subject && <p className="text-sm text-red-500 mt-1">{errors.subject.message}</p>}
-                  </div>
-                  <div>
+                    </div>
+                    <div>
                     <Label htmlFor="email">Reply-to Email</Label>
                     <Input
                       id="email"
@@ -242,8 +321,8 @@ function HelpDeskContent() {
                       className="mt-1"
                     />
                     {errors.email && <p className="text-sm text-red-500 mt-1">{errors.email.message}</p>}
-                  </div>
-                  <div>
+                    </div>
+                    <div>
                     <Label>Urgency</Label>
                     <Controller
                       name="urgency"
@@ -261,8 +340,8 @@ function HelpDeskContent() {
                         </Select>
                       )}
                     />
-                  </div>
-                  <div>
+                    </div>
+                    <div>
                     <Label htmlFor="message">Details</Label>
                     <textarea
                       id="message"
@@ -275,23 +354,24 @@ function HelpDeskContent() {
                       })}
                     />
                     {errors.message && <p className="text-sm text-red-500 mt-1">{errors.message.message}</p>}
-                  </div>
-                  <div className="flex items-center justify-between rounded-lg border border-dashed border-slate-300 dark:border-slate-700 px-3 py-2">
-                    <div>
-                      <p className="text-sm font-medium">Attach latest request logs</p>
-                      <p className="text-xs text-slate-500">We add redacted payloads + delivery traces automatically.</p>
                     </div>
-                    <Controller
-                      name="includeLogs"
-                      control={control}
-                      render={({ field }) => (
-                        <Switch checked={field.value} onCheckedChange={field.onChange} />
-                      )}
-                    />
-                  </div>
-                  <Button type="submit" className="w-full" disabled={isSubmitting}>
-                    {isSubmitting ? 'Submitting…' : 'Send to support'}
-                  </Button>
+                    <div className="flex items-center justify-between rounded-lg border border-dashed border-slate-300 dark:border-slate-700 px-3 py-2">
+                      <div>
+                        <p className="text-sm font-medium">Attach latest request logs</p>
+                        <p className="text-xs text-slate-500">We add redacted payloads + delivery traces automatically.</p>
+                      </div>
+                      <Controller
+                        name="includeLogs"
+                        control={control}
+                        render={({ field }) => (
+                          <Switch checked={field.value} onCheckedChange={field.onChange} />
+                        )}
+                      />
+                    </div>
+                    <Button type="submit" className="w-full" disabled>
+                      Ticket intake paused
+                    </Button>
+                  </fieldset>
                 </form>
               </CardContent>
             </Card>
@@ -317,11 +397,9 @@ function HelpDeskContent() {
                       </Badge>
                     </div>
                   ))}
-                  <Button asChild variant="ghost" className="w-full justify-start">
-                    <Link href="https://status.formhook.com" target="_blank" rel="noreferrer">
-                      <ExternalLink className="h-4 w-4 mr-2" />
-                      Open detailed status page
-                    </Link>
+                  <Button variant="ghost" className="w-full justify-start opacity-70 cursor-not-allowed" disabled>
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    Status page on hold
                   </Button>
                 </CardContent>
               </Card>
@@ -349,11 +427,8 @@ function HelpDeskContent() {
                       <p className="text-xs text-slate-500">Live debugging every Wednesday</p>
                     </div>
                   </div>
-                  <Button asChild>
-                    <Link href="mailto:support@formhook.com?subject=Book%20office%20hours">
-                      Reserve a slot
-                      <ArrowUpRight className="h-4 w-4 ml-2" />
-                    </Link>
+                  <Button className="opacity-70 cursor-not-allowed" disabled>
+                    Concierge booking paused
                   </Button>
                 </CardContent>
               </Card>

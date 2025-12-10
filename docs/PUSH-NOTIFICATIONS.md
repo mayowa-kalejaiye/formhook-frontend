@@ -157,7 +157,7 @@ console.log('Private Key:', vapidKeys.privateKey);
 ```bash
 VAPID_PUBLIC_KEY=BEl62iUYgUivxIkv69yViEuiBIa...
 VAPID_PRIVATE_KEY=bdSiGcITKnyQxqkWvOq3HEJP...
-VAPID_SUBJECT=mailto:admin@formhook.com
+VAPID_SUBJECT=mailto:admin@formhookapp.com
 ```
 
 #### 2. Database Schema

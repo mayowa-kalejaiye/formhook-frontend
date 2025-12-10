@@ -644,9 +644,28 @@ export const revokeApiToken = async () => {
 };
 
 // Auth (public)
-export const signup = (data: { email: string; password: string }) => {
-  // Always use direct API call for JWT auth
-  return API.post('/auth/signup', data);
+export const signup = async (data: { email: string; password: string }) => {
+  // Route through our proxy to avoid CORS/network blocks in edge deployments
+  const targetUrl = `${API_BASE_URL}/auth/signup`;
+  try {
+    return await axios.post('/api/proxy', {
+      url: targetUrl,
+      method: 'POST',
+      data,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  } catch (error: any) {
+    if (axios.isAxiosError(error)) {
+      // Bubble up backend responses so UI can show friendly messages
+      if (error.response) {
+        throw error;
+      }
+      const networkErr = new Error('Cannot reach signup service. Verify the backend URL and proxy.');
+      networkErr.name = 'NetworkError';
+      throw networkErr;
+    }
+    throw error;
+  }
 };
 
 // Login function using JWT authentication per API docs

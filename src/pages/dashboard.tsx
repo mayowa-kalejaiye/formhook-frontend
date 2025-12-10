@@ -654,8 +654,8 @@ function ModernTrendChart({ data, trendRange, chartType, onChartTypeChange, onTr
                 </DynamicAreaChart>
               )
             ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <div className="text-center space-y-4">
+              <div className="w-full h-full min-h-[260px] flex items-center justify-center text-center">
+                <div className="space-y-4">
                   <div className="bg-slate-100 dark:bg-slate-800 rounded-md p-6 w-20 h-20 flex items-center justify-center mx-auto">
                     <BarChart3 className="h-10 w-10 text-slate-400 dark:text-slate-500" />
                   </div>

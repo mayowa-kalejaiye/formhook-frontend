@@ -57,7 +57,7 @@ function APIIntegrationContent() {
                     <Terminal className="h-4 w-4" />
                     <AlertTitle>Your form endpoint will look like this:</AlertTitle>
                     <AlertDescription className="font-mono text-sm mt-2">
-                      https://api.formhook.com/f/your-form-id
+                      https://api.formhookapp.com/f/your-form-id
                     </AlertDescription>
                   </Alert>
                 </div>
@@ -77,7 +77,7 @@ function APIIntegrationContent() {
                           variant="outline" 
                           size="icon"
                           className="absolute right-2 top-2"
-                          onClick={() => copyToClipboard(`<form action="https://api.formhook.com/f/your-form-id" method="POST">
+                          onClick={() => copyToClipboard(`<form action="https://api.formhookapp.com/f/your-form-id" method="POST">
   <input type="email" name="email" required />
   <button type="submit">Subscribe</button>
 </form>`)}
@@ -85,7 +85,7 @@ function APIIntegrationContent() {
                           <Copy className="h-4 w-4" />
                         </Button>
                         <pre className="text-sm language-html">
-                          <code>{`<form action="https://api.formhook.com/f/your-form-id" method="POST">
+                          <code>{`<form action="https://api.formhookapp.com/f/your-form-id" method="POST">
   <input type="email" name="email" required />
   <button type="submit">Subscribe</button>
 </form>`}</code>
@@ -133,7 +133,7 @@ function APIIntegrationContent() {
                           size="icon"
                           className="absolute right-2 top-2"
                           onClick={() => copyToClipboard(`<form 
-  action="https://api.formhook.com/f/your-form-id" 
+  action="https://api.formhookapp.com/f/your-form-id" 
   method="POST"
   enctype="multipart/form-data"
 >
@@ -148,7 +148,7 @@ function APIIntegrationContent() {
                         </Button>
                         <pre className="text-sm language-html">
                           <code>{`<form 
-  action="https://api.formhook.com/f/your-form-id" 
+  action="https://api.formhookapp.com/f/your-form-id" 
   method="POST"
   enctype="multipart/form-data"
 >
@@ -177,7 +177,7 @@ function APIIntegrationContent() {
                           variant="outline" 
                           size="icon"
                           className="absolute right-2 top-2"
-                          onClick={() => copyToClipboard(`<form action="https://api.formhook.com/f/your-form-id" method="POST">
+                          onClick={() => copyToClipboard(`<form action="https://api.formhookapp.com/f/your-form-id" method="POST">
   <input type="hidden" name="_success_url" value="https://your-site.com/thank-you" />
   <input type="hidden" name="_error_url" value="https://your-site.com/error" />
   <!-- your form fields -->
@@ -186,7 +186,7 @@ function APIIntegrationContent() {
                           <Copy className="h-4 w-4" />
                         </Button>
                         <pre className="text-sm language-html">
-                          <code>{`<form action="https://api.formhook.com/f/your-form-id" method="POST">
+                          <code>{`<form action="https://api.formhookapp.com/f/your-form-id" method="POST">
   <input type="hidden" name="_success_url" value="https://your-site.com/thank-you" />
   <input type="hidden" name="_error_url" value="https://your-site.com/error" />
   <!-- your form fields -->
@@ -216,7 +216,7 @@ form.addEventListener('submit', async (e) => {
   const formData = new FormData(form);
   
   try {
-    const response = await fetch('https://api.formhook.com/f/your-form-id', {
+    const response = await fetch('https://api.formhookapp.com/f/your-form-id', {
       method: 'POST',
       body: formData
     });
@@ -240,7 +240,7 @@ form.addEventListener('submit', async (e) => {
   const formData = new FormData(form);
   
   try {
-    const response = await fetch('https://api.formhook.com/f/your-form-id', {
+    const response = await fetch('https://api.formhookapp.com/f/your-form-id', {
       method: 'POST',
       body: formData
     });
@@ -313,7 +313,7 @@ form.addEventListener('submit', async (e) => {
                           size="icon"
                           className="absolute right-2 top-2"
                           onClick={() => copyToClipboard(`curl -X POST \\
-  https://api.formhook.com/f/your-form-id \\
+  https://api.formhookapp.com/f/your-form-id \\
   -H "Authorization: Bearer your-api-key" \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -326,7 +326,7 @@ form.addEventListener('submit', async (e) => {
                         </Button>
                         <pre className="text-sm">
                           <code>{`curl -X POST \\
-  https://api.formhook.com/f/your-form-id \\
+  https://api.formhookapp.com/f/your-form-id \\
   -H "Authorization: Bearer your-api-key" \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -356,14 +356,14 @@ form.addEventListener('submit', async (e) => {
                           size="icon"
                           className="absolute right-2 top-2"
                           onClick={() => copyToClipboard(`curl \\
-  https://api.formhook.com/v1/forms/your-form-id/submissions \\
+  https://api.formhookapp.com/v1/forms/your-form-id/submissions \\
   -H "Authorization: Bearer your-api-key"`)}
                         >
                           <Copy className="h-4 w-4" />
                         </Button>
                         <pre className="text-sm">
                           <code>{`curl \\
-  https://api.formhook.com/v1/forms/your-form-id/submissions \\
+  https://api.formhookapp.com/v1/forms/your-form-id/submissions \\
   -H "Authorization: Bearer your-api-key"`}</code>
                         </pre>
                       </div>

@@ -145,13 +145,16 @@ export default function PublicFormPage() {
           if (Array.isArray(errorData.detail)) {
             errorMessage = errorData.detail.map(err => err.msg || err.message || JSON.stringify(err)).join(', ');
           } else {
-            errorMessage = errorData.detail;
+            errorMessage = typeof errorData.detail === 'string'
+              ? errorData.detail
+              : JSON.stringify(errorData.detail);
           }
         } else if (errorData.message) {
           errorMessage = errorData.message;
         }
-        
-        throw new Error(errorMessage || `Submission failed: ${response.statusText}`);
+
+        showApiError({ message: errorMessage });
+        return;
       }
 
       const responseData = await response.json();

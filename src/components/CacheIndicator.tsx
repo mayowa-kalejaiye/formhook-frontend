@@ -12,11 +12,20 @@ export const CacheIndicator: React.FC<{ show: boolean; fromCache?: boolean }> = 
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
+    let showTimer: ReturnType<typeof setTimeout> | null = null;
+    let hideTimer: ReturnType<typeof setTimeout> | null = null;
+
     if (show) {
-      setVisible(true);
-      const timer = setTimeout(() => setVisible(false), 3000);
-      return () => clearTimeout(timer);
+      showTimer = setTimeout(() => setVisible(true), 0);
+      hideTimer = setTimeout(() => setVisible(false), 3000);
+    } else {
+      showTimer = setTimeout(() => setVisible(false), 0);
     }
+
+    return () => {
+      if (showTimer) clearTimeout(showTimer);
+      if (hideTimer) clearTimeout(hideTimer);
+    };
   }, [show]);
 
   if (!visible) return null;

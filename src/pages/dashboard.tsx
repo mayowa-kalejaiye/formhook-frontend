@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 
@@ -41,6 +41,8 @@ import { useAuth } from '../context/AuthContext';
 import { safeReplace } from '../lib/navigation';
 import { useSidebar } from '../context/SidebarContext';
 import AuthLayout from '../components/AuthLayout';
+import { showApiError } from '../hooks/use-toast';
+import { normalizeSubscriptionInfo } from '@/lib/subscription';
 import { 
   FileText, 
   BarChart3, 
@@ -59,8 +61,345 @@ import {
   Clock,
   Target,
   Zap,
-  Code
+  Code,
+  ArrowUpRight,
+  MoreHorizontal
 } from 'lucide-react';
+
+type BreakdownEntry = {
+  name: string;
+  count: number;
+  percent: number;
+  code?: string;
+};
+
+type IpIntelRecord = {
+  ip?: string | null;
+  country?: string | null;
+  countryCode?: string | null;
+  region?: string | null;
+  city?: string | null;
+  org?: string | null;
+};
+
+type SubmissionRecord = {
+  ip_address?: string | null;
+  ipAddress?: string | null;
+  device_type?: string | null;
+  deviceType?: string | null;
+  user_agent?: string | null;
+  userAgent?: string | null;
+  data?: Record<string, any> | null;
+  metadata?: Record<string, any> | null;
+  headers?: Record<string, any> | null;
+  geo?: Record<string, any> | null;
+  geoip?: Record<string, any> | null;
+  location?: Record<string, any> | null;
+};
+
+type SubmissionsSummaryPoint = { date: string; submissions: number; errors: number };
+
+const clampNumber = (value: number, min: number, max: number) => {
+  if (Number.isNaN(value)) return min;
+  return Math.min(Math.max(value, min), max);
+};
+
+const percentOf = (value: number, total: number) => {
+  if (!total || total <= 0) return 0;
+  return (value / total) * 100;
+};
+
+const countryFlagEmoji = (countryCode?: string | null) => {
+  if (!countryCode) return '🌐';
+  const normalized = countryCode.trim().toUpperCase();
+  if (normalized.length !== 2) return '🌐';
+  const base = 127397;
+  return String.fromCodePoint(...normalized.split('').map((char) => base + char.charCodeAt(0)));
+};
+
+const extractSubmissionIp = (submission: SubmissionRecord): string | undefined => {
+  const inlineIp =
+    submission?.ip_address ||
+    submission?.ipAddress ||
+    submission?.metadata?.ip_address ||
+    submission?.metadata?.ip ||
+    submission?.data?.ip_address ||
+    submission?.data?.ip ||
+    undefined;
+
+  if (inlineIp && typeof inlineIp === 'string') {
+    return inlineIp.trim();
+  }
+
+  const headerIp =
+    submission?.headers?.['x-forwarded-for'] ||
+    submission?.headers?.['x-real-ip'] ||
+    submission?.headers?.['cf-connecting-ip'] ||
+    undefined;
+
+  if (headerIp && typeof headerIp === 'string') {
+    return headerIp.split(',')[0]?.trim();
+  }
+
+  return undefined;
+};
+
+const deriveSubmissionIntel = (submission: SubmissionRecord): IpIntelRecord => {
+  const candidateSources = [
+    submission,
+    submission?.data,
+    submission?.metadata,
+    submission?.location,
+    submission?.geo,
+    submission?.geoip,
+  ].filter((source): source is Record<string, any> => Boolean(source));
+
+  const pick = (...keys: string[]): string | undefined => {
+    for (const source of candidateSources) {
+      for (const key of keys) {
+        const value = source[key];
+        if (typeof value === 'string' && value.trim()) {
+          return value.trim();
+        }
+      }
+    }
+    return undefined;
+  };
+
+  return {
+    ip: extractSubmissionIp(submission) || pick('ip', 'ip_address', 'ipAddress'),
+    country: pick('country_name', 'country', 'countryName'),
+    countryCode: (pick('country_code', 'countryCode') || pick('country'))?.toUpperCase(),
+    region: pick('region', 'state', 'regionName'),
+    city: pick('city', 'metro'),
+    org: pick('org', 'organization', 'isp', 'network', 'asn'),
+  };
+};
+
+const detectBrowserFromUserAgent = (ua?: string | null) => {
+  if (!ua) return 'Unknown';
+  const l = ua.toLowerCase();
+  if (l.includes('chrome') && !l.includes('edg') && !l.includes('opr')) return 'Chrome';
+  if (l.includes('firefox')) return 'Firefox';
+  if (l.includes('safari') && !l.includes('chrome')) return 'Safari';
+  if (l.includes('edg') || l.includes('edge')) return 'Edge';
+  if (l.includes('opr') || l.includes('opera')) return 'Opera';
+  if (l.includes('brave')) return 'Brave';
+  return 'Other';
+};
+
+const detectOsFromUserAgent = (ua?: string | null) => {
+  if (!ua) return 'Unknown';
+  const l = ua.toLowerCase();
+  if (l.includes('windows')) return 'Windows';
+  if (l.includes('mac os') || l.includes('macintosh') || l.includes('macos')) return 'macOS';
+  if (l.includes('android')) return 'Android';
+  if (l.includes('iphone') || l.includes('ipad') || l.includes('ios')) return 'iOS';
+  if (l.includes('linux')) return 'Linux';
+  if (l.includes('cros')) return 'ChromeOS';
+  return 'Other';
+};
+
+const detectDeviceFromUserAgent = (ua?: string | null) => {
+  if (!ua) return 'Unknown';
+  const l = ua.toLowerCase();
+  if (l.includes('tablet') || l.includes('ipad')) return 'Tablet';
+  if (l.includes('mobile') || l.includes('iphone') || l.includes('android')) return 'Mobile';
+  if (l.includes('bot') || l.includes('crawler') || l.includes('spider')) return 'Bot';
+  return 'Desktop';
+};
+
+const normalizeDeviceType = (value?: string | null, fallbackUa?: string | null) => {
+  if (value) {
+    const normalized = value.toString().trim().toLowerCase();
+    if (!normalized) return 'Unknown';
+    if (['mobile', 'phone', 'smartphone'].includes(normalized)) return 'Mobile';
+    if (['tablet', 'ipad'].includes(normalized)) return 'Tablet';
+    if (['desktop', 'laptop', 'pc'].includes(normalized)) return 'Desktop';
+    if (['bot', 'crawler', 'automation', 'spider'].includes(normalized)) return 'Bot';
+    if (normalized === 'unknown') return 'Unknown';
+  }
+  return detectDeviceFromUserAgent(fallbackUa) || 'Unknown';
+};
+
+const getSubmissionUserAgent = (submission: SubmissionRecord | Record<string, any> | null | undefined) => {
+  if (!submission) return '';
+  return (
+    (submission as SubmissionRecord)?.user_agent ||
+    (submission as SubmissionRecord)?.userAgent ||
+    submission?.metadata?.userAgent ||
+    submission?.metadata?.user_agent ||
+    submission?.data?.user_agent ||
+    submission?.data?.userAgent ||
+    submission?.headers?.['user-agent'] ||
+    (submission as any)?.raw?.userAgent ||
+    ''
+  );
+};
+
+const getSubmissionDeviceType = (submission: SubmissionRecord | Record<string, any> | null | undefined, fallbackUa?: string | null) => {
+  if (!submission) return 'Unknown';
+  const explicit =
+    (submission as SubmissionRecord)?.device_type ||
+    (submission as SubmissionRecord)?.deviceType ||
+    submission?.metadata?.device_type ||
+    submission?.metadata?.deviceType ||
+    submission?.data?.device_type ||
+    submission?.data?.deviceType ||
+    undefined;
+  return normalizeDeviceType(explicit, fallbackUa || getSubmissionUserAgent(submission));
+};
+
+const aggregateIpField = (
+  records: IpIntelRecord[],
+  accessor: (record: IpIntelRecord) => string | undefined | null,
+  enrich?: (record: IpIntelRecord) => Partial<BreakdownEntry>,
+  limit = 5,
+): BreakdownEntry[] => {
+  if (!Array.isArray(records) || !records.length) return [];
+
+  const buckets = new Map<string, { count: number; meta?: Partial<BreakdownEntry> }>();
+
+  records.forEach((record) => {
+    const key = accessor(record)?.trim();
+    if (!key) return;
+    const entry = buckets.get(key) || { count: 0 };
+    entry.count += 1;
+    if (enrich) {
+      entry.meta = { ...entry.meta, ...enrich(record) };
+    }
+    buckets.set(key, entry);
+  });
+
+  const total = Array.from(buckets.values()).reduce((sum, current) => sum + current.count, 0);
+
+  return Array.from(buckets.entries())
+    .map(([name, data]) => ({
+      name,
+      count: data.count,
+      percent: percentOf(data.count, total),
+      ...(data.meta || {}),
+    }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, limit);
+};
+
+const fetchWithTimeout = async (url: string, timeoutMs = 4500) => {
+  if (typeof fetch === 'undefined') return null;
+  const controller = typeof AbortController !== 'undefined' ? new AbortController() : undefined;
+  const timeoutId = controller ? setTimeout(() => controller.abort(), timeoutMs) : undefined;
+  try {
+    const response = await fetch(url, { signal: controller?.signal });
+    if (!response.ok) return null;
+    const json = await response.json();
+    return json;
+  } catch (error) {
+    return null;
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
+};
+
+async function lookupIpIntel(ip: string): Promise<IpIntelRecord | null> {
+  if (!ip) return null;
+  const primary = await fetchWithTimeout(`https://ipapi.co/${encodeURIComponent(ip)}/json/`);
+  const payload = primary && !primary.error ? primary : await fetchWithTimeout(`https://ipwho.is/${encodeURIComponent(ip)}`);
+  if (!payload || payload.error) return null;
+
+  return {
+    ip,
+    country: payload.country_name || payload.country || payload.countryName || null,
+    countryCode: (payload.country_code || payload.country_code2 || payload.country) ?? null,
+    region: payload.region || payload.region_code || payload.state_prov || payload.state || null,
+    city: payload.city || null,
+    org: payload.org || payload.org_name || payload.connection?.org || payload.connection?.isp || payload.isp || null,
+  };
+}
+
+type IpBreakdown = {
+  sampleSize: number;
+  countries: BreakdownEntry[];
+  regions: BreakdownEntry[];
+};
+
+async function buildIpBreakdownFromSubmissions(submissions: SubmissionRecord[]): Promise<IpBreakdown> {
+  const normalized = Array.isArray(submissions) ? submissions : [];
+  if (!normalized.length) {
+    return { sampleSize: 0, countries: [], regions: [] };
+  }
+
+  const ipCandidates = normalized
+    .map((submission) => extractSubmissionIp(submission))
+    .filter((ip): ip is string => Boolean(ip && ip.length > 0));
+
+  const uniqueIps = Array.from(new Set(ipCandidates)).slice(0, 25);
+
+  let intelRecords: IpIntelRecord[] = [];
+  if (uniqueIps.length) {
+    const lookups = await Promise.allSettled(uniqueIps.map((ip) => lookupIpIntel(ip)));
+    intelRecords = lookups
+      .filter((result): result is PromiseFulfilledResult<IpIntelRecord | null> => result.status === 'fulfilled')
+      .map((result) => result.value)
+      .filter((record): record is IpIntelRecord => Boolean(record));
+  }
+
+  if (!intelRecords.length) {
+    intelRecords = normalized
+      .map(deriveSubmissionIntel)
+      .filter((record) => Boolean(record.country || record.region || record.city || record.org));
+  }
+
+  if (!intelRecords.length) {
+    return { sampleSize: uniqueIps.length || normalized.length, countries: [], regions: [] };
+  }
+
+  return {
+    sampleSize: uniqueIps.length || normalized.length,
+    countries: aggregateIpField(intelRecords, (record) => record.country, (record) => ({ code: record.countryCode }), 7),
+    regions: aggregateIpField(
+      intelRecords,
+      (record) =>
+        record.city && record.countryCode
+          ? `${record.city}, ${record.countryCode}`
+          : record.city || record.region || record.country,
+      undefined,
+      7,
+    ),
+  };
+}
+
+const SubmissionsSummaryChart = React.memo(function SubmissionsSummaryChart({ data }: { data: SubmissionsSummaryPoint[] }) {
+  const chartData = (data || []).map((point) => ({
+    date: point.date ? new Date(point.date).toLocaleDateString() : '',
+    submissions: point.submissions || 0,
+    errors: point.errors || 0,
+  }));
+
+  const hasData = chartData.length > 0 && chartData.some((point) => point.submissions || point.errors);
+
+  return (
+    <div className="mt-6">
+      {hasData ? (
+        <div className="w-full h-52">
+          <DynamicResponsiveContainer width="100%" height="100%">
+            <DynamicAreaChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+              <DynamicCartesianGrid strokeDasharray="3 3" stroke="#e6eefb" />
+              <DynamicXAxis dataKey="date" tick={{ fontSize: 11, fill: '#64748b' }} />
+              <DynamicYAxis tick={{ fontSize: 11, fill: '#64748b' }} />
+              <DynamicTooltip contentStyle={{ background: '#fff', border: '1px solid #e6eefb' }} />
+              <DynamicArea type="monotone" dataKey="submissions" stroke="#3B82F6" fillOpacity={0.18} fill="#3B82F6" />
+              <DynamicArea type="monotone" dataKey="errors" stroke="#ef4444" fillOpacity={0.08} fill="#ef4444" />
+            </DynamicAreaChart>
+          </DynamicResponsiveContainer>
+        </div>
+      ) : (
+        <div className="text-sm text-slate-500">No trend data available</div>
+      )}
+    </div>
+  );
+});
 
 // Professional avatar component for email initials
 function EmailAvatar({ email }: { email: string }) {
@@ -123,6 +462,49 @@ const trendLabels = {
   '14d': 'last 2 weeks',
 } as const;
 type TrendRange = keyof typeof trendLabels;
+
+const trendRangeDayMap: Record<TrendRange, number> = {
+  today: 1,
+  yesterday: 2,
+  '7d': 7,
+  '14d': 14,
+};
+
+const isSameDay = (first?: Date, second?: Date) => {
+  if (!first || !second) return false;
+  if (Number.isNaN(first.getTime()) || Number.isNaN(second.getTime())) return false;
+  return (
+    first.getFullYear() === second.getFullYear() &&
+    first.getMonth() === second.getMonth() &&
+    first.getDate() === second.getDate()
+  );
+};
+
+const clampSeriesToTrendRange = <T extends { date?: string | Date }>(
+  series: T[] = [],
+  range: TrendRange,
+): T[] => {
+  if (!Array.isArray(series) || series.length === 0) return [];
+
+  if (range === 'today' || range === 'yesterday') {
+    const target = new Date();
+    if (range === 'yesterday') {
+      target.setDate(target.getDate() - 1);
+    }
+    const filtered = series.filter((point) => {
+      if (!point?.date) return false;
+      const pointDate = new Date(point.date);
+      return isSameDay(pointDate, target);
+    });
+    if (filtered.length > 0) {
+      return filtered;
+    }
+  }
+
+  const days = trendRangeDayMap[range] || series.length;
+  const sliceCount = Math.min(series.length, days);
+  return series.slice(Math.max(series.length - sliceCount, 0));
+};
 
 function ModernTrendChart({ data, trendRange, chartType, onChartTypeChange, onTrendRangeChange }: {
   data: { date: string; count: number }[];
@@ -523,41 +905,13 @@ function DashboardContent({
   previousPeriodForms,
   previousPeriodSubmissions,
   geoCountries,
-  deviceTop,
+  browserTop,
+  deviceCategoryTop,
   osTop,
+  ipInsightMeta,
+  ipIntelLoading,
   subscriptionInfo,
 }) {
-  // Inline chart component: submissions vs errors over time (Area + Line)
-  const SubmissionsSummaryChart = React.memo(function SubmissionsSummaryChart({ data }: { data: Array<{ date: string; submissions: number; errors: number }> }) {
-    const chartData = (data || []).map(d => ({
-      date: d.date ? new Date(d.date).toLocaleDateString() : '',
-      submissions: d.submissions || 0,
-      errors: d.errors || 0
-    }));
-
-    const hasData = chartData.length > 0 && chartData.some(d => d.submissions || d.errors);
-
-    return (
-      <div className="mt-6">
-        {hasData ? (
-          <div className="w-full h-52">
-            <DynamicResponsiveContainer width="100%" height="100%">
-              <DynamicAreaChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-                <DynamicCartesianGrid strokeDasharray="3 3" stroke="#e6eefb" />
-                <DynamicXAxis dataKey="date" tick={{ fontSize: 11, fill: '#64748b' }} />
-                <DynamicYAxis tick={{ fontSize: 11, fill: '#64748b' }} />
-                <DynamicTooltip contentStyle={{ background: '#fff', border: '1px solid #e6eefb' }} />
-                <DynamicArea type="monotone" dataKey="submissions" stroke="#3B82F6" fillOpacity={0.18} fill="#3B82F6" />
-                <DynamicArea type="monotone" dataKey="errors" stroke="#ef4444" fillOpacity={0.08} fill="#ef4444" />
-              </DynamicAreaChart>
-            </DynamicResponsiveContainer>
-          </div>
-        ) : (
-          <div className="text-sm text-slate-500">No trend data available</div>
-        )}
-      </div>
-    );
-  });
   const handleRefresh = () => {
     setRefreshing(true);
     // Simulate refresh
@@ -565,13 +919,191 @@ function DashboardContent({
   };
 
   const displayTotalForms = Array.isArray(forms) ? forms.length : 0;
+  const [deviceViewMode, setDeviceViewMode] = useState<'browser' | 'device'>('browser');
+  const activeDeviceBreakdown = deviceViewMode === 'browser' ? browserTop : deviceCategoryTop;
+  const totalCountrySamples = geoCountries.reduce((sum, entry) => sum + (entry.count || 0), 0);
+  const totalBrowserSamples = browserTop.reduce((sum, entry) => sum + (entry.count || 0), 0);
+  const totalDeviceSamples = deviceCategoryTop.reduce((sum, entry) => sum + (entry.count || 0), 0);
+  const totalOsSamples = osTop.reduce((sum, entry) => sum + (entry.count || 0), 0);
+  const activeDeviceTotal = deviceViewMode === 'browser' ? totalBrowserSamples : totalDeviceSamples;
+
+  const submissionSummary = useMemo(() => {
+    const points = Array.isArray(interactiveAnalytics) ? [...interactiveAnalytics] : [];
+    const sortedPoints = points.sort((a, b) => {
+      const left = new Date(a.date).getTime();
+      const right = new Date(b.date).getTime();
+      return left - right;
+    });
+    const topForm = Array.isArray(forms)
+      ? [...forms].sort((a, b) => (b?.submission_count || 0) - (a?.submission_count || 0))[0] || null
+      : null;
+
+    if (!sortedPoints.length) {
+      const fallbackCards = [
+        {
+          label: 'Total submissions',
+          value: (totalSubmissions || 0).toLocaleString(),
+          helper: 'All time volume',
+        },
+        {
+          label: 'Success rate',
+          value: `${(webhookSuccessRate || 100).toFixed(1)}%`,
+          helper: 'Webhook delivery health',
+        },
+        {
+          label: 'Error volume',
+          value: '—',
+          helper: 'Need traffic data',
+        },
+        {
+          label: 'Top form',
+          value: topForm?.name || 'Add a form',
+          helper: topForm ? `${(topForm.submission_count || 0).toLocaleString()} lifetime submissions` : 'No traffic yet',
+        },
+      ];
+
+      return {
+        hasData: false,
+        cards: fallbackCards,
+        insights: [
+          {
+            label: 'Momentum',
+            value: 'Awaiting data',
+            meta: 'Traffic analytics unlock after a handful of submissions.',
+          },
+        ],
+        reliability: {
+          score: clampNumber(webhookSuccessRate || 100, 0, 100),
+          label: 'Need data',
+          copy: 'Collect at least one day of submissions to benchmark delivery reliability.',
+        },
+        descriptor: 'Awaiting activity',
+      };
+    }
+
+    const overallSubmissions = sortedPoints.reduce((sum, point) => sum + (point.submissions || 0), 0);
+    const overallErrors = sortedPoints.reduce((sum, point) => sum + (point.errors || 0), 0);
+    const avgPerDay = sortedPoints.length ? overallSubmissions / sortedPoints.length : 0;
+    const windowStart = Math.max(sortedPoints.length - 7, 0);
+    const windowPrevStart = Math.max(sortedPoints.length - 14, 0);
+    const lastSeven = sortedPoints.slice(windowStart);
+    const prevSeven = sortedPoints.slice(windowPrevStart, windowStart);
+    const lastSevenTotal = lastSeven.reduce((sum, point) => sum + (point.submissions || 0), 0);
+    const prevSevenTotal = prevSeven.reduce((sum, point) => sum + (point.submissions || 0), 0);
+    const momentumPercent = prevSevenTotal > 0
+      ? ((lastSevenTotal - prevSevenTotal) / prevSevenTotal) * 100
+      : lastSevenTotal > 0
+        ? 100
+        : 0;
+    const descriptor = momentumPercent > 12 ? 'Surging' : momentumPercent < -12 ? 'Cooling' : 'Steady';
+    const latestPoint = sortedPoints[sortedPoints.length - 1];
+    const latestLabel = latestPoint
+      ? new Date(latestPoint.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+      : '—';
+    const bestDayPoint = sortedPoints.reduce(
+      (best, point) => ((point.submissions || 0) > (best.submissions || 0) ? point : best),
+      sortedPoints[0]
+    );
+    const quietDayPoint = sortedPoints.reduce(
+      (quiet, point) => ((point.submissions || Infinity) < (quiet.submissions || Infinity) ? point : quiet),
+      sortedPoints[0]
+    );
+    const bestDayLabel = bestDayPoint
+      ? new Date(bestDayPoint.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+      : '—';
+    const quietDayLabel = quietDayPoint
+      ? new Date(quietDayPoint.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+      : '—';
+    let errorFreeStreak = 0;
+    for (let i = sortedPoints.length - 1; i >= 0; i -= 1) {
+      const errors = sortedPoints[i].errors || 0;
+      if (errors === 0) {
+        errorFreeStreak += 1;
+      } else {
+        break;
+      }
+    }
+    const successRate = overallSubmissions > 0 ? (overallSubmissions - overallErrors) / overallSubmissions : 1;
+    const reliabilityScore = clampNumber(Math.round(successRate * 100 + momentumPercent / 4 - (overallErrors > 0 ? 5 : 0)), 0, 100);
+    const reliabilityLabel = reliabilityScore >= 85 ? 'Excellent health' : reliabilityScore >= 60 ? 'Stable' : 'Needs attention';
+    const reliabilityCopy = reliabilityScore >= 85
+      ? 'Payloads are landing consistently. Keep the cadence steady to maintain high trust.'
+      : reliabilityScore >= 60
+        ? 'Delivery mostly succeeds, but error volume warrants a periodic check-in.'
+        : 'Elevated failures detected. Inspect webhook endpoints and auth tokens.';
+    const projectedNext = Math.round((lastSeven.length ? lastSevenTotal / lastSeven.length : avgPerDay) * 7);
+
+    const cards = [
+      {
+        label: 'Last 7 days',
+        value: lastSevenTotal.toLocaleString(),
+        helper: `${momentumPercent >= 0 ? '+' : ''}${momentumPercent.toFixed(1)}% vs prior period`,
+      },
+      {
+        label: 'Average per day',
+        value: avgPerDay.toFixed(1),
+        helper: `${sortedPoints.length} day window`,
+      },
+      {
+        label: 'Error volume',
+        value: overallErrors.toLocaleString(),
+        helper: `${overallSubmissions ? ((overallErrors / overallSubmissions) * 100).toFixed(1) : '0.0'}% of traffic`,
+      },
+      {
+        label: 'Error-free streak',
+        value: errorFreeStreak ? `${errorFreeStreak} ${errorFreeStreak === 1 ? 'day' : 'days'}` : 'Interrupted',
+        helper: errorFreeStreak ? 'Since last error' : 'Recent errors detected',
+      },
+    ];
+
+    const insights = [
+      {
+        label: 'Latest day',
+        value: latestPoint ? `${(latestPoint.submissions || 0).toLocaleString()} submissions` : '—',
+        meta: latestLabel,
+      },
+      {
+        label: 'Peak day',
+        value: bestDayLabel,
+        meta: `${(bestDayPoint?.submissions || 0).toLocaleString()} submissions`,
+      },
+      {
+        label: 'Projected next 7 days',
+        value: projectedNext.toLocaleString(),
+        meta: 'Based on trailing average',
+      },
+      {
+        label: 'Top form',
+        value: topForm?.name || 'No forms yet',
+        meta: topForm ? `${(topForm.submission_count || 0).toLocaleString()} lifetime submissions` : 'Create a form to start collecting data',
+      },
+    ];
+
+    return {
+      hasData: true,
+      cards,
+      insights,
+      reliability: {
+        score: reliabilityScore,
+        label: reliabilityLabel,
+        copy: reliabilityCopy,
+      },
+      descriptor,
+    };
+  }, [interactiveAnalytics, totalSubmissions, webhookSuccessRate, forms]);
+
+  const reliabilityTone = submissionSummary.reliability.score >= 85
+    ? 'text-emerald-600'
+    : submissionSummary.reliability.score >= 60
+      ? 'text-amber-600'
+      : 'text-rose-600';
 
   return (
     <div className="bg-slate-50 dark:bg-slate-900">
       <DashboardNav />
       
       <div className="w-full">
-        <div className="space-y-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-[120px] md:pt-8 pb-8">
+        <div className="space-y-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-8">
 
         {/* Dashboard Summary Widget - Overview Stats Only */}
         <DashboardSummaryWidget
@@ -613,6 +1145,9 @@ function DashboardContent({
             } else if (sub.webhook_delivered === false || sub.error) {
               validStatus = 'failed';
             }
+
+            const userAgent = sub.user_agent || getSubmissionUserAgent(sub.raw);
+            const deviceType = sub.device_type || getSubmissionDeviceType(sub.raw, userAgent);
             
             return {
               id: sub.id,
@@ -626,7 +1161,9 @@ function DashboardContent({
                 hour12: true 
               }),
               status: validStatus,
-              submission_data: sub.data || sub.submission_data
+              submission_data: sub.data || sub.submission_data,
+              device_type: deviceType,
+              user_agent: userAgent,
             };
           })}
           loading={loading || recentLoading}
@@ -877,104 +1414,235 @@ function DashboardContent({
 
         {/* Professional Analytics Charts */}
         <div className="space-y-6">
-          {/* Replaced legacy charts with compact summary + geo/device/os cards */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <Card className="pro-card lg:col-span-1">
-              <CardHeader>
-                <div className="flex items-center justify-between">
+          {/* Traffic intel first, full width */}
+          <Card className="pro-card">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-xl font-semibold text-slate-900 dark:text-slate-100">Traffic Breakdown</CardTitle>
+                <CardDescription className="text-slate-600 dark:text-slate-400">Countries, devices, and operating systems</CardDescription>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
+                <span className="font-semibold text-slate-900 dark:text-slate-100">
+                  {ipInsightMeta.sampleSize > 0
+                    ? `${ipInsightMeta.sampleSize} unique IPs sampled`
+                    : geoCountries.length > 0
+                      ? 'Geo data via backend analytics'
+                      : 'Awaiting traffic signals'}
+                </span>
+                {ipInsightMeta.lastUpdated && (
+                  <span>Updated {new Date(ipInsightMeta.lastUpdated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                )}
+                {ipIntelLoading && (
+                  <span className="flex items-center gap-1 text-amber-600">
+                    <RefreshCcw className="h-3 w-3 animate-spin" />
+                    Refreshing
+                  </span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/40 p-4 flex flex-col">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Countries</p>
+                      <p className="text-sm text-slate-900 dark:text-slate-200">Last 25 visitors</p>
+                    </div>
+                    <span className="text-xs text-slate-500">Visitors</span>
+                  </div>
+                  <div className="space-y-3 flex-1 overflow-auto pr-1">
+                    {geoCountries && geoCountries.length > 0 ? (
+                      geoCountries.slice(0, 5).map((country) => {
+                        const base = totalCountrySamples > 0 ? totalCountrySamples : geoCountries.length || 1;
+                        const share = country.percent && country.percent > 0 ? country.percent : percentOf(country.count, base);
+                        return (
+                          <div key={country.name} className="flex items-start gap-3">
+                            <div className="text-xl">{countryFlagEmoji(country.code)}</div>
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between text-sm font-medium text-slate-900 dark:text-slate-100">
+                                <span>{country.name}</span>
+                                <span>{share.toFixed(0)}%</span>
+                              </div>
+                              <div className="mt-1 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800">
+                                <div className="h-full rounded-full bg-blue-500" style={{ width: `${Math.min(share, 100)}%` }}></div>
+                              </div>
+                              <p className="text-xs text-slate-500 mt-1">{country.count} visitors</p>
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <p className="text-sm text-slate-500">No country data available.</p>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between pt-3 mt-4 border-t border-slate-100 dark:border-slate-800">
+                    <Button variant="ghost" size="sm" className="gap-1 text-slate-600">
+                      View all
+                      <ArrowUpRight className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="text-slate-500">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/40 p-4 flex flex-col">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Devices</p>
+                      <p className="text-sm text-slate-900 dark:text-slate-200">Top platforms & browsers</p>
+                    </div>
+                    <span className="text-xs text-slate-500">Visitors</span>
+                  </div>
+                  <div className="inline-flex items-center rounded-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 p-1 text-xs font-medium mb-4">
+                    <button
+                      className={`px-3 py-1 rounded-full transition ${deviceViewMode === 'device' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 shadow' : 'text-slate-500'}`}
+                      onClick={() => setDeviceViewMode('device')}
+                    >
+                      Devices
+                    </button>
+                    <button
+                      className={`px-3 py-1 rounded-full transition ${deviceViewMode === 'browser' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 shadow' : 'text-slate-500'}`}
+                      onClick={() => setDeviceViewMode('browser')}
+                    >
+                      Browsers
+                    </button>
+                  </div>
+                  <div className="space-y-3 flex-1 overflow-auto pr-1">
+                    {activeDeviceBreakdown && activeDeviceBreakdown.length > 0 ? (
+                      activeDeviceBreakdown.slice(0, 5).map((entry) => {
+                        const share = percentOf(entry.count, Math.max(activeDeviceTotal, activeDeviceBreakdown.length));
+                        return (
+                          <div key={entry.name}>
+                            <div className="flex items-center justify-between text-sm font-medium text-slate-900 dark:text-slate-100">
+                              <span>{entry.name}</span>
+                              <span>{share.toFixed(0)}%</span>
+                            </div>
+                            <div className="mt-1 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800">
+                              <div className="h-full rounded-full bg-indigo-500" style={{ width: `${Math.min(share, 100)}%` }}></div>
+                            </div>
+                            <p className="text-xs text-slate-500 mt-1">{entry.count} sessions</p>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <p className="text-sm text-slate-500">No {deviceViewMode === 'browser' ? 'browser' : 'device'} data yet.</p>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between pt-3 mt-4 border-t border-slate-100 dark:border-slate-800">
+                    <Button variant="ghost" size="sm" className="gap-1 text-slate-600">
+                      View all
+                      <ArrowUpRight className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="text-slate-500">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/40 p-4 flex flex-col">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Operating systems</p>
+                      <p className="text-sm text-slate-900 dark:text-slate-200">User agent mix</p>
+                    </div>
+                    <span className="text-xs text-slate-500">Visitors</span>
+                  </div>
+                  <div className="space-y-3 flex-1 overflow-auto pr-1">
+                    {osTop && osTop.length > 0 ? (
+                      osTop.slice(0, 5).map((os) => {
+                        const share = percentOf(os.count, Math.max(totalOsSamples, osTop.length));
+                        return (
+                          <div key={os.name}>
+                            <div className="flex items-center justify-between text-sm font-medium text-slate-900 dark:text-slate-100">
+                              <span>{os.name}</span>
+                              <span>{share.toFixed(0)}%</span>
+                            </div>
+                            <div className="mt-1 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800">
+                              <div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.min(share, 100)}%` }}></div>
+                            </div>
+                            <p className="text-xs text-slate-500 mt-1">{os.count} sessions</p>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <p className="text-sm text-slate-500">No OS data available.</p>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between pt-3 mt-4 border-t border-slate-100 dark:border-slate-800">
+                    <Button variant="ghost" size="sm" className="gap-1 text-slate-600">
+                      View all
+                      <ArrowUpRight className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="text-slate-500">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Submissions summary now full width beneath traffic */}
+          <Card className="pro-card">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
                   <CardTitle className="text-xl font-semibold text-slate-900 dark:text-slate-100">Submissions Summary</CardTitle>
-                  <CardDescription className="text-slate-600 dark:text-slate-400">Overview of submissions and errors (no bar charts)</CardDescription>
+                  <CardDescription className="text-slate-600 dark:text-slate-400">Momentum, delivery health, and projected throughput</CardDescription>
                 </div>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
-                    <p className="text-sm text-slate-500">Total Submissions</p>
-                    <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{(totalSubmissions || 0).toLocaleString()}</p>
+                <Badge variant="outline" className="text-xs uppercase tracking-wide border-transparent text-slate-500">
+                  {submissionSummary.descriptor}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                {submissionSummary.cards.map((card) => (
+                  <div key={card.label} className="p-4 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/40">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{card.label}</p>
+                    <p className="mt-2 text-2xl font-bold text-slate-900 dark:text-white">{card.value}</p>
+                    <p className="text-xs text-slate-500 mt-1">{card.helper}</p>
                   </div>
-                  <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
-                    <p className="text-sm text-slate-500">Errors / Failed Webhooks</p>
-                    <p className="text-2xl font-bold text-rose-600">{Math.round(((100 - (webhookSuccessRate || 100)) / 100) * (totalSubmissions || 0)) || 0}</p>
-                  </div>
-                  <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
-                    <p className="text-sm text-slate-500">Webhook Success Rate</p>
-                    <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{(webhookSuccessRate || 100).toFixed(1)}%</p>
-                  </div>
-                </div>
-                <div className="mt-4 text-sm text-slate-600 dark:text-slate-400">
-                  <p>We use webhook delivery stats to infer errors when explicit submission error markers are not available. If you need a different interpretation, open the form Submissions page for more detail.</p>
-                </div>
-                {/* Chart: submissions vs errors over time (area chart) */}
-                <SubmissionsSummaryChart data={interactiveAnalytics} />
-              </CardContent>
-            </Card>
-            <Card className="pro-card lg:col-span-2">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-xl font-semibold text-slate-900 dark:text-slate-100">Traffic Breakdown</CardTitle>
-                  <CardDescription className="text-slate-600 dark:text-slate-400">Countries, Devices & Operating Systems</CardDescription>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="p-4 border rounded-md">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="text-sm font-medium">Countries</h4>
-                      <span className="text-xs text-slate-500">Visitors</span>
-                    </div>
-                    {/* Countries list */}
-                    <div className="space-y-2 h-40 overflow-auto">
-                      {geoCountries && geoCountries.length > 0 ? geoCountries.map((c: any) => (
-                        <div key={c.name} className="flex items-center justify-between">
-                          <div className="text-sm text-slate-700 dark:text-slate-200">{c.name}</div>
-                          <div className="text-sm text-slate-500">{c.count}</div>
-                        </div>
-                      )) : (
-                        <div className="text-sm text-slate-500">No country data available</div>
-                      )}
-                    </div>
-                  </div>
+                ))}
+              </div>
 
-                  <div className="p-4 border rounded-md">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="text-sm font-medium">Devices</h4>
-                      <div className="flex items-center gap-2">
-                        <button className="text-xs text-slate-500">Browsers</button>
-                        <button className="text-xs text-slate-500">Platforms</button>
-                      </div>
-                    </div>
-                    <div className="space-y-2 h-40 overflow-auto">
-                      {deviceTop && deviceTop.length > 0 ? deviceTop.map((d: any) => (
-                        <div key={d.name} className="flex items-center justify-between">
-                          <div className="text-sm text-slate-700 dark:text-slate-200">{d.name}</div>
-                          <div className="text-sm text-slate-500">{d.count}</div>
-                        </div>
-                      )) : (
-                        <div className="text-sm text-slate-500">No device/browser data available</div>
-                      )}
-                    </div>
-                  </div>
+              {!submissionSummary.hasData && (
+                <div className="rounded-lg border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40 p-4 text-sm text-slate-600 dark:text-slate-300">
+                  We need a few days of submissions to unlock velocity, projections, and reliability scoring. Ship a test form to see live analytics populate here.
+                </div>
+              )}
 
-                  <div className="p-4 border rounded-md">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="text-sm font-medium">Operating Systems</h4>
-                      <span className="text-xs text-slate-500">Visitors</span>
-                    </div>
-                    <div className="space-y-2 h-40 overflow-auto">
-                      {osTop && osTop.length > 0 ? osTop.map((o: any) => (
-                        <div key={o.name} className="flex items-center justify-between">
-                          <div className="text-sm text-slate-700 dark:text-slate-200">{o.name}</div>
-                          <div className="text-sm text-slate-500">{o.count}</div>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2">
+                  <SubmissionsSummaryChart data={interactiveAnalytics} />
+                </div>
+                <div className="space-y-4">
+                  <div className="p-4 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/40">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Delivery health</p>
+                    <p className={`mt-2 text-4xl font-bold ${reliabilityTone}`}>
+                      {submissionSummary.reliability.score}
+                    </p>
+                    <p className="text-sm font-semibold text-slate-900 dark:text-slate-200">{submissionSummary.reliability.label}</p>
+                    <p className="text-xs text-slate-500 mt-2 leading-relaxed">{submissionSummary.reliability.copy}</p>
+                  </div>
+                  <div className="p-4 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/40">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-3">Insight stream</p>
+                    <div className="space-y-3">
+                      {submissionSummary.insights.map((insight) => (
+                        <div key={insight.label} className="border-b border-slate-100 dark:border-slate-800 pb-2 last:pb-0 last:border-none">
+                          <p className="text-[11px] uppercase tracking-wider text-slate-500">{insight.label}</p>
+                          <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{insight.value}</p>
+                          <p className="text-xs text-slate-500">{insight.meta}</p>
                         </div>
-                      )) : (
-                        <div className="text-sm text-slate-500">No OS data available</div>
-                      )}
+                      ))}
                     </div>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Simple Footer */}
@@ -1013,9 +1681,12 @@ function DashboardPageImpl() {
   const [interactiveAnalytics, setInteractiveAnalytics] = useState<Array<{ date: string; submissions: number; errors: number; }>>([]);
   const [analyticsRange, setAnalyticsRange] = useState('7d');
   const [recentLoading, setRecentLoading] = useState(false);
-  const [geoCountries, setGeoCountries] = useState<any[]>([]);
-  const [deviceTop, setDeviceTop] = useState<any[]>([]);
-  const [osTop, setOsTop] = useState<any[]>([]);
+  const [geoCountries, setGeoCountries] = useState<BreakdownEntry[]>([]);
+  const [browserTop, setBrowserTop] = useState<Array<{ name: string; count: number }>>([]);
+  const [deviceCategoryTop, setDeviceCategoryTop] = useState<Array<{ name: string; count: number }>>([]);
+  const [osTop, setOsTop] = useState<Array<{ name: string; count: number }>>([]);
+  const [ipInsightMeta, setIpInsightMeta] = useState<{ sampleSize: number; lastUpdated: string }>({ sampleSize: 0, lastUpdated: '' });
+  const [ipIntelLoading, setIpIntelLoading] = useState(false);
   // Add states for previous period data to calculate trends
   const [previousPeriodForms, setPreviousPeriodForms] = useState(0);
   const [previousPeriodSubmissions, setPreviousPeriodSubmissions] = useState(0);
@@ -1095,8 +1766,8 @@ function DashboardPageImpl() {
         setRecentLoading(true);
 
         debug.log('[Dashboard] Fetching dashboard data (debounced)...');
-        const recentActivitiesDays = 7;
-        const summaryRes = await getDashboardSummary(recentActivitiesDays);
+        const trendDaysToFetch = trendRangeDayMap[trendRange] || 7;
+        const summaryRes = await getDashboardSummary(trendDaysToFetch);
 
         // If component unmounted, stop
         if (!isMountedRef.current) return;
@@ -1107,15 +1778,12 @@ function DashboardPageImpl() {
         setTotalForms(summaryRes.total_forms || (Array.isArray(forms) ? forms.length : 0));
         setTotalSubmissions(summaryRes.total_submissions || 0);
         // Capture subscription/billing info if backend includes it in the dashboard summary
-        if (summaryRes.subscription) {
-          setSubscriptionInfo(summaryRes.subscription);
-        } else if (summaryRes.billing) {
-          setSubscriptionInfo(summaryRes.billing);
-        } else if (summaryRes.account && summaryRes.account.subscription) {
-          setSubscriptionInfo(summaryRes.account.subscription);
-        } else {
-          setSubscriptionInfo(null);
-        }
+        const summarySubscription =
+          normalizeSubscriptionInfo(summaryRes.subscription) ||
+          normalizeSubscriptionInfo(summaryRes.billing) ||
+          normalizeSubscriptionInfo(summaryRes.account?.subscription);
+
+        setSubscriptionInfo(summarySubscription);
 
         // Prefer fetching the canonical subscription endpoint when available.
         // In local development, avoid hitting the backend subscription endpoints
@@ -1137,11 +1805,11 @@ function DashboardPageImpl() {
           if (shouldCallSubscriptionEndpoints) {
             const currentSub = await getCurrentSubscription();
             if (currentSub) {
-              setSubscriptionInfo(currentSub);
+              setSubscriptionInfo(normalizeSubscriptionInfo(currentSub));
             } else {
               // fallback: try usage endpoint for richer usage_info
               const usage = await getSubscriptionUsage({ days: 30 });
-              if (usage) setSubscriptionInfo(usage);
+              if (usage) setSubscriptionInfo(normalizeSubscriptionInfo(usage));
             }
           } else {
             console.warn('[Dashboard] Skipping subscription endpoints due to cross-origin API in development; using summary fallback.');
@@ -1156,6 +1824,8 @@ function DashboardPageImpl() {
             .map((r: any) => {
               const formName = r.form_name ?? r.form?.name ?? r.form_title ?? r.formName ?? null;
               const dateValue = r.date ?? r.created_at ?? r.timestamp ?? r.createdAt ?? r.submitted_at ?? null;
+              const uaValue = getSubmissionUserAgent(r);
+              const deviceKind = getSubmissionDeviceType(r, uaValue);
               return {
                 id: r.id ?? r._id ?? r.uuid ?? `sub-${Date.now()}-${Math.random()}`,
                 form_name: formName,
@@ -1164,6 +1834,8 @@ function DashboardPageImpl() {
                 date: dateValue,
                 status: r.status ?? (r.webhook_delivered === false ? 'failed' : 'success'),
                 data: r.data ?? r.submission_data ?? {},
+                device_type: deviceKind,
+                user_agent: uaValue,
                 raw: r,
                 _hasValidFormName: !!formName,
                 _hasValidDate: !!dateValue && !isNaN(new Date(dateValue).getTime())
@@ -1184,8 +1856,11 @@ function DashboardPageImpl() {
         }
 
         if (summaryRes.trend && Array.isArray(summaryRes.trend)) {
-          const tdata = summaryRes.trend.map((item: any) => ({ date: item.date, count: item.submissions ?? item.count ?? 0 }));
-          setTrendData(tdata);
+          const rawTrend = summaryRes.trend.map((item: any) => ({
+            date: item.date,
+            count: item.submissions ?? item.count ?? 0,
+          }));
+          setTrendData(clampSeriesToTrendRange(rawTrend, trendRange));
 
           const trendAnalytics = summaryRes.trend.map((item: any) => ({
             date: item.date,
@@ -1194,10 +1869,16 @@ function DashboardPageImpl() {
             label1: 'Submissions',
             label2: 'Errors',
             color1: '#3B82F6',
-            color2: '#ef4444'
+            color2: '#ef4444',
           }));
-          setAnalytics(trendAnalytics);
-          setInteractiveAnalytics(summaryRes.trend.map((item: any) => ({ date: item.date, submissions: (item.submissions ?? item.count) || 0, errors: (item.failed_webhooks ?? item.failed ?? item.errors ?? 0) || 0 })));
+          setAnalytics(clampSeriesToTrendRange(trendAnalytics, trendRange));
+
+          const interactiveSeries = summaryRes.trend.map((item: any) => ({
+            date: item.date,
+            submissions: (item.submissions ?? item.count) || 0,
+            errors: (item.failed_webhooks ?? item.failed ?? item.errors ?? 0) || 0,
+          }));
+          setInteractiveAnalytics(clampSeriesToTrendRange(interactiveSeries, trendRange));
         } else {
           setTrendData([]);
           setAnalytics([]);
@@ -1210,68 +1891,78 @@ function DashboardPageImpl() {
             const firstFormId = Array.isArray(forms) && forms.length > 0 ? forms[0].id : null;
             if (!firstFormId) {
               setGeoCountries([]);
-              setDeviceTop([]);
+              setBrowserTop([]);
+              setDeviceCategoryTop([]);
               setOsTop([]);
-            } else {
-              // Geo
-                try {
-                const geo = await getFormGeoAnalytics(firstFormId);
-                // Normalise possible backend shapes
-                const countriesSrc = geo?.country_stats || geo?.countries || [];
-                const countries = Array.isArray(countriesSrc) ? countriesSrc.map((c: any) => ({ name: c.name || c.country || c.key, count: c.count || c.value || 0 })) : [];
-                setGeoCountries(countries.slice(0, 20));
-              } catch (e) {
-                setGeoCountries([]);
-              }
+              setIpInsightMeta({ sampleSize: 0, lastUpdated: '' });
+              setIpIntelLoading(false);
+              return;
+            }
 
-              // Devices / OS from recent submissions
-              try {
-                const subs = await getSubmissions(firstFormId, { limit: 200 });
-                const uaList = Array.isArray(subs) ? subs : (subs && subs.submissions ? subs.submissions : []);
-                const browserCounts: Record<string, number> = {};
-                const osCounts: Record<string, number> = {};
+            try {
+              const geo = await getFormGeoAnalytics(firstFormId);
+              const countriesSrc = geo?.country_stats || geo?.countries || [];
+              const countries = Array.isArray(countriesSrc)
+                ? countriesSrc.map((c: any) => ({ name: c.name || c.country || c.key, count: c.count || c.value || 0, percent: 0 }))
+                : [];
+              setGeoCountries(countries.slice(0, 20));
+            } catch (e) {
+              setGeoCountries([]);
+            }
 
-                const detectBrowser = (ua: string) => {
-                  if (!ua) return 'Unknown';
-                  const l = ua.toLowerCase();
-                  if (l.includes('chrome') && !l.includes('edg') && !l.includes('opr')) return 'Chrome';
-                  if (l.includes('firefox')) return 'Firefox';
-                  if (l.includes('safari') && !l.includes('chrome')) return 'Safari';
-                  if (l.includes('edg') || l.includes('edge')) return 'Edge';
-                  if (l.includes('opr') || l.includes('opera')) return 'Opera';
-                  if (l.includes('mobile') || l.includes('iphone') || l.includes('android')) return 'Mobile';
-                  return 'Other';
-                };
+            try {
+              const subs = await getSubmissions(firstFormId, { limit: 200 });
+              const submissionList: SubmissionRecord[] = Array.isArray(subs)
+                ? subs
+                : (subs && subs.submissions ? subs.submissions : []);
+              const browserCounts: Record<string, number> = {};
+              const osCounts: Record<string, number> = {};
+              const deviceClassCounts: Record<string, number> = {};
 
-                const detectOS = (ua: string) => {
-                  if (!ua) return 'Unknown';
-                  const l = ua.toLowerCase();
-                  if (l.includes('windows')) return 'Windows';
-                  if (l.includes('mac os') || l.includes('macintosh') || l.includes('macos')) return 'macOS';
-                  if (l.includes('android')) return 'Android';
-                  if (l.includes('iphone') || l.includes('ipad') || l.includes('ios')) return 'iOS';
-                  if (l.includes('linux')) return 'Linux';
-                  return 'Other';
-                };
+              for (const submission of submissionList) {
+                const ua = getSubmissionUserAgent(submission);
+                const deviceLabel = getSubmissionDeviceType(submission, ua);
+                deviceClassCounts[deviceLabel] = (deviceClassCounts[deviceLabel] || 0) + 1;
 
-                for (const s of uaList) {
-                  const ua = s.user_agent || s.userAgent || s.metadata?.userAgent || s.data?.user_agent || s.headers?.['user-agent'] || s.raw?.userAgent || '';
-                  if (!ua) continue;
-                  const b = detectBrowser(ua);
-                  const o = detectOS(ua);
-                  browserCounts[b] = (browserCounts[b] || 0) + 1;
-                  osCounts[o] = (osCounts[o] || 0) + 1;
+                if (ua) {
+                  const browserLabel = detectBrowserFromUserAgent(ua);
+                  const osLabel = detectOsFromUserAgent(ua);
+                  browserCounts[browserLabel] = (browserCounts[browserLabel] || 0) + 1;
+                  osCounts[osLabel] = (osCounts[osLabel] || 0) + 1;
                 }
-
-                const browserArr = Object.keys(browserCounts).map(k => ({ name: k, count: browserCounts[k] })).sort((a, b) => b.count - a.count);
-                const osArr = Object.keys(osCounts).map(k => ({ name: k, count: osCounts[k] })).sort((a, b) => b.count - a.count);
-
-                setDeviceTop(browserArr.slice(0, 10));
-                setOsTop(osArr.slice(0, 10));
-              } catch (e) {
-                setDeviceTop([]);
-                setOsTop([]);
               }
+
+              const browserArr = Object.keys(browserCounts)
+                .map((k) => ({ name: k, count: browserCounts[k] }))
+                .sort((a, b) => b.count - a.count);
+              const osArr = Object.keys(osCounts)
+                .map((k) => ({ name: k, count: osCounts[k] }))
+                .sort((a, b) => b.count - a.count);
+              const deviceArr = Object.keys(deviceClassCounts)
+                .map((k) => ({ name: k, count: deviceClassCounts[k] }))
+                .sort((a, b) => b.count - a.count);
+
+              setBrowserTop(browserArr.slice(0, 10));
+              setDeviceCategoryTop(deviceArr.slice(0, 6));
+              setOsTop(osArr.slice(0, 10));
+
+              try {
+                setIpIntelLoading(true);
+                const ipBreakdown = await buildIpBreakdownFromSubmissions(submissionList);
+                if (ipBreakdown.countries.length) {
+                  setGeoCountries(ipBreakdown.countries);
+                }
+                setIpInsightMeta({ sampleSize: ipBreakdown.sampleSize, lastUpdated: new Date().toISOString() });
+              } catch (ipError) {
+              } finally {
+                setIpIntelLoading(false);
+              }
+            } catch (e) {
+              setBrowserTop([]);
+              setDeviceCategoryTop([]);
+              setOsTop([]);
+              setIpInsightMeta({ sampleSize: 0, lastUpdated: '' });
+              setIpIntelLoading(false);
             }
           } catch (e) {
             // ignore
@@ -1300,6 +1991,7 @@ function DashboardPageImpl() {
 
       } catch (err) {
         debug.error('[Dashboard] Error fetching dashboard data:', err);
+        showApiError(err, { fallbackTitle: 'Dashboard Load Failed' });
       } finally {
         if (isMountedRef.current) setRecentLoading(false);
       }
@@ -1369,8 +2061,11 @@ function DashboardPageImpl() {
             previousPeriodForms={previousPeriodForms}
             previousPeriodSubmissions={previousPeriodSubmissions}
             geoCountries={geoCountries}
-            deviceTop={deviceTop}
+            browserTop={browserTop}
+            deviceCategoryTop={deviceCategoryTop}
             osTop={osTop}
+            ipInsightMeta={ipInsightMeta}
+            ipIntelLoading={ipIntelLoading}
             subscriptionInfo={subscriptionInfo}
           />
         )}

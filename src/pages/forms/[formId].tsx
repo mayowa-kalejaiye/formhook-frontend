@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/router';
+import dynamic from 'next/dynamic';
 import DashboardNav from '../../components/DashboardNav';
 import BottomGradientRadial from '../../components/BottomGradientRadial';
 import AuthLayout from '../../components/AuthLayout';
@@ -54,6 +55,116 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import SEO from '../../components/SEO';
+
+const DynamicResponsiveContainer = dynamic(() => import('recharts').then(mod => mod.ResponsiveContainer), { ssr: false });
+const DynamicAreaChart = dynamic(() => import('recharts').then(mod => mod.AreaChart), { ssr: false });
+const DynamicArea = dynamic(() => import('recharts').then(mod => mod.Area), { ssr: false });
+const DynamicCartesianGrid = dynamic(() => import('recharts').then(mod => mod.CartesianGrid), { ssr: false });
+const DynamicXAxis = dynamic(() => import('recharts').then(mod => mod.XAxis), { ssr: false });
+const DynamicYAxis = dynamic(() => import('recharts').then(mod => mod.YAxis), { ssr: false });
+const DynamicTooltip = dynamic(() => import('recharts').then(mod => mod.Tooltip), { ssr: false });
+
+type NormalizedAnalyticsPoint = {
+  iso: string;
+  dateLabel: string;
+  submissions: number;
+  errors: number;
+};
+
+const formatDateLabel = (iso: string) => {
+  if (!iso) return '';
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+};
+
+const groupSubmissionsByDay = (entries: any[] = []) => {
+  const counts = new Map<string, number>();
+  entries.forEach((entry) => {
+    const raw = entry?.submitted_at || entry?.created_at || entry?.date || entry?.timestamp;
+    const date = raw ? new Date(raw) : new Date();
+    if (Number.isNaN(date.getTime())) return;
+    const key = date.toISOString().split('T')[0];
+    counts.set(key, (counts.get(key) || 0) + 1);
+  });
+  return Array.from(counts.entries()).map(([date, count]) => ({ date, count }));
+};
+
+const normalizeAnalyticsSeries = (
+  analyticsData: any,
+  fallbackSubmissions: any[] = []
+): NormalizedAnalyticsPoint[] => {
+  const candidateSeries =
+    analyticsData?.time_series ||
+    analyticsData?.daily_data ||
+    analyticsData?.dailyData ||
+    analyticsData?.data ||
+    analyticsData?.daily_stats ||
+    [];
+
+  let normalized: NormalizedAnalyticsPoint[] = Array.isArray(candidateSeries)
+    ? candidateSeries
+        .map((entry) => {
+          const rawDate = entry?.date || entry?.day || entry?.timestamp || entry?.label;
+          if (!rawDate) return null;
+          const parsed = new Date(rawDate);
+          if (Number.isNaN(parsed.getTime())) return null;
+          const iso = parsed.toISOString();
+          return {
+            iso,
+            dateLabel: formatDateLabel(iso),
+            submissions: Number(entry?.count ?? entry?.submissions ?? entry?.value ?? entry?.total ?? 0),
+            errors: Number(entry?.errors ?? entry?.failed ?? entry?.failures ?? 0),
+          };
+        })
+        .filter(Boolean) as NormalizedAnalyticsPoint[]
+    : [];
+
+  if (!normalized.length && fallbackSubmissions?.length) {
+    const grouped = groupSubmissionsByDay(fallbackSubmissions);
+    normalized = grouped.map(({ date, count }) => {
+      const iso = new Date(date).toISOString();
+      return {
+        iso,
+        dateLabel: formatDateLabel(iso),
+        submissions: count,
+        errors: 0,
+      };
+    });
+  }
+
+  return normalized.sort((a, b) => new Date(a.iso).getTime() - new Date(b.iso).getTime());
+};
+
+const deriveStatusBreakdown = (analyticsData: any, fallbackSubmissions: any[] = []) => {
+  const raw = analyticsData?.status_breakdown || analyticsData?.statusBreakdown;
+  const breakdown = {
+    success: 0,
+    failed: 0,
+    pending: 0,
+    spam: 0,
+  };
+
+  if (raw && typeof raw === 'object') {
+    breakdown.success = raw.success ?? raw.delivered ?? raw.completed ?? 0;
+    breakdown.failed = raw.failed ?? raw.errors ?? raw.error ?? raw.bounced ?? 0;
+    breakdown.pending = raw.pending ?? raw.in_progress ?? raw.queued ?? 0;
+    breakdown.spam = raw.spam ?? raw.filtered ?? 0;
+    return breakdown;
+  }
+
+  fallbackSubmissions?.forEach((submission) => {
+    const status = (submission?.status || submission?.delivery_status || 'success').toString().toLowerCase();
+    if (status.includes('fail') || status.includes('error')) breakdown.failed += 1;
+    else if (status.includes('pending')) breakdown.pending += 1;
+    else if (status.includes('spam')) breakdown.spam += 1;
+    else breakdown.success += 1;
+  });
+
+  return breakdown;
+};
+
+const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
 export default function FormSettingsPage() {
   const router = useRouter();
@@ -188,6 +299,229 @@ export default function FormSettingsPage() {
       message: 'Generated from submission data'
     };
   };
+
+  const analyticsSeries = useMemo(() => normalizeAnalyticsSeries(analytics, submissions), [analytics, submissions]);
+
+  const statusBreakdown = useMemo(() => deriveStatusBreakdown(analytics, submissions), [analytics, submissions]);
+
+  const statusBreakdownTotal = useMemo(
+    () => Object.values(statusBreakdown).reduce((sum, value) => sum + (value || 0), 0),
+    [statusBreakdown]
+  );
+
+  const totalAnalyticsSubmissions = useMemo(() => {
+    const fromAnalytics =
+      analytics?.total_submissions ??
+      analytics?.totalSubmissions ??
+      analytics?.submission_count ??
+      null;
+    if (typeof fromAnalytics === 'number' && fromAnalytics > 0) return fromAnalytics;
+    if (statusBreakdownTotal > 0) return statusBreakdownTotal;
+    const fromSeries = analyticsSeries.reduce((sum, point) => sum + (point.submissions || 0), 0);
+    if (fromSeries > 0) return fromSeries;
+    return submissions.length;
+  }, [analytics, statusBreakdownTotal, analyticsSeries, submissions.length]);
+
+  const computedSuccessRate = useMemo(() => {
+    if (statusBreakdownTotal > 0) {
+      return clamp((statusBreakdown.success || 0) / statusBreakdownTotal, 0, 1);
+    }
+    const candidateRate = analytics?.success_rate ?? analytics?.successRate;
+    if (typeof candidateRate === 'number' && !Number.isNaN(candidateRate)) {
+      return clamp(candidateRate, 0, 1);
+    }
+    if (totalAnalyticsSubmissions > 0) {
+      return clamp(
+        (totalAnalyticsSubmissions - (statusBreakdown.failed || 0)) / totalAnalyticsSubmissions,
+        0,
+        1
+      );
+    }
+    return 1;
+  }, [statusBreakdown, statusBreakdownTotal, analytics, totalAnalyticsSubmissions]);
+
+  const failureCount = useMemo(() => {
+    const failed = statusBreakdown.failed || 0;
+    if (failed > 0) return failed;
+    const estimatedFailures = Math.round((1 - computedSuccessRate) * totalAnalyticsSubmissions);
+    return Math.max(estimatedFailures, 0);
+  }, [statusBreakdown, computedSuccessRate, totalAnalyticsSubmissions]);
+
+  const avgDailySubmissions = useMemo(() => {
+    if (!analyticsSeries.length) return totalAnalyticsSubmissions;
+    return totalAnalyticsSubmissions / analyticsSeries.length || 0;
+  }, [analyticsSeries, totalAnalyticsSubmissions]);
+
+  const chartData = useMemo(
+    () =>
+      analyticsSeries.map((point) => ({
+        date: point.dateLabel,
+        submissions: point.submissions,
+        errors: point.errors,
+      })),
+    [analyticsSeries]
+  );
+
+  const analyticsInsights = useMemo(() => {
+    if (!analyticsSeries.length) {
+      return {
+        lastSevenTotal: 0,
+        prevSevenTotal: 0,
+        momentumPercent: 0,
+        descriptor: 'Awaiting data',
+        tone: 'text-slate-500',
+        bestDayLabel: '—',
+        bestDayValue: 0,
+        quietDayLabel: '—',
+        quietDayValue: 0,
+        predictedNextSeven: Math.round(avgDailySubmissions * 7) || 0,
+        latestLabel: '—',
+        latestVolume: 0,
+      };
+    }
+
+    const lastSeven = analyticsSeries.slice(-7);
+    const prevSeven = analyticsSeries.slice(
+      Math.max(analyticsSeries.length - 14, 0),
+      Math.max(analyticsSeries.length - 7, 0)
+    );
+    const lastSevenTotal = lastSeven.reduce((sum, point) => sum + point.submissions, 0);
+    const prevSevenTotal = prevSeven.reduce((sum, point) => sum + point.submissions, 0);
+    const momentumPercent = prevSevenTotal > 0
+      ? ((lastSevenTotal - prevSevenTotal) / prevSevenTotal) * 100
+      : lastSevenTotal > 0
+        ? 100
+        : 0;
+    const descriptor = momentumPercent > 8 ? 'Trending up' : momentumPercent < -8 ? 'Cooling off' : 'Holding steady';
+    const tone = momentumPercent >= 0 ? 'text-emerald-600' : 'text-rose-600';
+    const bestDayPoint = analyticsSeries.reduce(
+      (best, point) => (point.submissions > best.submissions ? point : best),
+      analyticsSeries[0]
+    );
+    const quietDayPoint = analyticsSeries.reduce(
+      (worst, point) => (point.submissions < worst.submissions ? point : worst),
+      analyticsSeries[0]
+    );
+    const bestDayLabel = bestDayPoint
+      ? new Date(bestDayPoint.iso).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+      : '—';
+    const quietDayLabel = quietDayPoint
+      ? new Date(quietDayPoint.iso).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+      : '—';
+    const latestPoint = analyticsSeries[analyticsSeries.length - 1];
+    const latestLabel = latestPoint
+      ? new Date(latestPoint.iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      : '—';
+    const latestVolume = latestPoint?.submissions ?? 0;
+
+    return {
+      lastSevenTotal,
+      prevSevenTotal,
+      momentumPercent,
+      descriptor,
+      tone,
+      bestDayLabel,
+      bestDayValue: bestDayPoint?.submissions ?? 0,
+      quietDayLabel,
+      quietDayValue: quietDayPoint?.submissions ?? 0,
+      predictedNextSeven: Math.round(avgDailySubmissions * 7) || 0,
+      latestLabel,
+      latestVolume,
+    };
+  }, [analyticsSeries, avgDailySubmissions]);
+
+  const reliabilityScore = useMemo(() => {
+    const failureRatio = totalAnalyticsSubmissions > 0 ? failureCount / totalAnalyticsSubmissions : 0;
+    const baseScore = (computedSuccessRate || 0) * 100 - failureRatio * 25 + analyticsInsights.momentumPercent / 5;
+    return clamp(Math.round(baseScore), 0, 100);
+  }, [computedSuccessRate, failureCount, totalAnalyticsSubmissions, analyticsInsights.momentumPercent]);
+
+  const reliabilityLabel = reliabilityScore >= 85 ? 'Excellent health' : reliabilityScore >= 60 ? 'Stable but monitor' : 'Needs attention';
+  const reliabilityCopy = reliabilityScore >= 85
+    ? 'Payloads are landing reliably with minimal retries.'
+    : reliabilityScore >= 60
+      ? 'Most submissions succeed, but keep an eye on recent errors.'
+      : 'Elevated failures detected. Recheck webhook endpoints and auth tokens.';
+
+  const statusColors: Record<string, string> = {
+    success: 'bg-emerald-500',
+    delivered: 'bg-emerald-500',
+    pending: 'bg-amber-500',
+    queued: 'bg-blue-500',
+    deferred: 'bg-indigo-500',
+    failed: 'bg-rose-500',
+    bounced: 'bg-rose-500',
+    rejected: 'bg-red-500',
+    spam: 'bg-slate-500',
+  };
+
+  const statusLabels: Record<string, string> = {
+    success: 'Delivered',
+    delivered: 'Delivered',
+    failed: 'Failed',
+    bounced: 'Bounced',
+    rejected: 'Rejected',
+    pending: 'Pending',
+    queued: 'Queued',
+    deferred: 'Deferred',
+    spam: 'Filtered',
+  };
+
+  const statusBreakdownEntries = useMemo(
+    () =>
+      Object.entries(statusBreakdown)
+        .filter(([, value]) => (value || 0) > 0)
+        .sort((a, b) => (b[1] || 0) - (a[1] || 0)),
+    [statusBreakdown]
+  );
+
+  const fallbackNotice = Boolean(analytics?.fallback);
+
+  const insightRows = [
+    {
+      label: 'Peak activity',
+      value: analyticsInsights.bestDayLabel,
+      meta: analyticsInsights.bestDayValue ? `${analyticsInsights.bestDayValue} submissions` : 'Awaiting data',
+    },
+    {
+      label: 'Quietest day',
+      value: analyticsInsights.quietDayLabel,
+      meta: analyticsInsights.quietDayValue ? `${analyticsInsights.quietDayValue} submissions` : 'Awaiting data',
+    },
+    {
+      label: 'Next 7-day forecast',
+      value: analyticsInsights.predictedNextSeven ? `${analyticsInsights.predictedNextSeven.toLocaleString()} submissions` : '—',
+      meta: 'Projection based on current average',
+    },
+    {
+      label: 'Latest daily volume',
+      value: analyticsInsights.latestLabel,
+      meta: analyticsInsights.latestVolume ? `${analyticsInsights.latestVolume} submissions` : 'Awaiting data',
+    },
+  ];
+
+  const statHighlights = [
+    {
+      label: 'Total submissions',
+      value: totalAnalyticsSubmissions.toLocaleString(),
+      helper: analyticsSeries.length ? `Across ${analyticsSeries.length} days` : 'All time total',
+    },
+    {
+      label: 'Success rate',
+      value: `${(computedSuccessRate * 100).toFixed(1)}%`,
+      helper: `${(statusBreakdown.success || 0).toLocaleString()} delivered`,
+    },
+    {
+      label: 'Failures',
+      value: failureCount.toLocaleString(),
+      helper: 'Errors and retries',
+    },
+    {
+      label: 'Average / day',
+      value: avgDailySubmissions ? avgDailySubmissions.toFixed(1) : '0',
+      helper: chartData.length ? `Mean across ${chartData.length} days` : 'Awaiting data',
+    },
+  ];
 
   // Load submissions with pagination
   const loadSubmissions = async (page = 0) => {
@@ -471,7 +805,7 @@ export default function FormSettingsPage() {
           <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-8 pt-8 pb-4">
 
             {/* Header */}
-            <div className="flex items-center gap-4 mb-8">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-8">
               <Link href="/forms" className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
                 <ArrowLeft className="h-6 w-6 text-gray-600 dark:text-gray-400" />
               </Link>
@@ -489,24 +823,24 @@ export default function FormSettingsPage() {
             </div>
 
             <Tabs defaultValue="overview" className="w-full">
-              <TabsList className="mb-6 bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm border border-gray-200/50 dark:border-gray-700/50">
-                <TabsTrigger value="overview" className="flex items-center gap-2">
+              <TabsList className="mb-6 bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm border border-gray-200/50 dark:border-gray-700/50 flex flex-wrap gap-2 w-full">
+                <TabsTrigger value="overview" className="flex items-center gap-2 flex-shrink-0">
                   <Eye className="h-4 w-4" />
                   Overview
                 </TabsTrigger>
-                <TabsTrigger value="analytics" className="flex items-center gap-2" onClick={loadAnalytics}>
+                <TabsTrigger value="analytics" className="flex items-center gap-2 flex-shrink-0" onClick={loadAnalytics}>
                   <BarChart3 className="h-4 w-4" />
                   Analytics
                 </TabsTrigger>
-                <TabsTrigger value="webhooks" className="flex items-center gap-2">
+                <TabsTrigger value="webhooks" className="flex items-center gap-2 flex-shrink-0">
                   <Webhook className="h-4 w-4" />
                   Webhooks
                 </TabsTrigger>
-                <TabsTrigger value="logs" className="flex items-center gap-2" onClick={loadWebhookLogs}>
+                <TabsTrigger value="logs" className="flex items-center gap-2 flex-shrink-0" onClick={loadWebhookLogs}>
                   <Activity className="h-4 w-4" />
                   Webhook Logs
                 </TabsTrigger>
-                <TabsTrigger value="submissions" className="flex items-center gap-2" onClick={() => loadSubmissions(0)}>
+                <TabsTrigger value="submissions" className="flex items-center gap-2 flex-shrink-0" onClick={() => loadSubmissions(0)}>
                   <Database className="h-4 w-4" />
                   Submissions
                 </TabsTrigger>
@@ -554,7 +888,7 @@ export default function FormSettingsPage() {
                   <Card className="mb-6 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
                     <CardHeader>
                       <CardTitle>API Token — Quick Start</CardTitle>
-                      <CardDescription>How to submit programmatically when "Require Token" is enabled.</CardDescription>
+                      <CardDescription>How to submit programmatically when &quot;Require Token&quot; is enabled.</CardDescription>
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-3 text-sm">
@@ -601,126 +935,146 @@ fetch('https://api.yourdomain.com/forms/${form?.id || '<FORM_ID>'}/submit', {
                 </CardTitle>
                 <CardDescription>Submission and delivery analytics for this form.</CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-8">
                 {analyticsLoading ? (
                   <div className="flex items-center justify-center py-12">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                     <span className="ml-3 text-gray-600">Loading analytics...</span>
                   </div>
-                ) : analytics ? (
-                  <div className="space-y-6">
-                    {/* Show fallback notice if using submission data */}
-                    {analytics.fallback && (
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Activity className="h-4 w-4 text-blue-600" />
-                          <span className="font-medium text-blue-900">Basic Analytics</span>
-                        </div>
-                        <p className="text-sm text-blue-700">
-                          Backend analytics service unavailable. Showing basic statistics calculated from submission data.
-                        </p>
-                      </div>
-                    )}
-                    
-                    {/* Debug info - only show if not fallback */}
-                    {!analytics.fallback && (
-                      <div className="bg-gray-100 p-3 rounded text-xs">
-                        <strong>Debug - Available Analytics Data:</strong>
-                        <pre className="mt-2 text-xs">{JSON.stringify(analytics, null, 2)}</pre>
-                      </div>
-                    )}
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200">
-                        <div className="flex items-center gap-2 mb-2">
-                          <TrendingUp className="h-4 w-4 text-blue-600" />
-                          <h3 className="font-semibold text-blue-900">Total Submissions</h3>
-                        </div>
-                        <p className="text-2xl font-bold text-blue-700">
-                          {analytics.total_submissions || 
-                           analytics.totalSubmissions || 
-                           analytics.submission_count || 
-                           analytics.count || 
-                           totalSubmissions || 
-                           '0'}
-                        </p>
-                        {analytics.fallback && (
-                          <p className="text-xs text-blue-500 mt-1">From {submissions.length} submissions</p>
-                        )}
-                      </div>
-                      <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-4 rounded-lg border border-green-200">
-                        <div className="flex items-center gap-2 mb-2">
-                          <CheckCircle className="h-4 w-4 text-green-600" />
-                          <h3 className="font-semibold text-green-900">Success Rate</h3>
-                        </div>
-                        <p className="text-2xl font-bold text-green-700">
-                          {analytics.success_rate ? `${(analytics.success_rate * 100).toFixed(1)}%` : 
-                           analytics.successRate ? `${(analytics.successRate * 100).toFixed(1)}%` : 
-                           '100%'}
-                        </p>
-                        {analytics.fallback && (
-                          <p className="text-xs text-green-500 mt-1">Estimated from submissions</p>
-                        )}
-                      </div>
-                      <div className="bg-gradient-to-br from-purple-50 to-violet-50 p-4 rounded-lg border border-purple-200">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Activity className="h-4 w-4 text-purple-600" />
-                          <h3 className="font-semibold text-purple-900">Avg Response Time</h3>
-                        </div>
-                        <p className="text-2xl font-bold text-purple-700">
-                          {analytics.avg_response_time ? `${analytics.avg_response_time}ms` : 
-                           analytics.avgResponseTime ? `${analytics.avgResponseTime}ms` : 
-                           analytics.response_time ? `${analytics.response_time}ms` : 
-                           'N/A'}
-                        </p>
-                        {analytics.fallback && (
-                          <p className="text-xs text-purple-500 mt-1">Not available in basic mode</p>
-                        )}
-                      </div>
-                    </div>
-                    
-                    {/* Show any available time-series data */}
-                    {(analytics.daily_data && analytics.daily_data.length > 0) || 
-                     (analytics.dailyData && analytics.dailyData.length > 0) ||
-                     (analytics.data && analytics.data.length > 0) ? (
-                      <div>
-                        <h3 className="font-semibold mb-3">
-                          Daily Submissions (Recent days)
-                          {analytics.fallback && <span className="text-sm font-normal text-gray-500 ml-2">(from submission data)</span>}
-                        </h3>
-                        <div className="bg-gray-50 p-4 rounded-lg">
-                          <div className="text-xs text-gray-500 mb-2">Daily submission counts:</div>
-                          <div className="space-y-1">
-                            {(analytics.daily_data || analytics.dailyData || analytics.data || []).slice(-7).map((day, idx) => (
-                              <div key={idx} className="flex justify-between text-sm">
-                                <span>{day.date || day.day || `Day ${idx + 1}`}</span>
-                                <span className="font-medium">{day.count || day.submissions || 0} submissions</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    ) : null}
-                    
-                    <div className="flex gap-2">
-                      <Button onClick={loadAnalytics} disabled={analyticsLoading}>
-                        {analyticsLoading ? 'Refreshing...' : 'Refresh Analytics'}
-                      </Button>
-                      {analytics.fallback && (
-                        <div className="text-xs text-gray-500 flex items-center">
-                          <span>⚠️ Backend analytics unavailable - using submission data</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ) : (
+                ) : !analytics && !chartData.length ? (
                   <div className="text-center py-12">
                     <BarChart3 className="h-12 w-12 text-gray-300 mx-auto mb-4" />
                     <p className="text-gray-500 mb-4">No analytics data available yet</p>
                     <Button onClick={loadAnalytics} disabled={analyticsLoading}>
-                      {analyticsLoading ? 'Loading...' : 'Load Analytics'}
+                      {analyticsLoading ? 'Loading...' : 'Load analytics'}
                     </Button>
                   </div>
+                ) : (
+                  <>
+                    {fallbackNotice && (
+                      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                        Backend analytics endpoints are waking up. Showing live numbers computed from recent submissions until the API responds.
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                      {statHighlights.map((stat) => (
+                        <div key={stat.label} className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-gradient-to-br from-white to-slate-50 dark:from-slate-900 dark:to-slate-900/60 p-4">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{stat.label}</p>
+                          <p className="mt-2 text-2xl font-bold text-slate-900 dark:text-white">{stat.value}</p>
+                          <p className="text-xs text-slate-500 mt-1">{stat.helper}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    {chartData.length > 0 && (
+                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div className="lg:col-span-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-5">
+                          <div className="flex items-center justify-between mb-4">
+                            <div>
+                              <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">Submission cadence</p>
+                              <p className="text-xs text-slate-500">Last {chartData.length} days</p>
+                            </div>
+                            <span className="text-xs text-slate-500">Latest: {analyticsInsights.latestLabel}</span>
+                          </div>
+                          <div className="h-72">
+                            <DynamicResponsiveContainer width="100%" height="100%">
+                              <DynamicAreaChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                                <DynamicCartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                                <DynamicXAxis dataKey="date" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                                <DynamicYAxis tick={{ fontSize: 11, fill: '#94a3b8' }} allowDecimals={false} axisLine={false} tickLine={false} />
+                                <DynamicTooltip contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0' }} labelStyle={{ fontWeight: 600 }} />
+                                <DynamicArea type="monotone" dataKey="submissions" stroke="#2563eb" fill="#bfdbfe" fillOpacity={0.35} strokeWidth={2} />
+                                <DynamicArea type="monotone" dataKey="errors" stroke="#f87171" fill="#fecaca" fillOpacity={0.25} strokeWidth={1.5} />
+                              </DynamicAreaChart>
+                            </DynamicResponsiveContainer>
+                          </div>
+                        </div>
+                        <div className="space-y-4">
+                          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-4">
+                            <p className="text-xs uppercase tracking-wide text-slate-500">Momentum</p>
+                            <p className={`mt-2 text-3xl font-semibold ${analyticsInsights.tone}`}>
+                              {analyticsInsights.momentumPercent >= 0 ? '+' : ''}
+                              {analyticsInsights.momentumPercent.toFixed(1)}%
+                            </p>
+                            <p className="text-xs text-slate-500">vs previous 7 days · {analyticsInsights.descriptor}</p>
+                            <p className="text-sm text-slate-600 dark:text-slate-300 mt-3">
+                              Latest day: <span className="font-semibold">{analyticsInsights.latestLabel}</span> · {analyticsInsights.latestVolume.toLocaleString()} submissions
+                            </p>
+                          </div>
+                          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-4">
+                            <p className="text-xs uppercase tracking-wide text-slate-500">Reliability score</p>
+                            <p className="mt-2 text-3xl font-semibold text-slate-900 dark:text-white">{reliabilityScore}</p>
+                            <p className="text-sm font-medium text-slate-600 dark:text-slate-300">{reliabilityLabel}</p>
+                            <p className="text-xs text-slate-500 mt-2 leading-relaxed">{reliabilityCopy}</p>
+                          </div>
+                          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-4">
+                            <p className="text-xs uppercase tracking-wide text-slate-500">Forecast</p>
+                            <p className="mt-2 text-2xl font-semibold text-slate-900 dark:text-white">
+                              {analyticsInsights.predictedNextSeven.toLocaleString()} submissions
+                            </p>
+                            <p className="text-xs text-slate-500">Projected next 7 days</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-5 space-y-4">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">Status breakdown</p>
+                          <p className="text-xs text-slate-500">Based on recent submissions</p>
+                        </div>
+                        {statusBreakdownEntries.length ? (
+                          <div className="space-y-3">
+                            {statusBreakdownEntries.map(([key, value]) => {
+                              const percent = statusBreakdownTotal > 0 ? (value / statusBreakdownTotal) * 100 : 0;
+                              return (
+                                <div key={key}>
+                                  <div className="flex items-center justify-between text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+                                    <span>{statusLabels[key] || key}</span>
+                                    <span>
+                                      {value.toLocaleString()} · {percent.toFixed(1)}%
+                                    </span>
+                                  </div>
+                                  <div className="h-2 rounded-full bg-slate-200 dark:bg-slate-800">
+                                    <div
+                                      className={`h-full rounded-full ${statusColors[key] || 'bg-slate-500'}`}
+                                      style={{ width: `${percent}%` }}
+                                    ></div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-slate-500">Status metadata not available yet.</p>
+                        )}
+                      </div>
+                      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-5 space-y-4">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">Insight highlights</p>
+                          <p className="text-xs text-slate-500">Automatically generated heuristics</p>
+                        </div>
+                        <div className="space-y-4">
+                          {insightRows.map((row) => (
+                            <div key={row.label} className="border-b border-slate-100 dark:border-slate-800 pb-3 last:border-none last:pb-0">
+                              <p className="text-[11px] uppercase tracking-wide text-slate-500">{row.label}</p>
+                              <p className="text-base font-semibold text-slate-900 dark:text-slate-100">{row.value}</p>
+                              <p className="text-xs text-slate-500">{row.meta}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-3">
+                      <Button onClick={loadAnalytics} disabled={analyticsLoading}>
+                        {analyticsLoading ? 'Refreshing...' : 'Refresh analytics'}
+                      </Button>
+                      <p className="text-xs text-slate-500">Source: /forms/{form?.id || '...'}/analytics</p>
+                    </div>
+                  </>
                 )}
               </CardContent>
             </Card>
@@ -924,10 +1278,9 @@ fetch('https://api.yourdomain.com/forms/${form?.id || '<FORM_ID>'}/submit', {
                           <TableRow key={submission.id || idx}>
                             <TableCell className="font-mono text-xs">
                               <div className="flex items-center gap-2">
-                                <Badge className="text-xs px-2 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300" title={`Form submission #${idx + 1} (Global database ID: ${submission.id || `sub_${idx}`})`}>
+                                <Badge className="text-xs px-2 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300" title={`Form submission #${idx + 1}`}>
                                   #{idx + 1}
                                 </Badge>
-                                <span className="text-gray-500 text-xs">({submission.id || `sub_${idx}`})</span>
                               </div>
                             </TableCell>
                             <TableCell className="max-w-md">

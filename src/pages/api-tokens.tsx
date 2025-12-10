@@ -10,6 +10,7 @@ import { useSidebar } from '../context/SidebarContext';
 import BottomGradientRadial from '../components/BottomGradientRadial';
 import AuthLayout from '../components/AuthLayout';
 import { generateApiToken, revokeApiToken } from '../services/api';
+import { showApiError } from '../hooks/use-toast';
 import { 
   Key, 
   Copy, 
@@ -79,8 +80,10 @@ function ApiTokensPageContent() {
         name: 'New API Token'
       };
       setTokens(prev => [newTokenData, ...prev]);
-    } catch (err) {
-      setError('Failed to generate API token. Please try again.');
+    } catch (err: any) {
+      const message = err?.message || 'Failed to generate API token. Please try again.';
+      setError(message);
+      showApiError(err, { fallbackTitle: 'Generate Token Failed' });
     } finally {
       setLoading(false);
     }
@@ -96,8 +99,10 @@ function ApiTokensPageContent() {
       await revokeApiToken();
       setTokens(prev => prev.filter((_, index) => index !== 0)); // Mock removal
       setSuccess('API token revoked successfully.');
-    } catch (err) {
-      setError('Failed to revoke API token. Please try again.');
+    } catch (err: any) {
+      const message = err?.message || 'Failed to revoke API token. Please try again.';
+      setError(message);
+      showApiError(err, { fallbackTitle: 'Revoke Token Failed' });
     } finally {
       setLoading(false);
     }
@@ -110,8 +115,10 @@ function ApiTokensPageContent() {
         setCopiedTokenId(tokenId);
         setTimeout(() => setCopiedTokenId(''), 2000);
       }
-    } catch (err) {
-      setError('Failed to copy token to clipboard.');
+    } catch (err: any) {
+      const message = err?.message || 'Failed to copy token to clipboard.';
+      setError(message);
+      showApiError(err, { fallbackTitle: 'Copy Token Failed' });
     }
   };
 
@@ -166,7 +173,7 @@ function ApiTokensPageContent() {
                   Your New API Token
                 </CardTitle>
                 <CardDescription className="text-green-700 dark:text-green-300">
-                  Copy this token now - you won't be able to see it again for security reasons.
+                  Copy this token now - you won&rsquo;t be able to see it again for security reasons.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -188,7 +195,7 @@ function ApiTokensPageContent() {
                   onClick={() => setShowNewToken(false)}
                   className="text-green-700 border-green-300 hover:bg-green-100 dark:text-green-300 dark:border-green-600 border bg-background hover:bg-accent hover:text-accent-foreground"
                 >
-                  I've saved my token
+                  I&rsquo;ve saved my token
                 </Button>
               </CardContent>
             </Card>

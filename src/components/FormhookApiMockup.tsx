@@ -56,17 +56,17 @@ const FormhookApiMockup = () => {
           {/* Code Snippet with theme-aware colors */}
           <code className="font-mono text-xs md:text-sm lg:text-base w-full">
             <div><span className="text-blue-500">&#123;</span></div>
-            <div className="pl-6"><span className="text-fuchsia-600">submission_id</span>: <span className="text-green-600">"{mockResponse.submission_id}"</span>,</div>
-            <div className="pl-6"><span className="text-fuchsia-600">form_id</span>: <span className="text-green-600">"{mockResponse.form_id}"</span>,</div>
-            <div className="pl-6"><span className="text-fuchsia-600">submitted_at</span>: <span className="text-green-600">"{mockResponse.submitted_at}"</span>,</div>
+            <div className="pl-6"><span className="text-fuchsia-600">submission_id</span>: <span className="text-green-600">&quot;{mockResponse.submission_id}&quot;</span>,</div>
+            <div className="pl-6"><span className="text-fuchsia-600">form_id</span>: <span className="text-green-600">&quot;{mockResponse.form_id}&quot;</span>,</div>
+            <div className="pl-6"><span className="text-fuchsia-600">submitted_at</span>: <span className="text-green-600">&quot;{mockResponse.submitted_at}&quot;</span>,</div>
             <div className="pl-6"><span className="text-fuchsia-600">fields</span>: <span className="text-blue-500">&#123;</span></div>
-            <div className="pl-12"><span className="text-fuchsia-600">name</span>: <span className="text-green-600">"{mockResponse.fields.name}"</span>,</div>
-            <div className="pl-12"><span className="text-fuchsia-600">email</span>: <span className="text-green-600">"{mockResponse.fields.email}"</span>,</div>
-            <div className="pl-12"><span className="text-fuchsia-600">message</span>: <span className="text-green-600">"{mockResponse.fields.message}"</span></div>
+            <div className="pl-12"><span className="text-fuchsia-600">name</span>: <span className="text-green-600">&quot;{mockResponse.fields.name}&quot;</span>,</div>
+            <div className="pl-12"><span className="text-fuchsia-600">email</span>: <span className="text-green-600">&quot;{mockResponse.fields.email}&quot;</span>,</div>
+            <div className="pl-12"><span className="text-fuchsia-600">message</span>: <span className="text-green-600">&quot;{mockResponse.fields.message}&quot;</span></div>
             <div className="pl-6"><span className="text-blue-500">&#125;</span>,</div>
-            <div className="pl-6"><span className="text-fuchsia-600">ip_address</span>: <span className="text-green-600">"{mockResponse.ip_address}"</span>,</div>
-            <div className="pl-6"><span className="text-fuchsia-600">user_agent</span>: <span className="text-green-600">"{mockResponse.user_agent}"</span>,</div>
-            <div className="pl-6"><span className="text-fuchsia-600">webhook_status</span>: <span className="text-green-600">"{mockResponse.webhook_status}"</span></div>
+            <div className="pl-6"><span className="text-fuchsia-600">ip_address</span>: <span className="text-green-600">&quot;{mockResponse.ip_address}&quot;</span>,</div>
+            <div className="pl-6"><span className="text-fuchsia-600">user_agent</span>: <span className="text-green-600">&quot;{mockResponse.user_agent}&quot;</span>,</div>
+            <div className="pl-6"><span className="text-fuchsia-600">webhook_status</span>: <span className="text-green-600">&quot;{mockResponse.webhook_status}&quot;</span></div>
             <div><span className="text-blue-500">&#125;</span></div>
           </code>
         </div>

@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { requestEmailVerification } from '../services/api';
+import { showApiError } from '../hooks/use-toast';
 import Link from 'next/link';
 
 const ResendVerification = () => {
@@ -32,6 +33,7 @@ const ResendVerification = () => {
       // Prefer backend-provided details when available
       const beMsg = err?.response?.data?.message || err?.response?.data?.detail;
       setMessage(beMsg || err?.message || 'An error occurred. Please try again later.');
+      showApiError(err, { fallbackTitle: 'Resend Verification Failed' });
     }
   };
 
@@ -41,7 +43,7 @@ const ResendVerification = () => {
         <div className="text-center mb-6">
           <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Resend Verification Email</h1>
           <p className="text-gray-600 dark:text-gray-300 mt-2">
-            Enter your email address below and we'll send you a new verification link.
+            Enter your email address below and we&rsquo;ll send you a new verification link.
           </p>
         </div>
 

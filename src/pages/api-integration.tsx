@@ -51,7 +51,7 @@ function APIIntegrationContent() {
                     <Badge>Step 1</Badge> Create a Form Endpoint
                   </h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    First, create a new form endpoint in your dashboard. You'll get a unique URL for your form submissions.
+                    First, create a new form endpoint in your dashboard. You&rsquo;ll get a unique URL for your form submissions.
                   </p>
                   <Alert>
                     <Terminal className="h-4 w-4" />
@@ -68,7 +68,7 @@ function APIIntegrationContent() {
                     <Badge>Step 2</Badge> Add the Form to Your Site
                   </h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Add your form endpoint to any HTML form's action attribute.
+                    Add your form endpoint to any HTML form&rsquo;s action attribute.
                   </p>
                   <Card className="bg-gray-50 dark:bg-gray-900">
                     <CardContent className="pt-6">

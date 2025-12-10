@@ -30,10 +30,12 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
   // Only show header on authenticated pages, not login/register
   const isAuthPage = router.pathname === '/login' || router.pathname === '/register' || router.pathname === '/forgot-password';
 
+  const contentOffsetClasses = 'pt-[160px] md:pt-[120px] lg:pt-[104px]';
+
   return (
     <>
       {!isAuthPage && <DashboardHeader />}
-      <div className={!isAuthPage ? 'mt-16' : ''}>{children}</div>
+      <div className={!isAuthPage ? contentOffsetClasses : ''}>{children}</div>
     </>
   );
 }

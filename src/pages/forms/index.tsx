@@ -1,5 +1,6 @@
 "use client";
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/router';
 import SEO from '../../components/SEO';
 import useSWR from 'swr';
@@ -16,6 +17,8 @@ import { Toaster } from '../../components/ui/toaster';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../../components/ui/dialog';
 import { toast, showApiError } from '../../hooks/use-toast';
 import { FormBuilderModal } from './new';
+import { Alert, AlertDescription, AlertTitle } from '../../components/ui/alert';
+import { useSubscription } from '../../context/SubscriptionContext';
 import AuthLayout from '../../components/AuthLayout';
 import { 
   Search, 
@@ -35,7 +38,8 @@ import {
   ExternalLink,
   Copy,
   Filter,
-  ArrowUpDown
+  ArrowUpDown,
+  AlertTriangle
 } from 'lucide-react';
 
 // Professional Form Avatar Component
@@ -251,6 +255,12 @@ function FormsPageContent() {
   const router = useRouter();
   const { data, error, isLoading, mutate } = useSWR('forms', async () => (await getForms()).data);
   const forms = data || [];
+  const { formsLimit, formsLimitReached, planLabel, isStarterTier, isTrialExpired, subscriptionStatus } = useSubscription();
+  const reachedFormLimit = formsLimitReached(forms.length);
+  const remainingForms = typeof formsLimit === 'number' ? Math.max(formsLimit - forms.length, 0) : null;
+  const subscriptionStatusLabel = subscriptionStatus
+    ? subscriptionStatus.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())
+    : null;
   
   // UI State
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -307,7 +317,25 @@ function FormsPageContent() {
     return filtered;
   }, [forms, searchQuery, statusFilter, sortBy, sortOrder]);
 
+  const redirectToPlans = useCallback(() => {
+    toast({
+      title: 'Trial expired',
+      description: 'Upgrade your plan to keep creating forms.',
+      variant: 'destructive'
+    });
+    router.push('/subscriptions?reason=trial_expired');
+  }, [router]);
+
+  const guardTrial = useCallback(() => {
+    if (!isTrialExpired) return false;
+    redirectToPlans();
+    return true;
+  }, [isTrialExpired, redirectToPlans]);
+
   const handleCreate = async (formData) => {
+    if (guardTrial()) {
+      return;
+    }
     setSubmitting(true);
     try {
       const res = await createForm(formData);
@@ -394,15 +422,65 @@ function FormsPageContent() {
                 </p>
               </div>
             </div>
-            <Button 
-              onClick={() => setShowCreate(true)} 
-              className="pro-btn-primary px-4 sm:px-6 py-2 sm:py-3 font-semibold w-full sm:w-auto flex-shrink-0"
-            >
-              <Plus className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-              Create New Form
-            </Button>
+            <div className="flex flex-col items-stretch sm:items-end gap-2">
+              <Button 
+                onClick={() => {
+                  if (guardTrial()) return;
+                  setShowCreate(true);
+                }} 
+                className="pro-btn-primary px-4 sm:px-6 py-2 sm:py-3 font-semibold w-full sm:w-auto flex-shrink-0"
+                disabled={reachedFormLimit || isTrialExpired}
+              >
+                <Plus className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+                {isTrialExpired
+                  ? 'Trial expired'
+                  : reachedFormLimit
+                  ? 'Form limit reached'
+                  : 'Create New Form'}
+              </Button>
+              {reachedFormLimit && (
+                <Link href="/subscriptions" className="text-sm font-semibold text-blue-600 hover:text-blue-700">
+                  Upgrade plan to add more forms
+                </Link>
+              )}
+              {isTrialExpired && (
+                <p className="text-sm font-semibold text-rose-600">
+                  Upgrade your plan to re-enable form creation.
+                </p>
+              )}
+            </div>
           </div>
+          {isTrialExpired && (
+            <Alert className="border-rose-200 bg-rose-50 dark:bg-rose-900/20">
+              <AlertTriangle className="h-4 w-4 text-rose-600" />
+              <AlertTitle>Trial expired</AlertTitle>
+              <AlertDescription>
+                {subscriptionStatusLabel ? `${subscriptionStatusLabel}. ` : ''}Upgrade to keep creating forms and collecting submissions.
+                {' '}
+                <Link href="/subscriptions" className="font-semibold text-rose-700 underline underline-offset-2">
+                  Manage subscription
+                </Link>
+              </AlertDescription>
+            </Alert>
+          )}
         </div>
+
+        {typeof formsLimit === 'number' && (
+          <Alert className="mb-6 border-amber-200 bg-amber-50 dark:bg-amber-900/20">
+            <AlertTriangle className="h-4 w-4 text-amber-600" />
+            <AlertTitle>{planLabel} limit</AlertTitle>
+            <AlertDescription>
+              {reachedFormLimit
+                ? 'You have created the maximum number of forms allowed on your current plan. '
+                : `You can create ${remainingForms} more form${remainingForms === 1 ? '' : 's'} on this plan.`}
+              {' '}
+              <Link href="/subscriptions" className="font-semibold text-amber-700 underline underline-offset-2">
+                Manage subscription
+              </Link>
+              {isStarterTier && ' to unlock unlimited forms and higher submission limits.'}
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* Professional Filter and Search Bar */}
         <div className="flex flex-col gap-3 sm:gap-4 mb-6 p-3 sm:p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm">

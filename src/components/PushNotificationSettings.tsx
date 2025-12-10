@@ -270,9 +270,9 @@ export default function PushNotificationSettings() {
               <strong>Notifications are blocked.</strong> To enable them:
             </p>
             <ol className="text-xs text-red-700 dark:text-red-300 mt-2 ml-4 list-decimal space-y-1">
-              <li>Click the lock icon in your browser's address bar</li>
-              <li>Find "Notifications" in the permissions list</li>
-              <li>Change it to "Allow"</li>
+              <li>Click the lock icon in your browser&rsquo;s address bar</li>
+              <li>Find &quot;Notifications&quot; in the permissions list</li>
+              <li>Change it to &quot;Allow&quot;</li>
               <li>Refresh this page</li>
             </ol>
           </div>

@@ -20,7 +20,7 @@
   <!-- Tagline -->
   <g transform="translate(480,170)" fill="#E6EEF2" font-family="Inter, Arial, sans-serif">
     <text x="0" y="0" font-size="48" font-weight="700">FormHook</text>
-    <text x="0" y="64" font-size="20">Collect, route & manage form submissions in minutes.</text>
+    <text x="0" y="64" font-size="20">Collect, route &amp; manage form submissions in minutes.</text>
     <text x="0" y="100" font-size="18" fill="#A7B8BB">Integrations: Slack • Webhooks • Google Sheets • Email</text>
 
     <!-- small UI mock -->

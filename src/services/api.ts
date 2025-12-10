@@ -1,5 +1,17 @@
 import * as React from 'react';
 import { apiCache, CacheTTL } from '@/utils/cache';
+import { appConfig } from '@/lib/config';
+import type {
+  BillingCycle,
+  FeatureValidationResponse,
+  PricingPlansResponse,
+  SubscriptionActionResponse,
+  SubscriptionDetails,
+  SubscriptionRecommendation,
+  SubscriptionUsage,
+  SubscriptionTier
+} from '@/types/subscription';
+import { PRICING_PLAN_FALLBACK } from '@/types/subscription';
 
 const isDev = typeof process !== 'undefined' && process.env && process.env.NODE_ENV !== 'production';
 
@@ -29,9 +41,31 @@ function decodeJwt(token) {
     return null;
   }
 }
+
+// Normalize various error shapes into a consistent Error object that downstream code can inspect.
+function buildApiError(source: any, fallbackMessage: string) {
+  if (source instanceof Error && !(source as any).status) {
+    return source;
+  }
+
+  const status = source?.status ?? source?.response?.status ?? source?.statusCode ?? 0;
+  const server = source?.server ?? source?.errorData ?? source?.response?.data ?? null;
+  const message =
+    (typeof source === 'string' && source) ||
+    source?.error ||
+    server?.detail ||
+    server?.message ||
+    source?.message ||
+    fallbackMessage;
+
+  const err = new Error(message || fallbackMessage);
+  (err as any).status = status;
+  (err as any).server = server;
+  return err;
+}
 // --- Auth Helpers ---
 // Reusable fetchWithAuth helper for protected endpoints
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://formhook-backend.onrender.com';
+export const API_BASE_URL = appConfig.apiBaseUrl;
 export async function fetchWithAuth(url: string, options: RequestInit = {}) {
   const headers = new Headers(options.headers || {});
   
@@ -344,6 +378,52 @@ export const retryPendingWebhooks = async () => {
   return await res.json();
 };
 
+// Dashboard summary (aggregated metrics + recent submissions)
+export type DashboardSummary = {
+  total_forms: number;
+  total_submissions: number;
+  recent_submissions: Array<{
+    id: number;
+    form_id: string;
+    data: Record<string, any>;
+    ip_address: string;
+    created_at: string;
+    country?: string | null;
+    region?: string | null;
+    city?: string | null;
+    location_source?: string | null;
+    latitude?: string | null;
+    longitude?: string | null;
+    threat_score?: number | null;
+  }>;
+  trend: Array<{ date: string; count: number }>;
+  webhook_stats: {
+    total: number;
+    delivered: number;
+    failed: number;
+    pending: number;
+  };
+  subscription?: SubscriptionDetails | SubscriptionUsage | null;
+  billing?: SubscriptionDetails | SubscriptionUsage | null;
+  account?: {
+    subscription?: SubscriptionDetails | SubscriptionUsage | null;
+    [key: string]: any;
+  } | null;
+};
+
+export const getDashboardSummary = async (days = 30): Promise<DashboardSummary> => {
+  const res = await fetchWithAuth(`/dashboard/summary?days=${days}`);
+  if (!res || !res.ok) {
+    const status = (res as any)?.status;
+    const errorMsg = (res as any)?.error || `Failed to load dashboard summary${status ? ` (status ${status})` : ''}`;
+    const err = new Error(errorMsg);
+    (err as any).status = status;
+    throw err;
+  }
+  const data = await res.json();
+  return data as DashboardSummary;
+};
+
 // Form Analytics (per-form endpoint from API docs)
 export const getFormAnalytics = async (
   formId: string,
@@ -431,63 +511,31 @@ export const getFormGeoAnalytics = async (formId: string) => {
   }
 };
 
-// Dashboard Summary
-export const getDashboardSummary = async (days?: number) => {
+// Subscription APIs
+export const getPricingPlans = async (): Promise<PricingPlansResponse> => {
   try {
-    const url = '/dashboard/summary' + (days ? `?days=${days}` : '');
-    const res = await fetchWithAuth(url);
-    
-    if (!res.ok) {
-      // Return default summary data structure instead of throwing
-      return {
-        total_forms: 0,
-        total_submissions: 0,
-        recent_submissions: [],
-        trend: [],
-        webhook_stats: {
-          total: 0,
-          delivered: 0,
-          failed: 0
-        }
-      };
-    }
-    
-    const data = await res.json();
-    return data;
-  } catch (error) {
-    // Return default summary data structure instead of throwing
-    return {
-      total_forms: 0,
-      total_submissions: 0,
-      recent_submissions: [],
-      trend: [],
-      webhook_stats: {
-        total: 0,
-        delivered: 0,
-        failed: 0
+    const res = await fetchWithCache('/subscription/plans', {}, CacheTTL.LONG);
+    if (res && res.ok && typeof res.json === 'function') {
+      const data = await res.json();
+      if (data?.plans) {
+        return data as PricingPlansResponse;
       }
-    };
+    }
+    console.warn('[API] getPricingPlans missing plans data, using fallback.');
+  } catch (error) {
+    console.warn('[API] getPricingPlans error, using fallback:', error);
   }
+  // Always return a defensive copy to avoid accidental mutations
+  return JSON.parse(JSON.stringify(PRICING_PLAN_FALLBACK));
 };
 
-// Subscription APIs
-export const getCurrentSubscription = async () => {
+export const getCurrentSubscription = async (): Promise<SubscriptionDetails | null> => {
   try {
     const res = await fetchWithAuth('/subscription/current');
     if (!res) return null;
-    if ((res as any).ok) {
-      if (typeof (res as any).json === 'function') {
-        try {
-          return await (res as any).json();
-        } catch (e) {
-          console.warn('[API] getCurrentSubscription: failed to parse JSON', e);
-          return null;
-        }
-      }
-      return null;
+    if ((res as any).ok && typeof (res as any).json === 'function') {
+      return (await (res as any).json()) as SubscriptionDetails;
     }
-
-    // Non-ok response: try to extract error details
     const errBody = (res as any).error || (res as any).message || null;
     console.warn('[API] getCurrentSubscription non-ok response:', (res as any).status, errBody);
     return null;
@@ -497,22 +545,14 @@ export const getCurrentSubscription = async () => {
   }
 };
 
-export const getSubscriptionUsage = async (params?: { days?: number }) => {
+export const getSubscriptionUsage = async (params?: { days?: number }): Promise<SubscriptionUsage | null> => {
   try {
     let url = '/subscription/usage';
     if (params?.days) url += `?days=${params.days}`;
     const res = await fetchWithAuth(url);
     if (!res) return null;
-    if ((res as any).ok) {
-      if (typeof (res as any).json === 'function') {
-        try {
-          return await (res as any).json();
-        } catch (e) {
-          console.warn('[API] getSubscriptionUsage: failed to parse JSON', e);
-          return null;
-        }
-      }
-      return null;
+    if ((res as any).ok && typeof (res as any).json === 'function') {
+      return (await (res as any).json()) as SubscriptionUsage;
     }
     console.warn('[API] getSubscriptionUsage non-ok response:', (res as any).status);
     return null;
@@ -522,15 +562,84 @@ export const getSubscriptionUsage = async (params?: { days?: number }) => {
   }
 };
 
+export const getSubscriptionRecommendation = async (): Promise<SubscriptionRecommendation | null> => {
+  try {
+    const res = await fetchWithAuth('/subscription/recommendation');
+    if (!res) return null;
+    if ((res as any).ok && typeof (res as any).json === 'function') {
+      return (await (res as any).json()) as SubscriptionRecommendation | null;
+    }
+    return null;
+  } catch (error) {
+    console.error('[API] getSubscriptionRecommendation error:', error);
+    return null;
+  }
+};
+
+async function postSubscriptionAction(
+  path: string,
+  payload: Record<string, any> | undefined,
+  errorMessage: string
+): Promise<SubscriptionActionResponse> {
+  const res = await fetchWithAuth(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: payload ? JSON.stringify(payload) : undefined
+  });
+
+  if (!res || !(res as any).ok) {
+    throw buildApiError(res, errorMessage);
+  }
+
+  if (typeof (res as any).json === 'function') {
+    return (await (res as any).json()) as SubscriptionActionResponse;
+  }
+
+  return { message: 'ok' } as SubscriptionActionResponse;
+}
+
+export const upgradeSubscription = async (payload: {
+  target_tier: SubscriptionTier | string;
+  billing_cycle?: BillingCycle;
+}) => postSubscriptionAction('/subscription/upgrade', payload, 'Failed to upgrade subscription');
+
+export const downgradeSubscription = async (payload: {
+  target_tier: SubscriptionTier | string;
+  billing_cycle?: BillingCycle;
+}) => postSubscriptionAction('/subscription/downgrade', payload, 'Failed to downgrade subscription');
+
+export const cancelSubscription = async () =>
+  postSubscriptionAction('/subscription/cancel', undefined, 'Failed to cancel subscription');
+
+export const reactivateSubscription = async () =>
+  postSubscriptionAction('/subscription/reactivate', undefined, 'Failed to reactivate subscription');
+
+export const validateFeatureAccess = async (feature: string): Promise<FeatureValidationResponse | null> => {
+  if (!feature) return null;
+  try {
+    const res = await fetchWithAuth(`/subscription/validate-feature?feature=${encodeURIComponent(feature)}`, {
+      method: 'POST'
+    });
+    if (!res) return null;
+    if ((res as any).ok && typeof (res as any).json === 'function') {
+      return (await (res as any).json()) as FeatureValidationResponse;
+    }
+    return null;
+  } catch (error) {
+    console.error('[API] validateFeatureAccess error:', error);
+    return null;
+  }
+};
+
 // API Token
 export const generateApiToken = async () => {
   const res = await fetchWithAuth('/api-token/generate', { method: 'POST' });
-  if (!res.ok) throw new Error('Failed to generate API token');
+  if (!res || !res.ok) throw buildApiError(res, 'Failed to generate API token');
   return await res.json();
 };
 export const revokeApiToken = async () => {
   const res = await fetchWithAuth('/api-token', { method: 'DELETE' });
-  if (!res.ok) throw new Error('Failed to revoke API token');
+  if (!res || !res.ok) throw buildApiError(res, 'Failed to revoke API token');
   return await res.json();
 };
 
@@ -883,16 +992,15 @@ export const updateUserProfile = async (data: {
 
     // Treat 404 as a graceful no-op (backend may not support profile PUT)
     if (!res) {
-      return null;
+      throw buildApiError({ status: 0 }, 'Failed to update profile');
     }
-    if ((res as any).status === 404) {
+    const resStatus = (res as any).status;
+    if (resStatus === 404 || resStatus === 405) {
       return null;
     }
 
     if (!res.ok) {
-      // Graceful: if backend doesn't support updating profile, return null instead of throwing
-      console.warn('[API] updateUserProfile non-ok response:', (res as any).status, (res as any).error || (res as any).message);
-      return null;
+      throw buildApiError(res, 'Failed to update profile');
     }
 
     if (typeof (res as any).json === 'function') {
@@ -921,9 +1029,8 @@ export const changePassword = async (data: {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
     });
-    if (!res.ok) {
-      const errorMsg = (res as any).error || 'Failed to change password';
-      throw new Error(errorMsg);
+    if (!res || !res.ok) {
+      throw buildApiError(res, 'Failed to change password');
     }
     if (typeof res.json === 'function') {
       return await res.json();
@@ -942,9 +1049,8 @@ export const toggle2FA = async (enabled: boolean) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ enabled })
     });
-    if (!res.ok) {
-      const errorMsg = (res as any).error || 'Failed to update 2FA settings';
-      throw new Error(errorMsg);
+    if (!res || !res.ok) {
+      throw buildApiError(res, 'Failed to update 2FA settings');
     }
     if (typeof res.json === 'function') {
       return await res.json();
@@ -977,9 +1083,8 @@ export const deleteAccount = async (password: string) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ password })
     });
-    if (!res.ok) {
-      const errorMsg = (res as any).error || 'Failed to delete account';
-      throw new Error(errorMsg);
+    if (!res || !res.ok) {
+      throw buildApiError(res, 'Failed to delete account');
     }
     if (typeof res.json === 'function') {
       return await res.json();
@@ -994,9 +1099,8 @@ export const deleteAccount = async (password: string) => {
 export const exportUserData = async () => {
   try {
     const res = await fetchWithAuth('/user/export-data');
-    if (!res.ok) {
-      console.error('[API] exportUserData failed:', res.status, res.statusText);
-      throw new Error('Failed to export user data');
+    if (!res || !res.ok) {
+      throw buildApiError(res, 'Failed to export user data');
     }
     return await res.blob();
   } catch (error) {
@@ -1011,9 +1115,8 @@ export const generateFormToken = async (formId: string) => {
     const res = await fetchWithAuth(`/forms/${formId}/generate-token`, {
       method: 'POST'
     });
-    if (!res.ok) {
-      const errorMsg = (res as any).error || 'Failed to generate form token';
-      throw new Error(errorMsg);
+    if (!res || !res.ok) {
+      throw buildApiError(res, 'Failed to generate form token');
     }
     if (typeof res.json === 'function') {
       return await res.json();

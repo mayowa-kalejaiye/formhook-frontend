@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import DashboardNav from '../components/DashboardNav';
 import { useSidebar } from '../context/SidebarContext';
 import { useNotifications } from '../context/NotificationContext';
@@ -12,8 +12,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs';
 import { Skeleton } from '../components/ui/skeleton';
 import Link from 'next/link';
+import { useRouter } from 'next/router';
 import { getForms, getSubmissions } from '../services/api';
 import { toast, showApiError } from '../hooks/use-toast';
+import { useSubscription } from '../context/SubscriptionContext';
 import { 
   Search, 
   Filter, 
@@ -513,6 +515,30 @@ function SubmissionsPageContent() {
   const [refreshing, setRefreshing] = useState(false);
   const { isCollapsed } = useSidebar();
   const { markAsRead, unreadCount, lastChecked } = useNotifications();
+  const router = useRouter();
+  const { isTrialExpired, loading: subscriptionLoading, subscriptionStatus } = useSubscription();
+  const trialGuardTriggered = useRef(false);
+  const subscriptionStatusLabel = subscriptionStatus
+    ? subscriptionStatus.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())
+    : null;
+
+  useEffect(() => {
+    if (subscriptionLoading || !isTrialExpired || trialGuardTriggered.current) return;
+    trialGuardTriggered.current = true;
+    toast({
+      title: 'Trial expired',
+      description:
+        subscriptionStatusLabel
+          ? `${subscriptionStatusLabel}. Upgrade your plan to keep reviewing submissions.`
+          : 'Upgrade your plan to keep reviewing submissions.',
+      variant: 'destructive'
+    });
+    router.replace('/subscriptions?reason=trial_expired');
+  }, [subscriptionLoading, isTrialExpired, router, subscriptionStatusLabel]);
+
+  if (!subscriptionLoading && isTrialExpired) {
+    return null;
+  }
 
   // Mark notifications as read when page is visited
   useEffect(() => {

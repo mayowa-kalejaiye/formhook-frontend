@@ -8,7 +8,8 @@ export function useIsomorphicDate() {
   const [currentDate, setCurrentDate] = useState<Date | null>(null);
 
   useEffect(() => {
-    setCurrentDate(new Date());
+    const timer = setTimeout(() => setCurrentDate(new Date()), 0);
+    return () => clearTimeout(timer);
   }, []);
 
   return currentDate;

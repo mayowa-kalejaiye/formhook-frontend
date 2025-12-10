@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import axios from 'axios';
+import { showApiError } from '../hooks/use-toast';
 
 // API endpoint for requesting password reset
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://formhook-backend.onrender.com';
@@ -47,6 +48,7 @@ const RequestPasswordReset = () => {
       
       // Show a generic message for security (don't reveal if email exists)
       setMessage('If your email is registered, you will receive a password reset link shortly.');
+      showApiError(err, { fallbackTitle: 'Reset Request Error' });
     }
   };
 
@@ -56,7 +58,7 @@ const RequestPasswordReset = () => {
         <div className="text-center mb-6">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Reset Password</h1>
           <p className="text-gray-600 dark:text-gray-300 mt-2">
-            Enter your email and we'll send you a link to reset your password
+            Enter your email and we&rsquo;ll send you a link to reset your password
           </p>
         </div>
 

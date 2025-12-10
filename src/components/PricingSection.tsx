@@ -213,7 +213,7 @@ const PricingSection: React.FC = () => {
         {/* Additional info section */}
         <div className="text-center mt-16 max-w-3xl mx-auto">
           <p className="text-sm text-gray-500 dark:text-zinc-500 mb-4">
-            All paid plans include a 14-day free trial. No credit card required.
+            All paid plans include a 3-day free trial. No credit card required.
           </p>
           <div className="flex flex-wrap justify-center gap-6 text-sm text-gray-600 dark:text-zinc-400">
             <span className="flex items-center">

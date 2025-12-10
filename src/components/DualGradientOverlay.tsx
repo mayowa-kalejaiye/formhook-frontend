@@ -1,4 +1,20 @@
 "use client"
+
+const pseudoRandom = (seed: number) => {
+  const x = Math.sin(seed) * 10000;
+  return x - Math.floor(x);
+};
+
+const STAR_POSITIONS = Array.from({ length: 40 }, (_, i) => {
+  const seed = (i + 1) * 7919;
+  return {
+    cx: `${pseudoRandom(seed) * 100}%`,
+    cy: `${pseudoRandom(seed * 1.31) * 100}%`,
+    r: 0.3 + pseudoRandom(seed * 1.73) * 0.9,
+    opacity: 0.2 + pseudoRandom(seed * 2.17) * 0.5,
+  };
+});
+
 export default function DualGradientOverlay({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen w-full relative flex items-center justify-center bg-black dark bg-fixed">
@@ -17,8 +33,15 @@ export default function DualGradientOverlay({ children }: { children: React.Reac
               <stop offset="100%" stopColor="#fff" stopOpacity="0" />
             </radialGradient>
           </defs>
-          {Array.from({length: 40}).map((_, i) => (
-            <circle key={i} cx={Math.random()*100+"%"} cy={Math.random()*100+"%"} r={Math.random()*1.2+0.3} fill="url(#star)" opacity={Math.random()*0.7+0.2} />
+          {STAR_POSITIONS.map((star, index) => (
+            <circle
+              key={index}
+              cx={star.cx}
+              cy={star.cy}
+              r={star.r}
+              fill="url(#star)"
+              opacity={star.opacity}
+            />
           ))}
         </svg>
       </div>

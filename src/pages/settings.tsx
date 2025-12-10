@@ -61,7 +61,8 @@ export default function SettingsPage() {
   const [itemsPerPage, setItemsPerPage] = useState('20');
 
   useEffect(() => {
-    setHydrated(true);
+    const timer = setTimeout(() => setHydrated(true), 0);
+    return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {

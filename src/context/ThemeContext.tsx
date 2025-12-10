@@ -46,24 +46,8 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [theme, setThemeState] = useState<Theme>(() => getInitialTheme());
 
   useEffect(() => {
-    // If there's no stored user preference, default to light and persist it.
-    if (typeof window !== 'undefined') {
-      try {
-        const stored = localStorage.getItem('theme');
-        if (!stored) {
-          setThemeState('light');
-          try { localStorage.setItem('theme', 'light'); } catch {}
-          applyThemeImmediately('light');
-          return;
-        }
-      } catch {
-        // ignore
-      }
-    }
-
-    // Apply theme immediately on mount to prevent flashing
     applyThemeImmediately(theme);
-  }, []);
+  }, [theme]);
 
   const setTheme = (t: Theme) => {
     if (typeof window === 'undefined') return;

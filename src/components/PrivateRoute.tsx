@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth } from '../context/AuthContext';
 import { safeReplace } from '../lib/navigation';
@@ -6,25 +6,25 @@ import { safeReplace } from '../lib/navigation';
 export default function PrivateRoute({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { user, loading: authLoading, authReady, isAuthenticated } = useAuth();
-  const [loading, setLoading] = useState(true);
+
+  const isReady = authReady && !authLoading;
+  const shouldRedirectToLogin = isReady && !isAuthenticated;
+  const requiresVerification = isReady && Boolean(user && user.verified === false);
+  const shouldBlockRender = !isReady || shouldRedirectToLogin || requiresVerification;
 
   useEffect(() => {
-    // Wait until auth initialization completes before redirecting
-    if (!authReady) return;
-    if (!isAuthenticated) {
+    if (shouldRedirectToLogin) {
       safeReplace(router, '/login');
-      return;
     }
+  }, [shouldRedirectToLogin, router]);
 
-    if (user && user.verified === false) {
+  useEffect(() => {
+    if (requiresVerification) {
       safeReplace(router, '/verification-required');
-      return;
     }
+  }, [requiresVerification, router]);
 
-    setLoading(false);
-  }, [user, authLoading, router]);
-
-  if (loading || authLoading) {
+  if (shouldBlockRender) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">

@@ -44,7 +44,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useRouter } from 'next/router';
-import { toast } from '../hooks/use-toast';
+import { toast, showApiError } from '../hooks/use-toast';
 import { Toaster } from '../components/ui/toaster';
 import { 
   getUserProfile, 
@@ -147,11 +147,7 @@ function UserAccountSettingsContent() {
           });
         } else {
           console.error('[Account] Profile data is null and no user in context');
-          toast({
-            title: "Error",
-            description: "Failed to load profile data",
-            variant: "destructive",
-          });
+          showApiError({ message: 'Failed to load profile data' }, { fallbackTitle: 'Profile Error' });
           setProfile(null);
         }
         return;
@@ -202,11 +198,7 @@ function UserAccountSettingsContent() {
           }
         });
       } else {
-        toast({
-          title: "Error",
-          description: "Failed to load profile data",
-          variant: "destructive",
-        });
+        showApiError(error, { fallbackTitle: 'Profile Error' });
         setProfile(null);
       }
     } finally {
@@ -220,11 +212,7 @@ function UserAccountSettingsContent() {
       setSecurityLogs(logs || []);
     } catch (error) {
       console.error('[Account] Error loading security logs:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load security logs",
-        variant: "destructive",
-      });
+        showApiError(error, { fallbackTitle: 'Security Logs Error' });
       setSecurityLogs([]);
     }
   };
@@ -247,11 +235,7 @@ function UserAccountSettingsContent() {
         description: "Profile updated successfully",
       });
     } catch (error) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update profile",
-        variant: "destructive",
-      });
+      showApiError(error, { fallbackTitle: 'Update Profile Failed' });
     } finally {
       setSaving(false);
     }
@@ -292,11 +276,7 @@ function UserAccountSettingsContent() {
         description: "Password changed successfully",
       });
     } catch (error) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to change password",
-        variant: "destructive",
-      });
+      showApiError(error, { fallbackTitle: 'Change Password Failed' });
     } finally {
       setSaving(false);
     }
@@ -320,11 +300,7 @@ function UserAccountSettingsContent() {
         description: `Two-factor authentication ${newState ? 'enabled' : 'disabled'}`,
       });
     } catch (error) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update two-factor authentication",
-        variant: "destructive",
-      });
+      showApiError(error, { fallbackTitle: 'Update 2FA Failed' });
     } finally {
       setSaving(false);
     }
@@ -365,11 +341,7 @@ function UserAccountSettingsContent() {
         }
       }, 3000);
     } catch (error) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to delete account",
-        variant: "destructive",
-      });
+      showApiError(error, { fallbackTitle: 'Delete Account Failed' });
     } finally {
       setSaving(false);
     }
@@ -391,11 +363,7 @@ function UserAccountSettingsContent() {
       });
     } catch (error) {
       console.error('[Account] Error exporting data:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to export data",
-        variant: "destructive",
-      });
+      showApiError(error, { fallbackTitle: 'Export Failed' });
     }
   };
 

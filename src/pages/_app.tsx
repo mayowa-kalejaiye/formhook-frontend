@@ -8,6 +8,7 @@ import { AuthProvider } from '../context/AuthContext';
 import { ThemeProvider } from '../context/ThemeContext';
 import { SidebarProvider } from '../context/SidebarContext';
 import { NotificationProvider } from '../context/NotificationContext';
+import { SubscriptionProvider } from '../context/SubscriptionContext';
 
 import MenuBar from '../components/MenuBar';
 
@@ -44,11 +45,13 @@ function MyApp({ Component, pageProps }: AppProps) {
 
       <ThemeProvider>
         <AuthProvider>
-          <NotificationProvider>
-            <SidebarProvider>
-              <FormsProvider>{content}</FormsProvider>
-            </SidebarProvider>
-          </NotificationProvider>
+          <SubscriptionProvider>
+            <NotificationProvider>
+              <SidebarProvider>
+                <FormsProvider>{content}</FormsProvider>
+              </SidebarProvider>
+            </NotificationProvider>
+          </SubscriptionProvider>
         </AuthProvider>
       </ThemeProvider>
     </>

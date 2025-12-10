@@ -9,6 +9,7 @@ import { useSidebar } from '../context/SidebarContext';
 import BottomGradientRadial from '../components/BottomGradientRadial';
 import AuthLayout from '../components/AuthLayout';
 import { getSubmissions, getForms } from '../services/api';
+import { showApiError } from '../hooks/use-toast';
 import { 
   BarChart3, 
   Globe, 
@@ -27,6 +28,7 @@ import {
   Target,
   TrendingDown
 } from 'lucide-react';
+import type { TooltipProps } from 'recharts';
 import { 
   BarChart, 
   Bar, 
@@ -47,6 +49,34 @@ import {
 import { ComposableMap, Geographies, Geography, Marker } from 'react-simple-maps';
 
 const geoUrl = "https://raw.githubusercontent.com/deldersveld/topojson/master/world-countries.json";
+
+type CountryTooltipDatum = {
+  fullCountry: string;
+  submissions: number;
+  riskScore: number;
+  riskLevel: string;
+};
+
+const CountryTooltipContent: React.FC<TooltipProps<number, string>> = ({ active, payload }) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload as CountryTooltipDatum;
+    return (
+      <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700">
+        <p className="font-semibold text-gray-900 dark:text-white mb-2">{data.fullCountry}</p>
+        <div className="space-y-1">
+          <p className="text-sm text-blue-600 dark:text-blue-400">
+            <span className="font-medium">Submissions:</span> {data.submissions}
+          </p>
+          <p className="text-sm text-orange-600 dark:text-orange-400">
+            <span className="font-medium">Avg Risk:</span> {data.riskScore} ({data.riskLevel})
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+};
 
 // Simple coordinate mapping for major countries (you'd want a real geolocation service in production)
 function getCountryCoordinates(country: string): [number, number] | null {
@@ -136,26 +166,6 @@ function InteractiveCountryChart({ data }: { data: Record<string, { count: numbe
       riskLevel: stats.threat_avg < 30 ? 'Low' : stats.threat_avg < 70 ? 'Medium' : 'High'
     }));
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      const data = payload[0].payload;
-      return (
-        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700">
-          <p className="font-semibold text-gray-900 dark:text-white mb-2">{data.fullCountry}</p>
-          <div className="space-y-1">
-            <p className="text-sm text-blue-600 dark:text-blue-400">
-              <span className="font-medium">Submissions:</span> {data.submissions}
-            </p>
-            <p className="text-sm text-orange-600 dark:text-orange-400">
-              <span className="font-medium">Avg Risk:</span> {data.riskScore} ({data.riskLevel})
-            </p>
-          </div>
-        </div>
-      );
-    }
-    return null;
-  };
-
   return (
     <ResponsiveContainer width="100%" height={400}>
       <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
@@ -171,7 +181,7 @@ function InteractiveCountryChart({ data }: { data: Record<string, { count: numbe
           axisLine={false}
           tickLine={false}
         />
-        <Tooltip content={<CustomTooltip />} />
+        <Tooltip content={<CountryTooltipContent />} />
         <Bar 
           dataKey="submissions" 
           fill="#3b82f6" 
@@ -319,6 +329,7 @@ function AnalyticsPageContent() {
         }
       } catch (error) {
         console.error('[Analytics] Error loading data:', error);
+        showApiError(error, { fallbackTitle: 'Analytics Error' });
         // Don't clear existing data on error
       } finally {
         setLoading(false);
@@ -404,6 +415,7 @@ function AnalyticsPageContent() {
         }
       } catch (error) {
         console.error('[Analytics] Error refreshing data:', error);
+        showApiError(error, { fallbackTitle: 'Analytics Error' });
       }
     };
     

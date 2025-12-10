@@ -11,7 +11,7 @@ import { useSidebar } from '../../../context/SidebarContext';
 import BottomGradientRadial from '../../../components/BottomGradientRadial';
 import AuthLayout from '../../../components/AuthLayout';
 import { getForm, getFormAnalytics, getFormGeoAnalytics } from '../../../services/api';
-import { toast } from '../../../hooks/use-toast';
+import { showApiError } from '../../../hooks/use-toast';
 import { 
   BarChart3, 
   Calendar, 
@@ -183,9 +183,8 @@ function FormAnalyticsContent() {
           // Should not throw anymore, but handle just in case
           console.error('[FormAnalytics] Unexpected error loading analytics:', analyticsErr);
           setAnalytics([]);
-          toast({
-            title: 'Analytics Error',
-            description: 'Failed to load analytics data. The form data loaded successfully but analytics are not available.',
+          showApiError(analyticsErr, {
+            fallbackTitle: 'Analytics Error'
           });
         }
         
@@ -220,11 +219,13 @@ function FormAnalyticsContent() {
         } catch (geoErr) {
           console.error('[FormAnalytics] Unexpected error loading geo analytics:', geoErr);
           setGeoData([]);
+          showApiError(geoErr, { fallbackTitle: 'Geo Analytics Error' });
         }
       } catch (err) {
         console.error('[FormAnalytics] Error loading form data:', err);
         setError('Failed to load form analytics');
         setAnalytics([]);
+        showApiError(err, { fallbackTitle: 'Form Analytics Error' });
       } finally {
         setLoading(false);
       }

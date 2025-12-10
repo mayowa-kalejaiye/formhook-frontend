@@ -57,7 +57,13 @@ type CountryTooltipDatum = {
   riskLevel: string;
 };
 
-const CountryTooltipContent: React.FC<TooltipProps<number, string>> = ({ active, payload }) => {
+type CountryTooltipProps = TooltipProps<number, string> & {
+  payload?: Array<{
+    payload?: CountryTooltipDatum;
+  }>;
+};
+
+const CountryTooltipContent: React.FC<CountryTooltipProps> = ({ active, payload }) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload as CountryTooltipDatum;
     return (

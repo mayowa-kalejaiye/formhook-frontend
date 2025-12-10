@@ -29,6 +29,7 @@ import DashboardNav from '../components/DashboardNav';
 import BottomGradientRadial from '../components/BottomGradientRadial';
 import { useNotifications } from '../context/NotificationContext';
 import { Card, CardHeader, CardContent, CardTitle, CardDescription, CardFooter } from '../components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../components/ui/dialog';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Badge } from '../components/ui/badge';
@@ -920,12 +921,158 @@ function DashboardContent({
 
   const displayTotalForms = Array.isArray(forms) ? forms.length : 0;
   const [deviceViewMode, setDeviceViewMode] = useState<'browser' | 'device'>('browser');
+  const [trafficModalOpen, setTrafficModalOpen] = useState(false);
+  const [trafficModalView, setTrafficModalView] = useState<'countries' | 'devices' | 'os'>('countries');
   const activeDeviceBreakdown = deviceViewMode === 'browser' ? browserTop : deviceCategoryTop;
   const totalCountrySamples = geoCountries.reduce((sum, entry) => sum + (entry.count || 0), 0);
   const totalBrowserSamples = browserTop.reduce((sum, entry) => sum + (entry.count || 0), 0);
   const totalDeviceSamples = deviceCategoryTop.reduce((sum, entry) => sum + (entry.count || 0), 0);
   const totalOsSamples = osTop.reduce((sum, entry) => sum + (entry.count || 0), 0);
   const activeDeviceTotal = deviceViewMode === 'browser' ? totalBrowserSamples : totalDeviceSamples;
+  const handleOpenTrafficModal = (view: 'countries' | 'devices' | 'os') => {
+    setTrafficModalView(view);
+    setTrafficModalOpen(true);
+  };
+  const trafficModalMeta = {
+    countries: {
+      title: 'Global audience insights',
+      description: 'Complete geo distribution across the latest sampled traffic.',
+    },
+    devices: {
+      title: 'Device and browser mix',
+      description: 'Full fidelity on hardware classes and browser engines detected.',
+    },
+    os: {
+      title: 'Operating system spread',
+      description: 'Entire user agent OS breakdown from recent submissions.',
+    },
+  } as const;
+  const activeTrafficMeta = trafficModalMeta[trafficModalView];
+  const renderTrafficModalContent = () => {
+    if (trafficModalView === 'countries') {
+      if (!geoCountries.length) {
+        return <p className="text-sm text-slate-500">No traffic samples yet.</p>;
+      }
+
+      const base = totalCountrySamples > 0 ? totalCountrySamples : geoCountries.length || 1;
+      return (
+        <div className="space-y-3">
+          {geoCountries.map((country, index) => {
+            const share = country.percent && country.percent > 0 ? country.percent : percentOf(country.count || 0, base);
+            return (
+              <div
+                key={`${country.name}-${country.code || index}`}
+                className="flex items-start gap-3 rounded-2xl border border-slate-100 dark:border-slate-800 bg-white/70 dark:bg-slate-900/40 p-3"
+              >
+                <div className="text-2xl leading-none">{countryFlagEmoji(country.code)}</div>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between text-sm font-semibold text-slate-900 dark:text-slate-100">
+                    <span>
+                      {index + 1}. {country.name}
+                    </span>
+                    <span>{share.toFixed(1)}%</span>
+                  </div>
+                  <div className="mt-2 h-2 rounded-full bg-slate-100 dark:bg-slate-800">
+                    <div
+                      className="h-full rounded-full bg-blue-500"
+                      style={{ width: `${Math.min(share, 100)}%` }}
+                    ></div>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1">{(country.count || 0).toLocaleString()} visitors</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+
+    if (trafficModalView === 'devices') {
+      const deviceBases = Math.max(totalDeviceSamples, deviceCategoryTop.length || 1);
+      const browserBases = Math.max(totalBrowserSamples, browserTop.length || 1);
+
+      return (
+        <div className="grid gap-6 md:grid-cols-2">
+          <div>
+            <p className="text-sm font-semibold text-slate-900 dark:text-slate-50">Device classes</p>
+            <div className="mt-3 space-y-2">
+              {deviceCategoryTop.length ? (
+                deviceCategoryTop.map((device) => {
+                  const share = percentOf(device.count || 0, deviceBases);
+                  return (
+                    <div key={device.name} className="rounded-xl border border-slate-100 dark:border-slate-800 p-3">
+                      <div className="flex items-center justify-between text-sm font-medium text-slate-900 dark:text-slate-100">
+                        <span>{device.name}</span>
+                        <span>{share.toFixed(1)}%</span>
+                      </div>
+                      <div className="mt-2 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800">
+                        <div className="h-full rounded-full bg-indigo-500" style={{ width: `${Math.min(share, 100)}%` }}></div>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-1">{device.count} sessions</p>
+                    </div>
+                  );
+                })
+              ) : (
+                <p className="text-xs text-slate-500">No device intelligence yet.</p>
+              )}
+            </div>
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-slate-900 dark:text-slate-50">Browser engines</p>
+            <div className="mt-3 space-y-2">
+              {browserTop.length ? (
+                browserTop.map((browser) => {
+                  const share = percentOf(browser.count || 0, browserBases);
+                  return (
+                    <div key={browser.name} className="rounded-xl border border-slate-100 dark:border-slate-800 p-3">
+                      <div className="flex items-center justify-between text-sm font-medium text-slate-900 dark:text-slate-100">
+                        <span>{browser.name}</span>
+                        <span>{share.toFixed(1)}%</span>
+                      </div>
+                      <div className="mt-2 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800">
+                        <div className="h-full rounded-full bg-purple-500" style={{ width: `${Math.min(share, 100)}%` }}></div>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-1">{browser.count} sessions</p>
+                    </div>
+                  );
+                })
+              ) : (
+                <p className="text-xs text-slate-500">No browser telemetry yet.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (trafficModalView === 'os') {
+      if (!osTop.length) {
+        return <p className="text-sm text-slate-500">No operating system data to show.</p>;
+      }
+      const base = Math.max(totalOsSamples, osTop.length || 1);
+      return (
+        <div className="space-y-2">
+          {osTop.map((os) => {
+            const share = percentOf(os.count || 0, base);
+            return (
+              <div key={os.name} className="rounded-xl border border-slate-100 dark:border-slate-800 p-3">
+                <div className="flex items-center justify-between text-sm font-medium text-slate-900 dark:text-slate-100">
+                  <span>{os.name}</span>
+                  <span>{share.toFixed(1)}%</span>
+                </div>
+                <div className="mt-2 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800">
+                  <div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.min(share, 100)}%` }}></div>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">{os.count} sessions</p>
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+
+    return null;
+  };
 
   const submissionSummary = useMemo(() => {
     const points = Array.isArray(interactiveAnalytics) ? [...interactiveAnalytics] : [];
@@ -1477,7 +1624,12 @@ function DashboardContent({
                     )}
                   </div>
                   <div className="flex items-center justify-between pt-3 mt-4 border-t border-slate-100 dark:border-slate-800">
-                    <Button variant="ghost" size="sm" className="gap-1 text-slate-600">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="gap-1 text-slate-600"
+                      onClick={() => handleOpenTrafficModal('countries')}
+                    >
                       View all
                       <ArrowUpRight className="h-3.5 w-3.5" />
                     </Button>
@@ -1531,7 +1683,12 @@ function DashboardContent({
                     )}
                   </div>
                   <div className="flex items-center justify-between pt-3 mt-4 border-t border-slate-100 dark:border-slate-800">
-                    <Button variant="ghost" size="sm" className="gap-1 text-slate-600">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="gap-1 text-slate-600"
+                      onClick={() => handleOpenTrafficModal('devices')}
+                    >
                       View all
                       <ArrowUpRight className="h-3.5 w-3.5" />
                     </Button>
@@ -1571,7 +1728,12 @@ function DashboardContent({
                     )}
                   </div>
                   <div className="flex items-center justify-between pt-3 mt-4 border-t border-slate-100 dark:border-slate-800">
-                    <Button variant="ghost" size="sm" className="gap-1 text-slate-600">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="gap-1 text-slate-600"
+                      onClick={() => handleOpenTrafficModal('os')}
+                    >
                       View all
                       <ArrowUpRight className="h-3.5 w-3.5" />
                     </Button>
@@ -1583,6 +1745,71 @@ function DashboardContent({
               </div>
             </CardContent>
           </Card>
+
+          <Dialog open={trafficModalOpen} onOpenChange={setTrafficModalOpen}>
+            <DialogContent className="max-w-4xl w-full border border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-950/90 rounded-3xl shadow-2xl p-0">
+              <div className="p-6 space-y-6">
+                <DialogHeader className="text-left space-y-2">
+                  <DialogTitle className="text-2xl font-semibold text-slate-900 dark:text-slate-100">
+                    {activeTrafficMeta.title}
+                  </DialogTitle>
+                  <DialogDescription className="text-slate-500 dark:text-slate-400">
+                    {activeTrafficMeta.description}
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="flex flex-wrap gap-2 text-xs font-semibold">
+                  {(['countries', 'devices', 'os'] as const).map((view) => {
+                    const isActive = trafficModalView === view;
+                    const label =
+                      view === 'countries'
+                        ? 'Countries'
+                        : view === 'devices'
+                          ? 'Devices & browsers'
+                          : 'Operating systems';
+                    return (
+                      <button
+                        key={view}
+                        type="button"
+                        onClick={() => setTrafficModalView(view)}
+                        className={`px-3 py-1.5 rounded-full border transition text-xs font-medium ${
+                          isActive
+                            ? 'bg-slate-900 text-white dark:bg-white/90 dark:text-slate-900 border-slate-900 dark:border-white'
+                            : 'border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                        }`}
+                        aria-pressed={isActive}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2 text-xs text-slate-500">
+                  <div className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-white/80 dark:bg-slate-900/40 p-3">
+                    <p className="uppercase tracking-wide text-[11px] text-slate-500">Sample size</p>
+                    <p className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                      {ipInsightMeta.sampleSize > 0
+                        ? ipInsightMeta.sampleSize.toLocaleString()
+                        : totalCountrySamples.toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-white/80 dark:bg-slate-900/40 p-3">
+                    <p className="uppercase tracking-wide text-[11px] text-slate-500">Last refreshed</p>
+                    <p className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                      {ipInsightMeta.lastUpdated
+                        ? new Date(ipInsightMeta.lastUpdated).toLocaleString()
+                        : 'Awaiting sync'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="max-h-[60vh] overflow-y-auto pr-2 space-y-4">
+                  {renderTrafficModalContent()}
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
 
           {/* Submissions summary now full width beneath traffic */}
           <Card className="pro-card">

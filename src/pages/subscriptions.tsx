@@ -175,6 +175,8 @@ export default function SubscriptionsPage() {
           billing_cycle: current?.billing_cycle || 'monthly',
           current_period_start: current?.current_period_start || new Date().toISOString(),
           next_reset_date: current?.next_billing_date || null,
+          trial_ends_at: trialEndsAt,
+          subscription_status: subscriptionStatus || 'active',
           days_remaining: null,
           submissions_used: used,
           submissions_limit: fallbackLimit,

@@ -5,7 +5,7 @@ type AppConfig = {
   apiBaseUrl: string;
 };
 
-const DEFAULT_API_BASE_URL = 'https://formhook-backend.onrender.com';
+const DEFAULT_API_BASE_URL = 'https://formhook-backend-rnvw.onrender.com';
 
 function readEnv(name: string, fallback?: string): string {
   const value = process.env[name as keyof NodeJS.ProcessEnv];

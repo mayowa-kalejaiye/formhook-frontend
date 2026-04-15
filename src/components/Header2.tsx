@@ -99,7 +99,6 @@ const Header2 = () => {
     { href: "/forms", label: "Forms" },
     { href: "/submissions", label: "Submissions" },
     { href: "/webhooks", label: "Webhooks" },
-    { href: "/pricing", label: "Pricing" },
   ];
 
   const avatarDropdownLinks = [
@@ -148,9 +147,7 @@ const Header2 = () => {
             {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center gap-6">
             {navLinks.map((link) => (
-              link.href === "/pricing"
-                ? <Link key={link.label} href={link.href} className="text-sm font-semibold text-purple-700 dark:text-purple-300 hover:text-purple-900 dark:hover:text-purple-100 transition-colors duration-300">{link.label}</Link>
-                : <a key={link.label} href={link.href} className="text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors duration-300">{link.label}</a>
+              <a key={link.label} href={link.href} className="text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors duration-300">{link.label}</a>
             ))}
             </nav>
           </div>
@@ -159,7 +156,7 @@ const Header2 = () => {
           <div className="flex items-center gap-4">
              {/* Notification Dropdown */}
              <div className="relative hidden sm:block" ref={notificationsDropdownRef}>
-                <button onClick={() => setIsNotificationsOpen(!isNotificationsOpen)} className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 focus:outline-none">
+                <button onClick={() => setIsNotificationsOpen(!isNotificationsOpen)} className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 focus:outline-none" aria-label="Toggle notifications">
                     <span className="sr-only">View notifications</span>
                     <BellIcon className="h-6 w-6" />
                 </button>
@@ -178,7 +175,7 @@ const Header2 = () => {
 
              {/* Avatar Dropdown */}
              <div className="relative hidden sm:block" ref={avatarDropdownRef}>
-                <button onClick={() => setIsAvatarOpen(!isAvatarOpen)} className="flex items-center gap-2 focus:outline-none">
+                <button onClick={() => setIsAvatarOpen(!isAvatarOpen)} className="flex items-center gap-2 focus:outline-none" aria-label="Open account menu">
                     <AvatarIcon className="h-9 w-9" />
                 </button>
                 <div className={`absolute top-full right-0 mt-2 w-48 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg transition-opacity duration-300 ${isAvatarOpen ? 'opacity-100 visible' : 'opacity-0 invisible'}`}>
@@ -195,7 +192,7 @@ const Header2 = () => {
               <button
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
                 className="inline-flex items-center justify-center p-2 rounded-md text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-gray-500"
-                aria-expanded={isMenuOpen ? "true" : "false"}
+                aria-expanded={isMenuOpen}
               >
                 <span className="sr-only">Open main menu</span>
                 {isMenuOpen ? <XIcon className="h-6 w-6" /> : <MenuIcon className="h-6 w-6" />}
@@ -211,9 +208,7 @@ const Header2 = () => {
         <div className="md:hidden border-t border-gray-200 dark:border-gray-800" id="mobile-menu">
           <div className="px-4 pt-2 pb-3 space-y-1 sm:px-3">
             {navLinks.map((link) => (
-              link.href === "/pricing"
-                ? <Link key={link.label} href={link.href} className="text-purple-700 dark:text-purple-300 font-semibold hover:text-purple-900 dark:hover:text-purple-100 block px-3 py-2 rounded-md text-base transition-colors duration-300">{link.label}</Link>
-                : <a key={link.label} href={link.href} className="text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100 block px-3 py-2 rounded-md text-base font-medium">{link.label}</a>
+              <a key={link.label} href={link.href} className="text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100 block px-3 py-2 rounded-md text-base font-medium">{link.label}</a>
             ))}
             <div className="border-t border-gray-200 dark:border-gray-700 mt-4 pt-4">
                 <div className="flex items-center justify-between px-3">

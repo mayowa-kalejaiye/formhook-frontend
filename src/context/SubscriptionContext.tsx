@@ -62,7 +62,7 @@ interface SubscriptionContextValue {
   formatPrice: (priceCents?: number | null) => string;
 }
 
-const tierOrder: SubscriptionTier[] = ['starter', 'professional', 'business', 'enterprise'];
+const tierOrder: SubscriptionTier[] = ['starter'];
 
 const SubscriptionContext = createContext<SubscriptionContextValue | undefined>(undefined);
 
@@ -176,7 +176,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
   const usageSnapshot = usage || current?.usage_info || null;
   const tierKey = normalizeTier(current?.tier || usageSnapshot?.current_tier);
   const activePlan = plans[tierKey] || null;
-  const planLabel = current?.plan_name || activePlan?.name || 'Starter';
+  const planLabel = current?.plan_name || activePlan?.name || 'Free';
   const normalizeStatus = (value?: string | null) => (value ? value.toLowerCase() : null);
   const subscriptionStatus =
     normalizeStatus(current?.subscription_status) ||
@@ -252,7 +252,8 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
 
   const formatPrice = useCallback(
     (priceCents?: number | null) => {
-      if (priceCents === null || priceCents === undefined) return 'Contact sales';
+      if (priceCents === null || priceCents === undefined) return 'Free';
+      if (priceCents === 0) return 'Free';
       const formatter = new Intl.NumberFormat('en-US', {
         style: 'currency',
         currency: currency || 'USD',

@@ -211,7 +211,7 @@ export default function Login() {
 
           <div className="flex gap-3">
             <a href="/signup" className="inline-block rounded-md bg-white text-indigo-700 px-4 py-2 font-semibold">Get started</a>
-            <a href="/pricing" className="inline-block rounded-md border border-white/30 px-4 py-2 text-white/90">See pricing</a>
+            <a href="/signup" className="inline-block rounded-md border border-white/30 px-4 py-2 text-white/90">Start free</a>
           </div>
         </div>
       </div>

@@ -11,7 +11,6 @@ export interface PricingPlan {
   max_forms: number | null;
   max_team_members?: number | null;
   file_upload_size_mb?: number | null;
-  support_level?: string | null;
   sla_uptime?: number | null;
   remove_branding?: boolean;
   white_label?: boolean;
@@ -119,60 +118,17 @@ export const PRICING_PLAN_FALLBACK: PricingPlansResponse = {
   plans: {
     starter: {
       tier: 'starter',
-      name: 'Starter',
-      price_monthly: 900,
-      price_yearly: 9000,
+      name: 'Free',
+      price_monthly: 0,
+      price_yearly: 0,
       monthly_submissions: 1000,
-      max_forms: null,
+      max_forms: 25,
       max_team_members: 1,
       file_upload_size_mb: 5,
-      support_level: 'email',
       sla_uptime: 0.99,
-      remove_branding: true,
+      remove_branding: false,
       white_label: false,
-      features: ['basic_analytics', 'email_notifications', 'api_access', 'email_support', 'basic_integrations', 'remove_branding']
-    },
-    professional: {
-      tier: 'professional',
-      name: 'Professional',
-      price_monthly: 2900,
-      price_yearly: 29000,
-      monthly_submissions: 10000,
-      max_forms: null,
-      max_team_members: 5,
-      file_upload_size_mb: 20,
-      support_level: 'priority_email',
-      remove_branding: true,
-      white_label: false,
-      features: ['advanced_analytics', 'webhooks', 'ab_testing', 'priority_email_support']
-    },
-    business: {
-      tier: 'business',
-      name: 'Business',
-      price_monthly: 9900,
-      price_yearly: 99000,
-      monthly_submissions: 100000,
-      max_forms: null,
-      max_team_members: 25,
-      file_upload_size_mb: 100,
-      support_level: 'phone',
-      remove_branding: true,
-      white_label: true,
-      features: ['white_label', 'phone_support', 'custom_fields', 'priority_processing']
-    },
-    enterprise: {
-      tier: 'enterprise',
-      name: 'Enterprise',
-      price_monthly: 19900,
-      price_yearly: 199000,
-      monthly_submissions: 1000000,
-      max_forms: null,
-      max_team_members: null,
-      file_upload_size_mb: 500,
-      support_level: 'dedicated',
-      remove_branding: true,
-      white_label: true,
-      features: ['sso_integration', 'dedicated_support', 'custom_integrations', 'dedicated_infrastructure']
+      features: ['basic_analytics', 'email_notifications', 'api_access', 'basic_integrations']
     }
   }
 };

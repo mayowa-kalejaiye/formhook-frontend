@@ -18,8 +18,6 @@ import {
   User,
   Settings,
   LogOut,
-  CreditCard,
-  HelpCircle
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import NavigationControls from './NavigationControls';
@@ -61,8 +59,6 @@ export default function DashboardHeader() {
       ? `${submissionsUsed.toLocaleString()} / ${submissionsLimit.toLocaleString()} submissions`
       : `${submissionsLimit.toLocaleString()} submissions limit`
     : 'Unlimited submissions';
-  const usageProgress =
-    hasUsageMetrics && typeof submissionsPercent === 'number' ? Math.min(submissionsPercent, 100) : null;
   const trialCountdown = describeTimeUntil(trialEndsAt);
   const trialEndDate = formatDateShort(trialEndsAt);
   const subscriptionStatusLabel = subscriptionStatus
@@ -213,12 +209,6 @@ export default function DashboardHeader() {
               <span className={submissionsPercent >= 80 ? 'text-amber-600 font-semibold' : ''}>{submissionsPercent}%</span>
             )}
           </div>
-          <div className="mt-1 h-1 w-full max-w-[9rem] rounded-full bg-slate-200 dark:bg-slate-700">
-            <div
-              className="h-full rounded-full bg-blue-600"
-              style={{ width: `${usageProgress ?? 0}%` }}
-            />
-          </div>
           </div>
 
           <div className="flex items-center gap-6 mr-6">
@@ -285,21 +275,9 @@ export default function DashboardHeader() {
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild className="cursor-pointer">
-                  <Link href="/pricing" className="flex items-center">
-                    <CreditCard className="mr-2 h-4 w-4" />
-                    <span>Billing & Plans</span>
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild className="cursor-pointer">
                   <Link href="/settings" className="flex items-center">
                     <Settings className="mr-2 h-4 w-4" />
                     <span>Preferences</span>
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild className="cursor-pointer">
-                  <Link href="/help" className="flex items-center">
-                    <HelpCircle className="mr-2 h-4 w-4" />
-                    <span>Help & Support</span>
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />

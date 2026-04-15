@@ -46,7 +46,6 @@ const navigationGroups = [
     label: "General",
     items: [
       { href: "/account", label: "Account", icon: Settings },
-      { href: "/help", label: "Help Desk", icon: HelpCircle },
       { href: "/logout", label: "Log out", icon: LogOut },
     ]
   }
@@ -163,32 +162,6 @@ export default function DashboardNav() {
           </nav>
         </div>
         
-        <div className="flex-shrink-0 px-4 py-6 border-t border-slate-200 dark:border-slate-700">
-          <div className="bg-gradient-to-r from-slate-50 to-white dark:from-slate-800 dark:to-slate-900 rounded-lg p-4 shadow-sm border border-slate-200 dark:border-slate-700">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="font-semibold text-slate-900 dark:text-slate-100">Upgrade Pro!</span>
-              <span role="img" aria-label="fire">👑</span>
-            </div>
-            <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">
-              Higher productivity with better organization
-            </p>
-              <div className="flex items-center gap-2">
-              <Link
-                href="/pricing"
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2 transition-colors"
-              >
-                <Crown className="h-4 w-4" />
-                Upgrade
-              </Link>
-              <Link
-                href="/features"
-                className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 text-sm"
-              >
-                Learn more
-              </Link>
-            </div>
-          </div>
-        </div>
       </aside>
 
       {/* Professional Mobile Drawer */}
@@ -265,32 +238,6 @@ export default function DashboardNav() {
               </nav>
             </div>
             
-            <div className="flex-shrink-0 px-4 py-6 border-t border-slate-200 dark:border-slate-700">
-              <div className="bg-gradient-to-r from-slate-50 to-white dark:from-slate-800 dark:to-slate-900 rounded-lg p-4 shadow-sm border border-slate-200 dark:border-slate-700">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="font-semibold text-slate-900 dark:text-slate-100">Upgrade Pro!</span>
-                  <span role="img" aria-label="fire">🔥</span>
-                </div>
-                <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">
-                  Higher productivity with better organization
-                </p>
-                <div className="flex items-center gap-2">
-                  <Link
-                    href="/pricing"
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2 transition-colors"
-                  >
-                    <Crown className="h-4 w-4" />
-                    Upgrade
-                  </Link>
-                  <Link
-                    href="/features"
-                    className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 text-sm"
-                  >
-                    Learn more
-                  </Link>
-                </div>
-              </div>
-            </div>
           </aside>
         </div>
       )}

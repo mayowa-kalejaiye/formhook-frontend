@@ -372,6 +372,12 @@ async function buildIpBreakdownFromSubmissions(submissions: SubmissionRecord[]):
 }
 
 const SubmissionsSummaryChart = React.memo(function SubmissionsSummaryChart({ data }: { data: SubmissionsSummaryPoint[] }) {
+  const [chartReady, setChartReady] = React.useState(false);
+  React.useEffect(() => {
+    const frame = window.requestAnimationFrame(() => setChartReady(true));
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
+
   const chartData = (data || []).map((point) => ({
     date: point.date ? new Date(point.date).toLocaleDateString() : '',
     submissions: point.submissions || 0,
@@ -382,7 +388,7 @@ const SubmissionsSummaryChart = React.memo(function SubmissionsSummaryChart({ da
 
   return (
     <div className="mt-6">
-      {hasData ? (
+      {hasData && chartReady ? (
         <div className="w-full h-52 min-w-0">
           <DynamicResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={180}>
             <DynamicAreaChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
@@ -514,6 +520,12 @@ function ModernTrendChart({ data, trendRange, chartType, onChartTypeChange, onTr
   onChartTypeChange: (type: 'bar' | 'line' | 'area') => void;
   onTrendRangeChange: (range: TrendRange) => void;
 }) {
+  const [chartReady, setChartReady] = React.useState(false);
+  React.useEffect(() => {
+    const frame = window.requestAnimationFrame(() => setChartReady(true));
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
+
   const hasData = Array.isArray(data) && data.length > 0;
   
   return (
@@ -559,7 +571,7 @@ function ModernTrendChart({ data, trendRange, chartType, onChartTypeChange, onTr
       <CardContent className="pt-0">
         <div className="h-80 w-full min-w-0">
           <DynamicResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={260}>
-            {hasData ? (
+            {hasData && chartReady ? (
               chartType === 'bar' ? (
                 <DynamicBarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                   <DynamicCartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />

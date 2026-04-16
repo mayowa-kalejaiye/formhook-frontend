@@ -383,8 +383,8 @@ const SubmissionsSummaryChart = React.memo(function SubmissionsSummaryChart({ da
   return (
     <div className="mt-6">
       {hasData ? (
-        <div className="w-full h-52">
-          <DynamicResponsiveContainer width="100%" height="100%">
+        <div className="w-full h-52 min-w-0">
+          <DynamicResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={180}>
             <DynamicAreaChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
               <DynamicCartesianGrid strokeDasharray="3 3" stroke="#e6eefb" />
               <DynamicXAxis dataKey="date" tick={{ fontSize: 11, fill: '#64748b' }} />
@@ -557,8 +557,8 @@ function ModernTrendChart({ data, trendRange, chartType, onChartTypeChange, onTr
         </div>
       </CardHeader>
       <CardContent className="pt-0">
-        <div className="h-80 w-full">
-          <DynamicResponsiveContainer width="100%" height="100%">
+        <div className="h-80 w-full min-w-0">
+          <DynamicResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={260}>
             {hasData ? (
               chartType === 'bar' ? (
                 <DynamicBarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>

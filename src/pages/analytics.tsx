@@ -520,7 +520,7 @@ function AnalyticsPageContent() {
                     <CardDescription>Volume, unique sources, and average threat over time buckets.</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <ResponsiveContainer width="100%" height={320}>
+                    <ResponsiveContainer width="100%" height={320} minWidth={0} minHeight={240}>
                       <AreaChart data={trendSeries}>
                         <defs>
                           <linearGradient id="eventsGradient" x1="0" y1="0" x2="0" y2="1">
@@ -544,7 +544,7 @@ function AnalyticsPageContent() {
                     <CardDescription>Which forms are carrying your traffic load.</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <ResponsiveContainer width="100%" height={320}>
+                    <ResponsiveContainer width="100%" height={320} minWidth={0} minHeight={240}>
                       <BarChart data={formBreakdown.slice(0, 8)} layout="vertical" margin={{ left: 20, right: 8 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#94a3b8" opacity={0.18} />
                         <XAxis type="number" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
@@ -564,7 +564,7 @@ function AnalyticsPageContent() {
                     <CardDescription>Top countries by received event volume.</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <ResponsiveContainer width="100%" height={300}>
+                    <ResponsiveContainer width="100%" height={300} minWidth={0} minHeight={220}>
                       <BarChart data={countryBreakdown}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#94a3b8" opacity={0.18} />
                         <XAxis dataKey="country" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
@@ -587,7 +587,7 @@ function AnalyticsPageContent() {
                   </CardHeader>
                   <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
                     <div className="h-[220px]">
-                      <ResponsiveContainer width="100%" height="100%">
+                      <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={220}>
                         <PieChart>
                           <Pie data={riskBreakdown} dataKey="value" nameKey="name" innerRadius={52} outerRadius={86} paddingAngle={3}>
                             {riskBreakdown.map((entry) => (

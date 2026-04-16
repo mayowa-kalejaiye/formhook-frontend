@@ -788,26 +788,21 @@ export const requestEmailVerification = (email: string) => {
 
 // Forms
 export const getForms = async () => {
-  try {
-    // Use cached fetch with short TTL (1 minute) - forms list changes frequently
-    const res = await fetchWithCache('/forms/', {}, CacheTTL.SHORT);
-    
-    if (!res.ok) {
-      // Return empty data instead of throwing
-      return { data: [] };
-    }
-    
-    // If res is a Response object, parse as JSON
-    if (typeof res.json === 'function') {
-      const data = await res.json();
-      return { data };
-    }
-    // If res is already parsed (error case), return as is
-    return res;
-  } catch (error) {
-    // Return empty data on any error
-    return { data: [] };
+  const res = await fetchWithAuth('/forms/', {
+    method: 'GET',
+    cache: 'no-store',
+  });
+
+  if (!res.ok) {
+    throw buildApiError(res, 'Failed to load forms');
   }
+
+  if (typeof res.json !== 'function') {
+    throw buildApiError(res, 'Invalid forms response');
+  }
+
+  const data = await res.json();
+  return { data: Array.isArray(data) ? data : [] };
 };
 export const createForm = async (data: {
   name: string;

@@ -327,6 +327,23 @@ function FormsPageContent() {
     try {
       const res = await createForm(formData);
       if (res && res.ok) {
+        const created = res.data || {};
+        const optimisticForm: Form = {
+          id: String(created.id || crypto.randomUUID()),
+          name: created.name || formData.name,
+          description: created.description || formData.description,
+          webhook_url: created.webhook_url || formData.webhook_url,
+          notification_email: created.notification_email || formData.notification_email,
+          require_token: Boolean(created.require_token),
+          created_at: created.created_at || new Date().toISOString(),
+          submission_count: created.submission_count ?? 0,
+          recent_submissions: created.recent_submissions ?? 0,
+          last_submission_at: created.last_submission_at || undefined,
+          status: (created.status as Form['status']) || 'active'
+        };
+
+        await mutate((current = []) => [optimisticForm, ...current], false);
+
         // Ensure the newly created form is visible in the refreshed list.
         setSearchQuery('');
         setStatusFilter('all');

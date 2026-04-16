@@ -161,11 +161,11 @@ const CheckIcon = ({ className }: { className?: string }) => (
 
 // FormHook Product Hero Section
 const featureBullets = [
-  "Built for developers",
-  "Instant API + dashboard",
-  "Email and webhook delivery",
-  "Retry queue for failed deliveries",
-  "No setup, no backend required",
+  "Developer-first event intake",
+  "Single endpoint + dashboard",
+  "Email and webhook routing",
+  "Automatic retry and delivery tracking",
+  "No backend glue code",
 ];
 
 const Hero3: React.FC = () => {
@@ -195,12 +195,12 @@ const Hero3: React.FC = () => {
             <main className="flex flex-col items-center justify-center">
           {/* Headline */}
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-center text-black dark:text-white leading-tight max-w-4xl mx-auto">
-            Collect form submissions. <span className="text-blue-600 dark:text-blue-400">Without building a backend.</span>
+            Ingest frontend events. <span className="text-blue-600 dark:text-blue-400">Deliver them reliably.</span>
           </h1>
           {/* Subtext */}
           <p className="mt-6 text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto text-center">
-            Build your frontend. Point your <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded text-blue-600 dark:text-blue-400">&lt;form&gt;</code> to FormHook.<br />
-            We’ll handle storage, emails, webhooks, retries, and analytics — with a single free plan.
+            Use forms as the entry point, or send payloads programmatically. Point your <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded text-blue-600 dark:text-blue-400">&lt;form&gt;</code> or API call to FormHook.<br />
+            We handle validation, storage, routing, retries, and delivery visibility so your team can ship faster.
           </p>
 
           {/* CTA Buttons */}
@@ -218,9 +218,9 @@ const Hero3: React.FC = () => {
           <div className="mt-12 flex flex-col items-center w-full">
             <div className="bg-black text-white rounded-xl shadow-lg p-6 w-full max-w-2xl lg:max-w-4xl text-left font-mono text-sm md:text-base relative border border-gray-800">
               <div className="absolute top-3 right-4 text-xs text-gray-400 select-none">html</div>
-              <pre className="overflow-auto whitespace-pre-wrap break-words leading-relaxed"><code>{`<form action=\"https://api.formhook.dev/forms/abc123/submit\" method=\"POST\">\n  <input name=\"email\" type=\"email\" />\n  <button type=\"submit\">Notify me</button>\n</form>`}</code></pre>
+              <pre className="overflow-auto whitespace-pre-wrap break-words leading-relaxed"><code>{`<form action=\"https://api.formhook.dev/forms/abc123/submit\" method=\"POST\">\n  <input name=\"email\" type=\"email\" />\n  <button type=\"submit\">Send event</button>\n</form>`}</code></pre>
             </div>
-            <div className="mt-2 text-xs text-gray-400">Copy, edit, and deploy in seconds</div>
+            <div className="mt-2 text-xs text-gray-400">One endpoint. Tracked delivery. Production-ready in minutes.</div>
           </div>
 
           {/* Feature Badges (Animated) */}

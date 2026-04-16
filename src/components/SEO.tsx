@@ -15,16 +15,18 @@ type SEOProps = {
 
 const DEFAULT_SITE = process.env.NEXT_PUBLIC_SITE_NAME || 'FormHook';
 const DEFAULT_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://formhook-frontend.vercel.app').replace(/\/$/, '');
-const DEFAULT_TITLE = 'FormHook: Form Submissions Without a Backend';
-const DEFAULT_DESCRIPTION = 'Collect form submissions without a backend. FormHook handles storage, emails, webhooks, retries, and analytics. Try it free!';
+const DEFAULT_TITLE = 'FormHook: Reliable Event Intake and Delivery for Developers';
+const DEFAULT_DESCRIPTION = 'Capture frontend events and form payloads with one endpoint. FormHook handles validation, storage, routing, retries, and delivery visibility.';
 const DEFAULT_KEYWORDS = [
+  'event intake',
+  'event delivery',
+  'webhook reliability',
   'form backend',
-  'form submissions',
+  'frontend events',
   'webhooks',
-  'form API',
-  'no backend',
-  'form handling',
-  'serverless forms'
+  'event pipeline',
+  'developer infrastructure',
+  'no backend glue code'
 ];
 
 // Prefer raster images if generated in /public

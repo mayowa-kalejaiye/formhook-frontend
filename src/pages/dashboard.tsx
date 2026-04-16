@@ -654,14 +654,16 @@ function ModernTrendChart({ data, trendRange, chartType, onChartTypeChange, onTr
                 </DynamicAreaChart>
               )
             ) : (
-              <div className="w-full h-full min-h-[260px] flex items-center justify-center text-center">
-                <div className="space-y-4">
-                  <div className="bg-slate-100 dark:bg-slate-800 rounded-md p-6 w-20 h-20 flex items-center justify-center mx-auto">
-                    <BarChart3 className="h-10 w-10 text-slate-400 dark:text-slate-500" />
-                  </div>
-                  <div>
-                    <p className="text-slate-900 dark:text-slate-100 text-lg font-semibold mb-1">No data available</p>
-                    <p className="text-slate-600 dark:text-slate-400 text-sm">Data will appear here once you have form submissions</p>
+              <div className="relative w-full h-full min-h-[260px]">
+                <div className="absolute inset-0 flex items-center justify-center text-center px-4">
+                  <div className="space-y-4">
+                    <div className="bg-slate-100 dark:bg-slate-800 rounded-md p-6 w-20 h-20 flex items-center justify-center mx-auto">
+                      <BarChart3 className="h-10 w-10 text-slate-400 dark:text-slate-500" />
+                    </div>
+                    <div>
+                      <p className="text-slate-900 dark:text-slate-100 text-lg font-semibold mb-1">No event traffic yet</p>
+                      <p className="text-slate-600 dark:text-slate-400 text-sm">Traffic and delivery signals will appear once events start flowing.</p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -691,7 +693,7 @@ function RecentSubmissionsCard({ submissions, loading }: { submissions: any[]; l
       <Card className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl rounded-2xl backdrop-blur-sm">
         <CardHeader>
           <CardTitle className="text-xl font-bold">Recent Submissions</CardTitle>
-          <CardDescription>Latest form submissions</CardDescription>
+          <CardDescription>Latest incoming events</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {[...Array(5)].map((_, i) => (
@@ -717,7 +719,7 @@ function RecentSubmissionsCard({ submissions, loading }: { submissions: any[]; l
               Recent Submissions
             </CardTitle>
             <CardDescription className="text-slate-600 dark:text-slate-400">
-              Latest form submissions from your users
+              Latest incoming payloads from your sources
             </CardDescription>
           </div>
           <Button asChild className="pro-btn-secondary flex items-center gap-2 text-sm px-3 py-2 h-8">
@@ -757,8 +759,8 @@ function RecentSubmissionsCard({ submissions, loading }: { submissions: any[]; l
               <Activity className="h-12 w-12 text-slate-400 dark:text-slate-500" />
             </div>
             <div>
-              <p className="text-slate-900 dark:text-slate-100 text-lg font-semibold mb-1">No submissions yet</p>
-              <p className="text-slate-600 dark:text-slate-400 text-sm">Form submissions will appear here once users start filling out your forms</p>
+              <p className="text-slate-900 dark:text-slate-100 text-lg font-semibold mb-1">No incoming events yet</p>
+              <p className="text-slate-600 dark:text-slate-400 text-sm">Captured payloads will appear here once your endpoints receive traffic.</p>
             </div>
           </div>
         )}

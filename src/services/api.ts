@@ -945,20 +945,17 @@ export const getSubmissions = async (
   if (params?.date_to) q.push(`date_to=${encodeURIComponent(params.date_to)}`);
   if (params?.ip_address) q.push(`ip_address=${encodeURIComponent(params.ip_address)}`);
   if (q.length) url += '?' + q.join('&');
-  
-  try {
-    // Use cached fetch with short TTL (1 minute) - submissions can change frequently
-    const res = await fetchWithCache(url, {}, CacheTTL.SHORT);
-    if (!res.ok) {
-      console.error('Failed to fetch submissions:', res.status, res.error);
-      return [];
-    }
-    
-    return await res.json();
-  } catch (error) {
-    console.error('Error fetching submissions:', error);
-    return [];
+
+  const res = await fetchWithAuth(url, { cache: 'no-store' });
+  if (!res.ok) {
+    throw buildApiError(res, 'Failed to fetch submissions');
   }
+
+  if (typeof res.json !== 'function') {
+    throw new Error('Invalid submissions response');
+  }
+
+  return await res.json();
 };
 export const exportSubmissions = async (
   formId: string,

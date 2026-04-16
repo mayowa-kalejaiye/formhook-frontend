@@ -16,8 +16,8 @@ export default function Home() {
   return (
     <>
       <SEO
-        title="FormHook: Form Submissions Without a Backend"
-        description="Collect form submissions without a backend. FormHook handles storage, emails, webhooks, retries, and analytics. Try it free!"
+        title="FormHook: Reliable Event Intake and Delivery for Developers"
+        description="Capture frontend events and form payloads with one endpoint. FormHook handles validation, storage, routing, retries, and delivery visibility."
         image={`${(process.env.NEXT_PUBLIC_SITE_URL || 'https://formhook-frontend.vercel.app').replace(/\/$/, '')}/og-image.png`}
         url="https://formhook-frontend.vercel.app"
         type="website"

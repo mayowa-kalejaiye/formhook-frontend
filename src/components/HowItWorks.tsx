@@ -8,9 +8,9 @@ import { Mail, Zap, Server, Database, Settings, Code, ArrowRight, ChevronLeft, C
 const features = [
   {
     id: 1,
-    title: "Instant API",
-    subtitle: "Point & Submit",
-    description: "Drop a FormHook action URL into any HTML form and start collecting immediately.",
+    title: "Unified Intake Endpoint",
+    subtitle: "Point & Send",
+    description: "Send form payloads or frontend events to one endpoint and start ingesting immediately.",
     icon: Code,
     color: "bg-blue-600",
     detail: `Example: action="https://formhook-frontend.vercel.app/forms/{formid}/submit"`
@@ -19,7 +19,7 @@ const features = [
     id: 2,
     title: "Webhooks & Email",
     subtitle: "Deliver Everywhere",
-    description: "Route submissions to webhooks, send emails, or forward to integrations like Slack.",
+    description: "Route events to webhooks, send emails, or forward to downstream integrations.",
     icon: Mail,
     color: "bg-emerald-500",
     detail: `Webhooks • Email • Integrations`
@@ -35,9 +35,9 @@ const features = [
   },
   {
     id: 4,
-    title: "Storage & Search",
+    title: "Storage & Replay",
     subtitle: "Secure Storage",
-    description: "Submissions are stored securely and searchable in the dashboard.",
+    description: "Events are stored securely, searchable in the dashboard, and ready for debugging workflows.",
     icon: Database,
     color: "bg-purple-600",
     detail: `Encrypted storage • Exportable CSV`
@@ -63,8 +63,8 @@ const features = [
   {
     id: 7,
     title: "Analytics",
-    subtitle: "Submission Insights",
-    description: "Built-in dashboards show trends, geo, and delivery health at a glance.",
+    subtitle: "Delivery Intelligence",
+    description: "Built-in dashboards show traffic trends, geo insights, and delivery health at a glance.",
     icon: Database,
     color: "bg-indigo-600",
     detail: `Trends • Geo • Webhook health`
@@ -135,7 +135,7 @@ export default function OrbitCarousel() {
     <section className="py-12">
       <div className="max-w-6xl mx-auto text-center px-4">
         <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-4">How FormHook Works</h2>
-        <p className="text-lg text-gray-600 dark:text-gray-300 mb-8 max-w-3xl mx-auto">Integrate forms in minutes — point your form to FormHook and we handle delivery, storage, retries, and analytics.</p>
+        <p className="text-lg text-gray-600 dark:text-gray-300 mb-8 max-w-3xl mx-auto">Use FormHook as your intake and delivery layer: capture events, route them reliably, and monitor every delivery from one place.</p>
 
         <div className="flex flex-col items-center">
           <div className={`${containerClass} relative`}> 

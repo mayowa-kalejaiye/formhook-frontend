@@ -255,14 +255,16 @@ export function ChartAreaInteractiveBackend({
                 </div>
               </div>
             ) : data.length === 0 ? (
-              <div className="h-full flex items-center justify-center">
-                <div className="text-center space-y-4">
-                  <div className="bg-gray-100 dark:bg-gray-800 rounded-full p-6 w-16 h-16 flex items-center justify-center mx-auto">
-                    <TrendingUp className="h-8 w-8 text-gray-400 dark:text-gray-500" />
-                  </div>
-                  <div>
-                    <p className="text-gray-900 dark:text-white text-lg font-semibold mb-1">No data available</p>
-                    <p className="text-gray-600 dark:text-gray-300 text-sm">Analytics will appear here once data is collected</p>
+              <div className="relative h-full min-h-[260px]">
+                <div className="absolute inset-0 flex items-center justify-center px-4">
+                  <div className="text-center space-y-4">
+                    <div className="bg-gray-100 dark:bg-gray-800 rounded-full p-6 w-16 h-16 flex items-center justify-center mx-auto">
+                      <TrendingUp className="h-8 w-8 text-gray-400 dark:text-gray-500" />
+                    </div>
+                    <div>
+                      <p className="text-gray-900 dark:text-white text-lg font-semibold mb-1">No data available</p>
+                      <p className="text-gray-600 dark:text-gray-300 text-sm">Analytics will appear here once data is collected</p>
+                    </div>
                   </div>
                 </div>
               </div>

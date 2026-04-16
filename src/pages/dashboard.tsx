@@ -373,9 +373,25 @@ async function buildIpBreakdownFromSubmissions(submissions: SubmissionRecord[]):
 
 const SubmissionsSummaryChart = React.memo(function SubmissionsSummaryChart({ data }: { data: SubmissionsSummaryPoint[] }) {
   const [chartReady, setChartReady] = React.useState(false);
+  const chartHostRef = React.useRef<HTMLDivElement | null>(null);
   React.useEffect(() => {
     const frame = window.requestAnimationFrame(() => setChartReady(true));
     return () => window.cancelAnimationFrame(frame);
+  }, []);
+
+  const [hasWidth, setHasWidth] = React.useState(false);
+  React.useEffect(() => {
+    const host = chartHostRef.current;
+    if (!host || typeof ResizeObserver === 'undefined') {
+      setHasWidth(true);
+      return;
+    }
+
+    const update = () => setHasWidth(host.clientWidth > 8);
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(host);
+    return () => observer.disconnect();
   }, []);
 
   const chartData = (data || []).map((point) => ({
@@ -389,7 +405,8 @@ const SubmissionsSummaryChart = React.memo(function SubmissionsSummaryChart({ da
   return (
     <div className="mt-6">
       {hasData && chartReady ? (
-        <div className="w-full h-52 min-w-0">
+        <div ref={chartHostRef} className="w-full h-52 min-w-0">
+          {hasWidth ? (
           <DynamicResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={180}>
             <DynamicAreaChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
               <DynamicCartesianGrid strokeDasharray="3 3" stroke="#e6eefb" />
@@ -400,6 +417,9 @@ const SubmissionsSummaryChart = React.memo(function SubmissionsSummaryChart({ da
               <DynamicArea type="monotone" dataKey="errors" stroke="#ef4444" fillOpacity={0.08} fill="#ef4444" />
             </DynamicAreaChart>
           </DynamicResponsiveContainer>
+          ) : (
+            <div className="h-full w-full" />
+          )}
         </div>
       ) : (
         <div className="text-sm text-slate-500">No trend data available</div>
@@ -521,9 +541,25 @@ function ModernTrendChart({ data, trendRange, chartType, onChartTypeChange, onTr
   onTrendRangeChange: (range: TrendRange) => void;
 }) {
   const [chartReady, setChartReady] = React.useState(false);
+  const trendHostRef = React.useRef<HTMLDivElement | null>(null);
   React.useEffect(() => {
     const frame = window.requestAnimationFrame(() => setChartReady(true));
     return () => window.cancelAnimationFrame(frame);
+  }, []);
+
+  const [hasTrendWidth, setHasTrendWidth] = React.useState(false);
+  React.useEffect(() => {
+    const host = trendHostRef.current;
+    if (!host || typeof ResizeObserver === 'undefined') {
+      setHasTrendWidth(true);
+      return;
+    }
+
+    const update = () => setHasTrendWidth(host.clientWidth > 8);
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(host);
+    return () => observer.disconnect();
   }, []);
 
   const hasData = Array.isArray(data) && data.length > 0;
@@ -569,7 +605,8 @@ function ModernTrendChart({ data, trendRange, chartType, onChartTypeChange, onTr
         </div>
       </CardHeader>
       <CardContent className="pt-0">
-        <div className="h-80 w-full min-w-0">
+        <div ref={trendHostRef} className="h-80 w-full min-w-0">
+          {hasTrendWidth ? (
           <DynamicResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={260}>
             {hasData && chartReady ? (
               chartType === 'bar' ? (
@@ -681,6 +718,9 @@ function ModernTrendChart({ data, trendRange, chartType, onChartTypeChange, onTr
               </div>
             )}
           </DynamicResponsiveContainer>
+          ) : (
+            <div className="h-full w-full" />
+          )}
         </div>
       </CardContent>
     </Card>

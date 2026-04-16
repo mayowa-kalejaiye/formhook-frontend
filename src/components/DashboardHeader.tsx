@@ -52,6 +52,7 @@ export default function DashboardHeader() {
       ? `${submissionsUsed.toLocaleString()} / ${submissionsLimit.toLocaleString()} submissions`
       : `${submissionsLimit.toLocaleString()} submissions limit`
     : 'Unlimited submissions';
+
   // Get initials from email
   const getInitials = (email: string) => {
     if (!email) return 'U';

@@ -163,7 +163,7 @@ const CheckIcon = ({ className }: { className?: string }) => (
 const featureBullets = [
   "Built for developers",
   "Instant API + dashboard",
-  "Email + webhook support",
+  "Email and webhook delivery",
   "Retry queue for failed deliveries",
   "No setup, no backend required",
 ];
@@ -181,7 +181,6 @@ const Hero3: React.FC = () => {
             <div className="hidden md:flex items-center space-x-8">
               <a href="#how-it-works" className="text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors cursor-pointer">Features</a>
               <a href="/docs" className="text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors cursor-pointer">Docs</a>
-              <a href="/pricing" className="text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors cursor-pointer">Pricing</a>
               <a href="/signin" className="bg-black dark:bg-white text-white dark:text-black px-6 py-2 rounded-md hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors cursor-pointer">Sign In</a>
             </div>
           </nav>
@@ -201,7 +200,7 @@ const Hero3: React.FC = () => {
           {/* Subtext */}
           <p className="mt-6 text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto text-center">
             Build your frontend. Point your <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded text-blue-600 dark:text-blue-400">&lt;form&gt;</code> to FormHook.<br />
-            We’ll handle storage, emails, webhooks, retries, and analytics — instantly.
+            We’ll handle storage, emails, webhooks, retries, and analytics — with a single free plan.
           </p>
 
           {/* CTA Buttons */}

@@ -1,8 +1,9 @@
 import * as React from "react"
 
-import type {
-  ToastActionElement,
-  ToastProps,
+import {
+  ToastAction,
+  type ToastActionElement,
+  type ToastProps,
 } from "../components/ui/toast"
 
 const TOAST_LIMIT = 1
@@ -196,6 +197,24 @@ type ShowApiErrorOptions = {
 };
 
 // Convert API/error objects into friendly toast messages and display them
+function createToastAction(label: string, handler: () => void): ToastActionElement {
+  return React.createElement(
+    ToastAction,
+    {
+      altText: label,
+      onClick: (event) => {
+        try {
+          event?.preventDefault?.();
+        } catch (_) {}
+        try {
+          handler();
+        } catch (_) {}
+      }
+    },
+    label
+  ) as unknown as ToastActionElement;
+}
+
 function showApiError(err: any, opts?: ShowApiErrorOptions) {
   // Normalize a wide range of error shapes
   const status = err?.status ?? err?.response?.status ?? err?.statusCode ?? 0;
@@ -234,19 +253,13 @@ function showApiError(err: any, opts?: ShowApiErrorOptions) {
 
   // If caller supplied an action label and handler, attach it to the toast
   if (opts?.actionLabel && typeof opts?.action === 'function') {
-    toastPayload.action = {
-      label: opts.actionLabel,
-      onClick: opts.action,
-    };
+    toastPayload.action = createToastAction(opts.actionLabel, opts.action);
   } else if (status === 401) {
     // Attach a default sign-in action for authentication errors when running in the browser
     if (typeof window !== 'undefined') {
-      toastPayload.action = {
-        label: 'Sign in',
-        onClick: () => {
-          try { window.location.href = '/login'; } catch (_) {}
-        }
-      };
+      toastPayload.action = createToastAction('Sign in', () => {
+        try { window.location.href = '/login'; } catch (_) {}
+      });
     }
   }
 

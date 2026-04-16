@@ -8,7 +8,6 @@ import {
   Bell,
   ChevronDown,
   MessageSquare,
-  Clock,
   AlertTriangle,
   Inbox,
   FileJson,
@@ -18,8 +17,6 @@ import {
   User,
   Settings,
   LogOut,
-  CreditCard,
-  HelpCircle
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import NavigationControls from './NavigationControls';
@@ -36,7 +33,6 @@ import { useAuth } from '../context/AuthContext';
 import { useSubscription } from '../context/SubscriptionContext';
 import { safeReplace } from '../lib/navigation';
 import { useNotifications } from '../context/NotificationContext';
-import { describeTimeUntil, formatDateShort } from '../lib/utils';
 
 export default function DashboardHeader() {
   const [recentSubmissions, setRecentSubmissions] = useState(0);
@@ -48,11 +44,6 @@ export default function DashboardHeader() {
     submissionsLimit,
     submissionsUsed,
     submissionsPercent,
-    isTrialing,
-    isTrialExpired,
-    trialEndsAt,
-    trialDaysRemaining,
-    subscriptionStatus
   } = useSubscription();
   const router = useRouter();
   const hasUsageMetrics = typeof submissionsLimit === 'number' && typeof submissionsUsed === 'number';
@@ -61,23 +52,6 @@ export default function DashboardHeader() {
       ? `${submissionsUsed.toLocaleString()} / ${submissionsLimit.toLocaleString()} submissions`
       : `${submissionsLimit.toLocaleString()} submissions limit`
     : 'Unlimited submissions';
-  const usageProgress =
-    hasUsageMetrics && typeof submissionsPercent === 'number' ? Math.min(submissionsPercent, 100) : null;
-  const trialCountdown = describeTimeUntil(trialEndsAt);
-  const trialEndDate = formatDateShort(trialEndsAt);
-  const subscriptionStatusLabel = subscriptionStatus
-    ? subscriptionStatus.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())
-    : null;
-  const showTrialStatus = isTrialing || isTrialExpired;
-  const trialStatusMessage = isTrialExpired
-    ? 'Trial ended — upgrade to keep submissions active'
-    : `Trial ends in ${trialCountdown || `${trialDaysRemaining ?? 0}d`}${
-        trialEndDate ? ` · ${trialEndDate}` : ''
-      }`;
-  const trialBannerClass = isTrialExpired
-    ? 'bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-200'
-    : 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-200';
-
   // Get initials from email
   const getInitials = (email: string) => {
     if (!email) return 'U';
@@ -172,52 +146,17 @@ export default function DashboardHeader() {
 
   return (
     <header className="fixed top-14 md:top-0 left-0 right-0 z-40 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 md:ml-64">
-      {showTrialStatus && (
-        <div
-          className={`flex flex-col gap-3 border-b border-white/40 px-4 py-3 text-xs font-semibold sm:flex-row sm:items-center sm:justify-between md:px-6 ${trialBannerClass}`}
-        >
-          <div className="flex items-center gap-2">
-            <Clock className="h-4 w-4" />
-            <span className="text-sm font-medium leading-tight sm:text-base">
-              {trialStatusMessage}
-            </span>
-          </div>
-          <Link
-            href="/subscriptions"
-            className="inline-flex items-center justify-center rounded-full border border-current px-4 py-1.5 text-[11px] uppercase tracking-wide underline-offset-2 hover:underline"
-          >
-            Manage subscription
-          </Link>
-        </div>
-      )}
-
       <div className="flex h-16 items-center justify-between px-6">
         <NavigationControls />
 
         <div className="flex items-center gap-6">
           <div className="hidden lg:flex min-w-0 max-w-sm flex-col items-end text-xs text-slate-500 mr-4">
-          <Link href="/subscriptions" className="text-sm font-semibold text-slate-700 dark:text-slate-100 hover:text-blue-600">
-            {planLabel || 'Plan'}
-            {isTrialing && (
-              <span className="ml-2 text-[11px] font-semibold text-amber-600">Starter Trial</span>
-            )}
-            {!isTrialing && subscriptionStatusLabel && (
-              <span className="ml-2 text-[11px] font-semibold text-slate-400 dark:text-slate-500">
-                {subscriptionStatusLabel}
-              </span>
-            )}
-          </Link>
+          <span className="text-sm font-semibold text-slate-700 dark:text-slate-100">{planLabel || 'Free'}</span>
           <div className="flex w-full flex-wrap items-center justify-end gap-x-2 gap-y-1">
             <span>{planUsageLabel}</span>
             {typeof submissionsPercent === 'number' && (
               <span className={submissionsPercent >= 80 ? 'text-amber-600 font-semibold' : ''}>{submissionsPercent}%</span>
             )}
-          </div>
-          <div className="mt-1 h-1 w-full max-w-[9rem] rounded-full bg-slate-200 dark:bg-slate-700">
-            <div
-              className="h-full rounded-full bg-blue-600"
-              style={{ width: `${usageProgress ?? 0}%` }}
-            />
           </div>
           </div>
 
@@ -285,21 +224,9 @@ export default function DashboardHeader() {
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild className="cursor-pointer">
-                  <Link href="/pricing" className="flex items-center">
-                    <CreditCard className="mr-2 h-4 w-4" />
-                    <span>Billing & Plans</span>
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild className="cursor-pointer">
                   <Link href="/settings" className="flex items-center">
                     <Settings className="mr-2 h-4 w-4" />
                     <span>Preferences</span>
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild className="cursor-pointer">
-                  <Link href="/help" className="flex items-center">
-                    <HelpCircle className="mr-2 h-4 w-4" />
-                    <span>Help & Support</span>
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />

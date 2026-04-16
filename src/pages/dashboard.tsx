@@ -987,10 +987,11 @@ function DashboardContent({
                     <span>{share.toFixed(1)}%</span>
                   </div>
                   <div className="mt-2 h-2 rounded-full bg-slate-100 dark:bg-slate-800">
-                    <div
-                      className="h-full rounded-full bg-blue-500"
-                      style={{ width: `${Math.min(share, 100)}%` }}
-                    ></div>
+                    <progress
+                      className="h-2 w-full overflow-hidden rounded-full [&::-webkit-progress-bar]:bg-slate-100 dark:[&::-webkit-progress-bar]:bg-slate-800 [&::-webkit-progress-value]:bg-blue-500 [&::-moz-progress-bar]:bg-blue-500"
+                      value={Math.min(share, 100)}
+                      max={100}
+                    />
                   </div>
                   <p className="text-xs text-slate-500 mt-1">{(country.count || 0).toLocaleString()} visitors</p>
                 </div>
@@ -1020,7 +1021,11 @@ function DashboardContent({
                         <span>{share.toFixed(1)}%</span>
                       </div>
                       <div className="mt-2 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800">
-                        <div className="h-full rounded-full bg-indigo-500" style={{ width: `${Math.min(share, 100)}%` }}></div>
+                        <progress
+                          className="h-1.5 w-full overflow-hidden rounded-full [&::-webkit-progress-bar]:bg-slate-100 dark:[&::-webkit-progress-bar]:bg-slate-800 [&::-webkit-progress-value]:bg-indigo-500 [&::-moz-progress-bar]:bg-indigo-500"
+                          value={Math.min(share, 100)}
+                          max={100}
+                        />
                       </div>
                       <p className="text-xs text-slate-500 mt-1">{device.count} sessions</p>
                     </div>
@@ -1044,7 +1049,11 @@ function DashboardContent({
                         <span>{share.toFixed(1)}%</span>
                       </div>
                       <div className="mt-2 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800">
-                        <div className="h-full rounded-full bg-purple-500" style={{ width: `${Math.min(share, 100)}%` }}></div>
+                        <progress
+                          className="h-1.5 w-full overflow-hidden rounded-full [&::-webkit-progress-bar]:bg-slate-100 dark:[&::-webkit-progress-bar]:bg-slate-800 [&::-webkit-progress-value]:bg-purple-500 [&::-moz-progress-bar]:bg-purple-500"
+                          value={Math.min(share, 100)}
+                          max={100}
+                        />
                       </div>
                       <p className="text-xs text-slate-500 mt-1">{browser.count} sessions</p>
                     </div>
@@ -1075,7 +1084,11 @@ function DashboardContent({
                   <span>{share.toFixed(1)}%</span>
                 </div>
                 <div className="mt-2 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800">
-                  <div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.min(share, 100)}%` }}></div>
+                  <progress
+                    className="h-1.5 w-full overflow-hidden rounded-full [&::-webkit-progress-bar]:bg-slate-100 dark:[&::-webkit-progress-bar]:bg-slate-800 [&::-webkit-progress-value]:bg-emerald-500 [&::-moz-progress-bar]:bg-emerald-500"
+                    value={Math.min(share, 100)}
+                    max={100}
+                  />
                 </div>
                 <p className="text-xs text-slate-500 mt-1">{os.count} sessions</p>
               </div>
@@ -1425,7 +1438,11 @@ function DashboardContent({
                           <span className="text-sm font-medium text-gray-900">{subscriptionInfo.submissions_used}/{subscriptionInfo.submissions_limit}</span>
                         </div>
                         <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                          <div className="h-2 bg-blue-600 rounded-full" style={{ width: `${Math.min(100, (subscriptionInfo.submissions_used / Math.max(1, subscriptionInfo.submissions_limit)) * 100)}%` }}></div>
+                          <progress
+                            className="h-2 w-full overflow-hidden rounded-full [&::-webkit-progress-bar]:bg-gray-200 dark:[&::-webkit-progress-bar]:bg-gray-700 [&::-webkit-progress-value]:bg-blue-600 [&::-moz-progress-bar]:bg-blue-600"
+                            value={Math.min(100, (subscriptionInfo.submissions_used / Math.max(1, subscriptionInfo.submissions_limit)) * 100)}
+                            max={100}
+                          />
                         </div>
                       </div>
                     )}
@@ -1437,7 +1454,11 @@ function DashboardContent({
                           <span className="text-sm font-medium text-gray-900">{subscriptionInfo.api_calls_used}/{subscriptionInfo.api_calls_limit}</span>
                         </div>
                         <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                          <div className="h-2 bg-emerald-500 rounded-full" style={{ width: `${Math.min(100, (subscriptionInfo.api_calls_used / Math.max(1, subscriptionInfo.api_calls_limit)) * 100)}%` }}></div>
+                          <progress
+                            className="h-2 w-full overflow-hidden rounded-full [&::-webkit-progress-bar]:bg-gray-200 dark:[&::-webkit-progress-bar]:bg-gray-700 [&::-webkit-progress-value]:bg-emerald-500 [&::-moz-progress-bar]:bg-emerald-500"
+                            value={Math.min(100, (subscriptionInfo.api_calls_used / Math.max(1, subscriptionInfo.api_calls_limit)) * 100)}
+                            max={100}
+                          />
                         </div>
                       </div>
                     )}
@@ -1449,7 +1470,11 @@ function DashboardContent({
                           <span className="text-sm font-medium text-gray-900">{subscriptionInfo.storage_used} / {subscriptionInfo.storage_limit}{subscriptionInfo.storage_unit ? ` ${subscriptionInfo.storage_unit}` : ''}</span>
                         </div>
                         <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                          <div className="h-2 bg-indigo-500 rounded-full" style={{ width: `${Math.min(100, (subscriptionInfo.storage_used / Math.max(1, subscriptionInfo.storage_limit)) * 100)}%` }}></div>
+                          <progress
+                            className="h-2 w-full overflow-hidden rounded-full [&::-webkit-progress-bar]:bg-gray-200 dark:[&::-webkit-progress-bar]:bg-gray-700 [&::-webkit-progress-value]:bg-indigo-500 [&::-moz-progress-bar]:bg-indigo-500"
+                            value={Math.min(100, (subscriptionInfo.storage_used / Math.max(1, subscriptionInfo.storage_limit)) * 100)}
+                            max={100}
+                          />
                         </div>
                       </div>
                     )}
@@ -1484,13 +1509,17 @@ function DashboardContent({
                   </div>
                 </div>
                 <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mt-2">
-                  <div 
-                    className={`h-2 rounded-full transition-all duration-500 ${
-                      webhookSuccessRate >= 95 ? 'bg-green-500' : 
-                      webhookSuccessRate >= 80 ? 'bg-yellow-500' : 'bg-red-500'
+                  <progress
+                    className={`h-2 w-full overflow-hidden rounded-full transition-all duration-500 [&::-webkit-progress-bar]:bg-gray-200 dark:[&::-webkit-progress-bar]:bg-gray-700 ${
+                      webhookSuccessRate >= 95
+                        ? '[&::-webkit-progress-value]:bg-green-500 [&::-moz-progress-bar]:bg-green-500'
+                        : webhookSuccessRate >= 80
+                          ? '[&::-webkit-progress-value]:bg-yellow-500 [&::-moz-progress-bar]:bg-yellow-500'
+                          : '[&::-webkit-progress-value]:bg-red-500 [&::-moz-progress-bar]:bg-red-500'
                     }`}
-                    style={{ width: `${webhookSuccessRate}%` }}
-                  ></div>
+                    value={Math.min(100, Math.max(0, webhookSuccessRate))}
+                    max={100}
+                  />
                 </div>
               </div>
 
@@ -1524,11 +1553,12 @@ function DashboardContent({
                     <span className="font-medium text-gray-900 dark:text-gray-100">{notificationCount}</span>
                   </div>
                   <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mt-2">
-                    <div 
-                      className="h-2 bg-blue-500 rounded-full transition-all duration-500" 
-                      style={{ width: `${totalSubmissions > 0 ? Math.min(100, (totalSubmissions / (totalForms * 10)) * 100) : 0}%` }}
+                    <progress
+                      className="h-2 w-full overflow-hidden rounded-full transition-all duration-500 [&::-webkit-progress-bar]:bg-gray-200 dark:[&::-webkit-progress-bar]:bg-gray-700 [&::-webkit-progress-value]:bg-blue-500 [&::-moz-progress-bar]:bg-blue-500"
+                      value={totalSubmissions > 0 ? Math.min(100, (totalSubmissions / (totalForms * 10)) * 100) : 0}
+                      max={100}
                       title={`Average ${totalForms > 0 ? (totalSubmissions / totalForms).toFixed(1) : 0} submissions per form`}
-                    ></div>
+                    />
                   </div>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                     Avg: {totalForms > 0 ? (totalSubmissions / totalForms).toFixed(1) : 0} submissions per form
@@ -1626,7 +1656,11 @@ function DashboardContent({
                                 <span>{share.toFixed(0)}%</span>
                               </div>
                               <div className="mt-1 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800">
-                                <div className="h-full rounded-full bg-blue-500" style={{ width: `${Math.min(share, 100)}%` }}></div>
+                                <progress
+                                  className="h-1.5 w-full overflow-hidden rounded-full [&::-webkit-progress-bar]:bg-slate-100 dark:[&::-webkit-progress-bar]:bg-slate-800 [&::-webkit-progress-value]:bg-blue-500 [&::-moz-progress-bar]:bg-blue-500"
+                                  value={Math.min(share, 100)}
+                                  max={100}
+                                />
                               </div>
                               <p className="text-xs text-slate-500 mt-1">{country.count} visitors</p>
                             </div>
@@ -1665,12 +1699,14 @@ function DashboardContent({
                     <button
                       className={`px-3 py-1 rounded-full transition ${deviceViewMode === 'device' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 shadow' : 'text-slate-500'}`}
                       onClick={() => setDeviceViewMode('device')}
+                      type="button"
                     >
                       Devices
                     </button>
                     <button
                       className={`px-3 py-1 rounded-full transition ${deviceViewMode === 'browser' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 shadow' : 'text-slate-500'}`}
                       onClick={() => setDeviceViewMode('browser')}
+                      type="button"
                     >
                       Browsers
                     </button>
@@ -1686,7 +1722,11 @@ function DashboardContent({
                               <span>{share.toFixed(0)}%</span>
                             </div>
                             <div className="mt-1 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800">
-                              <div className="h-full rounded-full bg-indigo-500" style={{ width: `${Math.min(share, 100)}%` }}></div>
+                              <progress
+                                className="h-1.5 w-full overflow-hidden rounded-full [&::-webkit-progress-bar]:bg-slate-100 dark:[&::-webkit-progress-bar]:bg-slate-800 [&::-webkit-progress-value]:bg-indigo-500 [&::-moz-progress-bar]:bg-indigo-500"
+                                value={Math.min(share, 100)}
+                                max={100}
+                              />
                             </div>
                             <p className="text-xs text-slate-500 mt-1">{entry.count} sessions</p>
                           </div>
@@ -1731,7 +1771,11 @@ function DashboardContent({
                               <span>{share.toFixed(0)}%</span>
                             </div>
                             <div className="mt-1 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800">
-                              <div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.min(share, 100)}%` }}></div>
+                              <progress
+                                className="h-1.5 w-full overflow-hidden rounded-full [&::-webkit-progress-bar]:bg-slate-100 dark:[&::-webkit-progress-bar]:bg-slate-800 [&::-webkit-progress-value]:bg-emerald-500 [&::-moz-progress-bar]:bg-emerald-500"
+                                value={Math.min(share, 100)}
+                                max={100}
+                              />
                             </div>
                             <p className="text-xs text-slate-500 mt-1">{os.count} sessions</p>
                           </div>
@@ -1791,7 +1835,6 @@ function DashboardContent({
                             ? 'bg-slate-900 text-white dark:bg-white/90 dark:text-slate-900 border-slate-900 dark:border-white'
                             : 'border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-900 dark:hover:text-white'
                         }`}
-                        aria-pressed={isActive}
                       >
                         {label}
                       </button>

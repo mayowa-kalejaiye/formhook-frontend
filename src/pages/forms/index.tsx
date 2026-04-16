@@ -255,12 +255,9 @@ function FormsPageContent() {
   const router = useRouter();
   const { data, error, isLoading, mutate } = useSWR('forms', async () => (await getForms()).data);
   const forms = data || [];
-  const { formsLimit, formsLimitReached, planLabel, isStarterTier, isTrialExpired, subscriptionStatus } = useSubscription();
+  const { formsLimit, formsLimitReached, planLabel } = useSubscription();
   const reachedFormLimit = formsLimitReached(forms.length);
   const remainingForms = typeof formsLimit === 'number' ? Math.max(formsLimit - forms.length, 0) : null;
-  const subscriptionStatusLabel = subscriptionStatus
-    ? subscriptionStatus.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())
-    : null;
   
   // UI State
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -317,23 +314,13 @@ function FormsPageContent() {
     return filtered;
   }, [forms, searchQuery, statusFilter, sortBy, sortOrder]);
 
-  const redirectToPlans = useCallback(() => {
-    toast({
-      title: 'Trial expired',
-      description: 'Upgrade your plan to keep creating forms.',
-      variant: 'destructive'
-    });
-    router.push('/subscriptions?reason=trial_expired');
-  }, [router]);
-
-  const guardTrial = useCallback(() => {
-    if (!isTrialExpired) return false;
-    redirectToPlans();
-    return true;
-  }, [isTrialExpired, redirectToPlans]);
-
   const handleCreate = async (formData) => {
-    if (guardTrial()) {
+    if (reachedFormLimit) {
+      toast({
+        title: 'Form limit reached',
+        description: 'You have used all available form slots on the free plan.',
+        variant: 'destructive'
+      });
       return;
     }
     setSubmitting(true);
@@ -425,44 +412,29 @@ function FormsPageContent() {
             <div className="flex flex-col items-stretch sm:items-end gap-2">
               <Button 
                 onClick={() => {
-                  if (guardTrial()) return;
+                  if (reachedFormLimit) {
+                    toast({
+                      title: 'Form limit reached',
+                      description: 'You have used all available form slots on the free plan.',
+                      variant: 'destructive'
+                    });
+                    return;
+                  }
                   setShowCreate(true);
                 }} 
                 className="pro-btn-primary px-4 sm:px-6 py-2 sm:py-3 font-semibold w-full sm:w-auto flex-shrink-0"
-                disabled={reachedFormLimit || isTrialExpired}
+                disabled={reachedFormLimit}
               >
                 <Plus className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-                {isTrialExpired
-                  ? 'Trial expired'
-                  : reachedFormLimit
-                  ? 'Form limit reached'
-                  : 'Create New Form'}
+                {reachedFormLimit ? 'Form limit reached' : 'Create New Form'}
               </Button>
               {reachedFormLimit && (
                 <Link href="/subscriptions" className="text-sm font-semibold text-blue-600 hover:text-blue-700">
-                  Upgrade plan to add more forms
+                  View usage limits
                 </Link>
-              )}
-              {isTrialExpired && (
-                <p className="text-sm font-semibold text-rose-600">
-                  Upgrade your plan to re-enable form creation.
-                </p>
               )}
             </div>
           </div>
-          {isTrialExpired && (
-            <Alert className="border-rose-200 bg-rose-50 dark:bg-rose-900/20">
-              <AlertTriangle className="h-4 w-4 text-rose-600" />
-              <AlertTitle>Trial expired</AlertTitle>
-              <AlertDescription>
-                {subscriptionStatusLabel ? `${subscriptionStatusLabel}. ` : ''}Upgrade to keep creating forms and collecting submissions.
-                {' '}
-                <Link href="/subscriptions" className="font-semibold text-rose-700 underline underline-offset-2">
-                  Manage subscription
-                </Link>
-              </AlertDescription>
-            </Alert>
-          )}
         </div>
 
         {typeof formsLimit === 'number' && (
@@ -475,9 +447,8 @@ function FormsPageContent() {
                 : `You can create ${remainingForms} more form${remainingForms === 1 ? '' : 's'} on this plan.`}
               {' '}
               <Link href="/subscriptions" className="font-semibold text-amber-700 underline underline-offset-2">
-                Manage subscription
+                View usage limits
               </Link>
-              {isStarterTier && ' to unlock unlimited forms and higher submission limits.'}
             </AlertDescription>
           </Alert>
         )}

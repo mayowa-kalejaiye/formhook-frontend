@@ -516,29 +516,7 @@ function SubmissionsPageContent() {
   const { isCollapsed } = useSidebar();
   const { markAsRead, unreadCount, lastChecked } = useNotifications();
   const router = useRouter();
-  const { isTrialExpired, loading: subscriptionLoading, subscriptionStatus } = useSubscription();
-  const trialGuardTriggered = useRef(false);
-  const subscriptionStatusLabel = subscriptionStatus
-    ? subscriptionStatus.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())
-    : null;
-
-  useEffect(() => {
-    if (subscriptionLoading || !isTrialExpired || trialGuardTriggered.current) return;
-    trialGuardTriggered.current = true;
-    toast({
-      title: 'Trial expired',
-      description:
-        subscriptionStatusLabel
-          ? `${subscriptionStatusLabel}. Upgrade your plan to keep reviewing submissions.`
-          : 'Upgrade your plan to keep reviewing submissions.',
-      variant: 'destructive'
-    });
-    router.replace('/subscriptions?reason=trial_expired');
-  }, [subscriptionLoading, isTrialExpired, router, subscriptionStatusLabel]);
-
-  if (!subscriptionLoading && isTrialExpired) {
-    return null;
-  }
+  const { loading: subscriptionLoading } = useSubscription();
 
   // Mark notifications as read when page is visited
   useEffect(() => {

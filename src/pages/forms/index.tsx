@@ -599,10 +599,35 @@ function FormsPageContent() {
               </div>
             ) : error ? (
               <div className="text-center py-20">
-                <div className="text-red-500 text-lg mb-4">{error.message || 'Failed to load forms.'}</div>
-                <Button onClick={() => mutate()} className="pro-btn-primary">
-                  Try Again
-                </Button>
+                <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+                <div className="text-red-600 dark:text-red-400 text-lg mb-2 font-semibold">
+                  {error.message || 'Failed to load forms'}
+                </div>
+                {error.message?.includes('Network') && (
+                  <div className="text-sm text-slate-500 dark:text-slate-400 mb-4 max-w-md mx-auto">
+                    <p className="mb-2">This could mean:</p>
+                    <ul className="text-left space-y-1">
+                      <li>• The backend server is not responding</li>
+                      <li>• Your internet connection is unstable</li>
+                      <li>• The API endpoint is temporarily unavailable</li>
+                    </ul>
+                  </div>
+                )}
+                <div className="flex gap-3 justify-center">
+                  <Button onClick={() => mutate()} className="pro-btn-primary">
+                    Try Again
+                  </Button>
+                  <Button 
+                    onClick={() => {
+                      const timestamp = new Date().toISOString();
+                      console.error(`[${timestamp}] Forms fetch error:`, error);
+                      alert(`Error logged to console at ${timestamp}.\n\nError: ${error.message}\n\nPlease share the console log with support.`);
+                    }}
+                    className="pro-btn-secondary"
+                  >
+                    Debug
+                  </Button>
+                </div>
               </div>
             ) : filteredAndSortedForms.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20">

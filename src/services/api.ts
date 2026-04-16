@@ -788,21 +788,48 @@ export const requestEmailVerification = (email: string) => {
 
 // Forms
 export const getForms = async () => {
-  const res = await fetchWithAuth('/forms/', {
-    method: 'GET',
-    cache: 'no-store',
-  });
+  try {
+    const res = await fetchWithAuth('/forms/', {
+      method: 'GET',
+      cache: 'no-store',
+      headers: {
+        'Accept': 'application/json',
+      }
+    });
 
-  if (!res.ok) {
-    throw buildApiError(res, 'Failed to load forms');
+    // Check if response is valid
+    if (!res) {
+      const err = new Error('No response from server');
+      (err as any).status = 0;
+      throw err;
+    }
+
+    if (!res.ok) {
+      throw buildApiError(res, 'Failed to load forms');
+    }
+
+    // Safely parse JSON
+    let data;
+    try {
+      if (typeof res.json === 'function') {
+        data = await res.json();
+      } else {
+        throw new Error('Response does not have json() method');
+      }
+    } catch (parseErr: any) {
+      const err = new Error(`Failed to parse response: ${parseErr.message}`);
+      (err as any).status = res.status;
+      throw err;
+    }
+
+    return { data: Array.isArray(data) ? data : [] };
+  } catch (err: any) {
+    // Re-throw with better context
+    if (err instanceof Error) {
+      throw err;
+    }
+    throw new Error(`Unknown error loading forms: ${JSON.stringify(err)}`);
   }
-
-  if (typeof res.json !== 'function') {
-    throw buildApiError(res, 'Invalid forms response');
-  }
-
-  const data = await res.json();
-  return { data: Array.isArray(data) ? data : [] };
 };
 export const createForm = async (data: {
   name: string;

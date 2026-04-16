@@ -327,13 +327,18 @@ function FormsPageContent() {
     try {
       const res = await createForm(formData);
       if (res && res.ok) {
+        // Ensure the newly created form is visible in the refreshed list.
+        setSearchQuery('');
+        setStatusFilter('all');
+        setSortBy('created');
+        setSortOrder('desc');
+        await mutate();
         toast({ 
           title: 'Success!', 
           description: 'Form created successfully',
           variant: 'default' 
         });
         setShowCreate(false);
-        mutate();
       } else {
         toast({
           title: 'Failed to create form',
@@ -718,7 +723,6 @@ function FormsPageContent() {
               onOpenChange={setShowCreate}
               onSuccess={() => {
                 setShowCreate(false);
-                mutate();
               }}
               initial={null}
               submitting={submitting}

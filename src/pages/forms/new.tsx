@@ -518,7 +518,6 @@ export function FormBuilderModal({ open, onOpenChange, onSuccess, initial, submi
       
       if (onSubmit) {
         await onSubmit(payload);
-        onSuccess?.();
       } else {
         // Use trailing slash to match backend and api.ts
         const res = await fetchWithAuth('/forms/', {

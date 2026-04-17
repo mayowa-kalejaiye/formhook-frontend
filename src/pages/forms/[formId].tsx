@@ -4,8 +4,10 @@ import dynamic from 'next/dynamic';
 import DashboardNav from '../../components/DashboardNav';
 import BottomGradientRadial from '../../components/BottomGradientRadial';
 import AuthLayout from '../../components/AuthLayout';
-import { Input } from '../../components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../../components/ui/dialog';
+import { FormOverviewTab } from '../../components/form-tabs/FormOverviewTab';
+import { FormWebhooksTab } from '../../components/form-tabs/FormWebhooksTab';
+import { FormWebhookLogsTab } from '../../components/form-tabs/FormWebhookLogsTab';
+import { FormSubmissionsTab } from '../../components/form-tabs/FormSubmissionsTab';
 import { toast, showApiError } from '../../hooks/use-toast';
 import { Toaster } from '../../components/ui/toaster';
 import { 
@@ -17,9 +19,8 @@ import {
   getWebhookDeliveries,
   updateFormWebhook
 } from '../../services/api';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '../../components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../../components/ui/table';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/tabs';
 
 // --- Next.js SSG fallback for dynamic route build error ---
@@ -31,27 +32,14 @@ export async function getStaticProps() {
   return { props: {} };
 }
 import { Badge } from '../../components/ui/badge';
-import { Switch } from '../../components/ui/switch';
-import { Label } from '../../components/ui/label';
 import { 
   ArrowLeft, 
-  Copy, 
-  ExternalLink, 
   Eye, 
   BarChart3, 
   Webhook, 
   Activity, 
   Database,
-  Settings,
-  Calendar,
-  Globe,
-  Lock,
-  Key,
-  AlertTriangle,
-  CheckCircle,
-  XCircle,
-  Clock,
-  TrendingUp
+  Settings
 } from 'lucide-react';
 import Link from 'next/link';
 import SEO from '../../components/SEO';
@@ -846,85 +834,18 @@ export default function FormSettingsPage() {
                 </TabsTrigger>
               </TabsList>
           <TabsContent value="overview">
-            <Card className="mb-8 shadow-lg border border-blue-100 dark:border-slate-700 bg-white dark:bg-slate-900">
-              <CardHeader>
-                <CardTitle>Form Overview</CardTitle>
-                <CardDescription>Details and embed snippet for this form.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div><b>Name:</b> {form?.name}</div>
-                <div><b>Created:</b> {form?.created_at ? new Date(form.created_at).toLocaleString() : '-'}</div>
-                <div><b>Public Link:</b> <a href={`/f/${form?.id}`} className="underline text-blue-700" target="_blank" rel="noopener noreferrer">/f/{form?.id}</a></div>
-                <div className="flex items-center gap-4 mt-4">
-                  <label className="font-semibold flex items-center gap-2">
-                    <input type="checkbox" checked={requireToken} onChange={e => handleToggleRequireToken(e.target.checked)} />
-                    Require Token Authentication
-                  </label>
-                </div>
-                {requireToken && (
-                  <div className="mt-4 space-y-2">
-                    {!token ? (
-                      <Button onClick={handleGenerateToken} disabled={tokenLoading}>{tokenLoading ? 'Generating...' : 'Generate API Token'}</Button>
-                    ) : (
-                      <div className="flex items-center gap-4">
-                        {showToken ? (
-                          <div className="bg-yellow-50 border border-yellow-200 rounded px-4 py-2 text-yellow-900 font-mono text-xs">
-                            <span>{token}</span>
-                            <span className="ml-2 text-xs text-yellow-700">Copy this now. You won’t see it again.</span>
-                          </div>
-                        ) : (
-                          <div className="bg-gray-100 border border-gray-200 rounded px-4 py-2 text-gray-500 font-mono text-xs tracking-widest">••••••••••••••••••••••••••••••••</div>
-                        )}
-                        <Button onClick={handleRevokeToken} disabled={tokenLoading}>{tokenLoading ? 'Revoking...' : 'Revoke Token'}</Button>
-                      </div>
-                    )}
-                    {requireToken && !token && (
-                      <div className="text-sm text-yellow-600 mt-2">You must generate a token before submissions or webhooks will work.</div>
-                    )}
-                  </div>
-                )}
-                {/* Developer Help Card: API Token Usage */}
-                {requireToken && (
-                  <Card className="mb-6 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-                    <CardHeader>
-                      <CardTitle>API Token — Quick Start</CardTitle>
-                      <CardDescription>How to submit programmatically when &quot;Require Token&quot; is enabled.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-3 text-sm">
-                        <div>
-                          <strong>Server-to-server (recommended):</strong>
-                          <pre className="mt-2 bg-slate-50 dark:bg-slate-900 p-2 text-xs font-mono overflow-x-auto">{`curl -X POST https://api.yourdomain.com/forms/${form?.id || '<FORM_ID>'}/submit \
-  -H "Authorization: Bearer <FORM_TOKEN>" \
-  -H "Content-Type: application/json" \
-  -d '{"data":{"email":"user@example.com"}}'`}</pre>
-                        </div>
-
-                        <div>
-                          <strong>Browser + server proxy (keeps token secret):</strong>
-                          <pre className="mt-2 bg-slate-50 dark:bg-slate-900 p-2 text-xs font-mono overflow-x-auto">{`// Browser -> Your server -> FormHook
-// On your server, forward request and add Authorization header
-fetch('https://api.yourdomain.com/forms/${form?.id || '<FORM_ID>'}/submit', {
-  method: 'POST',
-  headers: { 'Authorization': 'Bearer <FORM_TOKEN>', 'Content-Type': 'application/json' },
-  body: JSON.stringify(payload)
-});`}</pre>
-                        </div>
-
-                        <div className="text-xs text-gray-500">
-                          Note: Tokens must be stored server-side only. Do not expose them in client-side JavaScript or embed them into public pages.
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-                <div className="mt-6">
-                  <b>Embed Snippet:</b>
-                  <pre className="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 rounded p-2 text-xs overflow-x-auto border border-purple-200 dark:border-slate-600 mb-2 mt-2">{embedSnippet()}</pre>
-                  <Button onClick={() => navigator.clipboard.writeText(embedSnippet())}>Copy Snippet</Button>
-                </div>
-              </CardContent>
-            </Card>
+            <FormOverviewTab
+              form={form}
+              requireToken={requireToken}
+              token={token}
+              showToken={showToken}
+              tokenLoading={tokenLoading}
+              setShowToken={setShowToken}
+              handleToggleRequireToken={handleToggleRequireToken}
+              handleGenerateToken={handleGenerateToken}
+              handleRevokeToken={handleRevokeToken}
+              embedSnippet={embedSnippet}
+            />
           </TabsContent>
           <TabsContent value="analytics">
             <Card className="mb-8 shadow-lg border border-blue-100 dark:border-slate-700 bg-white dark:bg-slate-900">
@@ -1080,279 +1001,34 @@ fetch('https://api.yourdomain.com/forms/${form?.id || '<FORM_ID>'}/submit', {
             </Card>
           </TabsContent>
           <TabsContent value="webhooks">
-            <Card className="mb-8 shadow-lg border border-blue-100 dark:border-slate-700 bg-white dark:bg-slate-900">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Webhook className="h-5 w-5 text-blue-600" />
-                  Webhook Configuration
-                </CardTitle>
-                <CardDescription>Send submissions to your backend or third-party service.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-4">
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      checked={webhookEnabled}
-                      onCheckedChange={setWebhookEnabled}
-                    />
-                    <Label htmlFor="webhook-enabled" className="font-medium">
-                      Enable Webhook
-                    </Label>
-                  </div>
-                  
-                  {webhookEnabled && (
-                    <div className="space-y-4">
-                      <div>
-                        <Label htmlFor="webhook-url" className="text-sm font-medium">
-                          Webhook URL
-                        </Label>
-                        <Input
-                          id="webhook-url"
-                          type="url"
-                          placeholder="https://your-api.com/webhook"
-                          value={webhookUrl}
-                          onChange={(e) => setWebhookUrl(e.target.value)}
-                          className="mt-1"
-                        />
-                        <p className="text-xs text-gray-500 mt-1">
-                          FormHook will POST submission data to this URL
-                        </p>
-                      </div>
-                      
-                      <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                        <h4 className="font-medium text-blue-900 mb-2">Webhook Payload Format</h4>
-                        <pre className="text-xs bg-white p-3 rounded border overflow-x-auto">
-{`{
-  "form_id": "${form?.id || 'form-id'}",
-  "submission_id": "sub_xxxx",
-  "data": {
-    // Your form field data
-  },
-  "metadata": {
-    "ip_address": "192.168.1.1",
-    "user_agent": "...",
-    "submitted_at": "2024-01-01T12:00:00Z"
-  }
-}`}
-                        </pre>
-                      </div>
-                    </div>
-                  )}
-                  
-                  <div className="pt-4">
-                    <Button onClick={handleUpdateWebhook}>
-                      Save Webhook Configuration
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <FormWebhooksTab
+              form={form}
+              webhookUrl={webhookUrl}
+              setWebhookUrl={setWebhookUrl}
+              webhookEnabled={webhookEnabled}
+              setWebhookEnabled={setWebhookEnabled}
+              handleUpdateWebhook={handleUpdateWebhook}
+            />
           </TabsContent>
           <TabsContent value="logs">
-            <Card className="mb-8 shadow-lg border border-blue-100 dark:border-slate-700 bg-white dark:bg-slate-900">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Activity className="h-5 w-5 text-blue-600" />
-                  Webhook Deliveries
-                </CardTitle>
-                <CardDescription>Recent webhook delivery attempts for this form.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {webhookLogsLoading ? (
-                  <div className="flex items-center justify-center py-12">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                    <span className="ml-3 text-gray-600">Loading webhook logs...</span>
-                  </div>
-                ) : webhookLogs.length > 0 ? (
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <p className="text-sm text-gray-600">
-                        Showing {webhookLogs.length} recent webhook deliveries
-                      </p>
-                      <Button onClick={loadWebhookLogs} disabled={webhookLogsLoading}>
-                        {webhookLogsLoading ? 'Refreshing...' : 'Refresh'}
-                      </Button>
-                    </div>
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Status</TableHead>
-                            <TableHead>URL</TableHead>
-                            <TableHead>Response Code</TableHead>
-                            <TableHead>Timestamp</TableHead>
-                            <TableHead>Response Time</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {webhookLogs.map((log, idx) => (
-                            <TableRow key={log.id || idx}>
-                              <TableCell>
-                                <div className="flex items-center gap-2">
-                                  {log.status === 'success' ? (
-                                    <CheckCircle className="h-4 w-4 text-green-500" />
-                                  ) : log.status === 'failed' ? (
-                                    <XCircle className="h-4 w-4 text-red-500" />
-                                  ) : (
-                                    <Clock className="h-4 w-4 text-yellow-500" />
-                                  )}
-                                  <Badge variant={log.status === 'success' ? 'default' : 'destructive'}>
-                                    {log.status || 'pending'}
-                                  </Badge>
-                                </div>
-                              </TableCell>
-                              <TableCell className="font-mono text-xs">
-                                {log.webhook_url || form?.webhook_url || '-'}
-                              </TableCell>
-                              <TableCell>
-                                <Badge variant={log.response_code >= 200 && log.response_code < 300 ? 'default' : 'destructive'}>
-                                  {log.response_code || '-'}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="text-sm">
-                                {log.created_at ? new Date(log.created_at).toLocaleString() : 
-                                 log.timestamp ? new Date(log.timestamp).toLocaleString() : '-'}
-                              </TableCell>
-                              <TableCell className="text-sm">
-                                {log.response_time ? `${log.response_time}ms` : '-'}
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <Activity className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                    <p className="text-gray-500 mb-4">No webhook deliveries yet</p>
-                    <p className="text-sm text-gray-400 mb-4">
-                      {webhookEnabled ? 'Webhook deliveries will appear here after form submissions' : 'Enable webhook to see delivery logs'}
-                    </p>
-                    <Button onClick={loadWebhookLogs} disabled={webhookLogsLoading}>
-                      {webhookLogsLoading ? 'Loading...' : 'Refresh Logs'}
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            <FormWebhookLogsTab
+              form={form}
+              webhookLogs={webhookLogs}
+              webhookLogsLoading={webhookLogsLoading}
+              webhookEnabled={webhookEnabled}
+              loadWebhookLogs={loadWebhookLogs}
+            />
           </TabsContent>
           <TabsContent value="submissions">
-            <Card className="shadow-xl border border-blue-100 dark:border-slate-700 bg-white dark:bg-slate-900">
-              <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b bg-gradient-to-r from-blue-50/80 to-purple-50/80 dark:from-blue-900/30 dark:to-purple-900/30">
-                <div>
-                  <CardTitle className="text-2xl font-bold text-blue-900 dark:text-blue-200 flex items-center gap-2">
-                    <Database className="h-6 w-6" />
-                    {form?.name || 'Form Submissions'}
-                  </CardTitle>
-                  <CardDescription className="text-gray-500 dark:text-gray-300">
-                    View, filter, and export all submissions for this form. Total: {totalSubmissions}
-                  </CardDescription>
-                </div>
-                <div className="flex gap-2">
-                  <Button onClick={() => loadSubmissions(0)} disabled={submissionsLoading}>
-                    {submissionsLoading ? 'Loading...' : 'Refresh'}
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="p-0">
-                {submissionsLoading ? (
-                  <div className="flex items-center justify-center py-12">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                    <span className="ml-3 text-gray-600">Loading submissions...</span>
-                  </div>
-                ) : submissions.length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Form Submission #</TableHead>
-                          <TableHead>Data</TableHead>
-                          <TableHead>IP Address</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Submitted At</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {submissions.map((submission, idx) => (
-                          <TableRow key={submission.id || idx}>
-                            <TableCell className="font-mono text-xs">
-                              <div className="flex items-center gap-2">
-                                <Badge className="text-xs px-2 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300" title={`Form submission #${idx + 1}`}>
-                                  #{idx + 1}
-                                </Badge>
-                              </div>
-                            </TableCell>
-                            <TableCell className="max-w-md">
-                              <div className="space-y-1">
-                                {submission.data && typeof submission.data === 'object' ? (
-                                  Object.entries(submission.data).map(([key, value]) => (
-                                    <div key={key} className="text-xs">
-                                      <span className="font-medium text-gray-600">{key}:</span>{' '}
-                                      <span className="text-gray-800">{String(value)}</span>
-                                    </div>
-                                  ))
-                                ) : (
-                                  <span className="text-gray-500 text-xs">No data</span>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell className="font-mono text-xs">
-                              {submission.ip_address || '-'}
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant={
-                                submission.status === 'delivered' ? 'default' :
-                                submission.status === 'failed' ? 'destructive' : 'secondary'
-                              }>
-                                {submission.status || 'received'}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-sm">
-                              {submission.submitted_at ? new Date(submission.submitted_at).toLocaleString() :
-                               submission.date ? new Date(submission.date).toLocaleString() :
-                               submission.created_at ? new Date(submission.created_at).toLocaleString() :
-                               submission.timestamp ? new Date(submission.timestamp).toLocaleString() : '-'}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <Database className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                    <p className="text-gray-500 mb-4">No submissions yet</p>
-                    <p className="text-sm text-gray-400 mb-4">
-                      Submissions will appear here after someone submits your form
-                    </p>
-                    <Button onClick={() => loadSubmissions(0)} disabled={submissionsLoading}>
-                      {submissionsLoading ? 'Loading...' : 'Check for Submissions'}
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-              <CardFooter className="flex items-center justify-between mt-4">
-                <div className="text-xs text-gray-400">
-                  Page {currentPage + 1} of {Math.ceil(totalSubmissions / submissionsPerPage) || 1}
-                  {totalSubmissions > 0 && ` • Showing ${submissions.length} of ${totalSubmissions} submissions`}
-                </div>
-                <div className="space-x-2">
-                  <Button 
-                    disabled={currentPage === 0 || submissionsLoading}
-                    onClick={() => loadSubmissions(currentPage - 1)}
-                  >
-                    Prev
-                  </Button>
-                  <Button 
-                    disabled={submissions.length < submissionsPerPage || submissionsLoading}
-                    onClick={() => loadSubmissions(currentPage + 1)}
-                  >
-                    Next
-                  </Button>
-                </div>
-              </CardFooter>
-            </Card>
+            <FormSubmissionsTab
+              form={form}
+              submissions={submissions}
+              submissionsLoading={submissionsLoading}
+              totalSubmissions={totalSubmissions}
+              currentPage={currentPage}
+              submissionsPerPage={submissionsPerPage}
+              loadSubmissions={loadSubmissions}
+            />
           </TabsContent>
             </Tabs>
 

@@ -8,6 +8,8 @@ import { useToast } from "@/hooks/use-toast";
 import AuthLayout from '@/components/AuthLayout';
 import DashboardNav from '@/components/DashboardNav';
 
+const API_BASE_URL = "https://formhook-backend-rnvw.onrender.com";
+
 function APIIntegrationContent() {
   const { toast } = useToast();
 
@@ -31,7 +33,7 @@ function APIIntegrationContent() {
         </div>
 
         <Tabs defaultValue="quick-start" className="space-y-6">
-          <TabsList>
+          <TabsList className="w-full overflow-x-auto whitespace-nowrap">
             <TabsTrigger value="quick-start">Quick Start</TabsTrigger>
             <TabsTrigger value="html">HTML Forms</TabsTrigger>
             <TabsTrigger value="api">REST API</TabsTrigger>
@@ -57,7 +59,7 @@ function APIIntegrationContent() {
                     <Terminal className="h-4 w-4" />
                     <AlertTitle>Your form endpoint will look like this:</AlertTitle>
                     <AlertDescription className="font-mono text-sm mt-2">
-                      https://api.formhookapp.com/f/your-form-id
+                      {`${API_BASE_URL}/forms/your-form-id/submit`}
                     </AlertDescription>
                   </Alert>
                 </div>
@@ -77,7 +79,7 @@ function APIIntegrationContent() {
                           variant="outline" 
                           size="icon"
                           className="absolute right-2 top-2"
-                          onClick={() => copyToClipboard(`<form action="https://api.formhookapp.com/f/your-form-id" method="POST">
+                          onClick={() => copyToClipboard(`<form action="${API_BASE_URL}/forms/your-form-id/submit" method="POST">
   <input type="email" name="email" required />
   <button type="submit">Subscribe</button>
 </form>`)}
@@ -85,7 +87,7 @@ function APIIntegrationContent() {
                           <Copy className="h-4 w-4" />
                         </Button>
                         <pre className="text-sm language-html">
-                          <code>{`<form action="https://api.formhookapp.com/f/your-form-id" method="POST">
+                          <code>{`<form action="${API_BASE_URL}/forms/your-form-id/submit" method="POST">
   <input type="email" name="email" required />
   <button type="submit">Subscribe</button>
 </form>`}</code>
@@ -114,7 +116,6 @@ function APIIntegrationContent() {
             </Card>
           </TabsContent>
 
-          {/* remaining tabs unchanged... */}
           <TabsContent value="html">
             <Card>
               <CardHeader>
@@ -133,7 +134,7 @@ function APIIntegrationContent() {
                           size="icon"
                           className="absolute right-2 top-2"
                           onClick={() => copyToClipboard(`<form 
-  action="https://api.formhookapp.com/f/your-form-id" 
+  action="${API_BASE_URL}/forms/your-form-id/submit" 
   method="POST"
   enctype="multipart/form-data"
 >
@@ -148,7 +149,7 @@ function APIIntegrationContent() {
                         </Button>
                         <pre className="text-sm language-html">
                           <code>{`<form 
-  action="https://api.formhookapp.com/f/your-form-id" 
+  action="${API_BASE_URL}/forms/your-form-id/submit" 
   method="POST"
   enctype="multipart/form-data"
 >
@@ -177,7 +178,7 @@ function APIIntegrationContent() {
                           variant="outline" 
                           size="icon"
                           className="absolute right-2 top-2"
-                          onClick={() => copyToClipboard(`<form action="https://api.formhookapp.com/f/your-form-id" method="POST">
+                          onClick={() => copyToClipboard(`<form action="${API_BASE_URL}/forms/your-form-id/submit" method="POST">
   <input type="hidden" name="_success_url" value="https://your-site.com/thank-you" />
   <input type="hidden" name="_error_url" value="https://your-site.com/error" />
   <!-- your form fields -->
@@ -186,7 +187,7 @@ function APIIntegrationContent() {
                           <Copy className="h-4 w-4" />
                         </Button>
                         <pre className="text-sm language-html">
-                          <code>{`<form action="https://api.formhookapp.com/f/your-form-id" method="POST">
+                          <code>{`<form action="${API_BASE_URL}/forms/your-form-id/submit" method="POST">
   <input type="hidden" name="_success_url" value="https://your-site.com/thank-you" />
   <input type="hidden" name="_error_url" value="https://your-site.com/error" />
   <!-- your form fields -->
@@ -216,7 +217,7 @@ form.addEventListener('submit', async (e) => {
   const formData = new FormData(form);
   
   try {
-    const response = await fetch('https://api.formhookapp.com/f/your-form-id', {
+    const response = await fetch('${API_BASE_URL}/forms/your-form-id/submit', {
       method: 'POST',
       body: formData
     });
@@ -240,7 +241,7 @@ form.addEventListener('submit', async (e) => {
   const formData = new FormData(form);
   
   try {
-    const response = await fetch('https://api.formhookapp.com/f/your-form-id', {
+    const response = await fetch('${API_BASE_URL}/forms/your-form-id/submit', {
       method: 'POST',
       body: formData
     });
@@ -276,7 +277,7 @@ form.addEventListener('submit', async (e) => {
                     <Lock className="h-4 w-4" /> Authentication
                   </h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    All API requests must include your API key in the Authorization header.
+                    Owner endpoints require JWT Bearer auth. Submission endpoints are public unless a form token is enabled.
                   </p>
                   <Card className="bg-gray-50 dark:bg-gray-900">
                     <CardContent className="pt-6">
@@ -285,12 +286,12 @@ form.addEventListener('submit', async (e) => {
                           variant="outline" 
                           size="icon"
                           className="absolute right-2 top-2"
-                          onClick={() => copyToClipboard(`Authorization: Bearer your-api-key`)}
+                          onClick={() => copyToClipboard(`Authorization: Bearer your-jwt-or-form-token`)}
                         >
                           <Copy className="h-4 w-4" />
                         </Button>
                         <pre className="text-sm">
-                          <code>Authorization: Bearer your-api-key</code>
+                          <code>Authorization: Bearer your-jwt-or-form-token</code>
                         </pre>
                       </div>
                     </CardContent>
@@ -313,8 +314,8 @@ form.addEventListener('submit', async (e) => {
                           size="icon"
                           className="absolute right-2 top-2"
                           onClick={() => copyToClipboard(`curl -X POST \\
-  https://api.formhookapp.com/f/your-form-id \\
-  -H "Authorization: Bearer your-api-key" \\
+  ${API_BASE_URL}/forms/your-form-id/submit \\
+  -H "Authorization: Bearer your-form-token-if-required" \\
   -H "Content-Type: application/json" \\
   -d '{
     "name": "John Doe",
@@ -326,8 +327,8 @@ form.addEventListener('submit', async (e) => {
                         </Button>
                         <pre className="text-sm">
                           <code>{`curl -X POST \\
-  https://api.formhookapp.com/f/your-form-id \\
-  -H "Authorization: Bearer your-api-key" \\
+  ${API_BASE_URL}/forms/your-form-id/submit \\
+  -H "Authorization: Bearer your-form-token-if-required" \\
   -H "Content-Type: application/json" \\
   -d '{
     "name": "John Doe",
@@ -356,15 +357,15 @@ form.addEventListener('submit', async (e) => {
                           size="icon"
                           className="absolute right-2 top-2"
                           onClick={() => copyToClipboard(`curl \\
-  https://api.formhookapp.com/v1/forms/your-form-id/submissions \\
-  -H "Authorization: Bearer your-api-key"`)}
+  ${API_BASE_URL}/forms/your-form-id/submissions \\
+  -H "Authorization: Bearer your-jwt"`)}
                         >
                           <Copy className="h-4 w-4" />
                         </Button>
                         <pre className="text-sm">
                           <code>{`curl \\
-  https://api.formhookapp.com/v1/forms/your-form-id/submissions \\
-  -H "Authorization: Bearer your-api-key"`}</code>
+  ${API_BASE_URL}/forms/your-form-id/submissions \\
+  -H "Authorization: Bearer your-jwt"`}</code>
                         </pre>
                       </div>
                     </CardContent>
@@ -427,9 +428,10 @@ form.addEventListener('submit', async (e) => {
 function verifyWebhookSignature(payload, signature, secret) {
   const hmac = crypto.createHmac('sha256', secret);
   const digest = hmac.update(payload).digest('hex');
+  if (!signature || signature.length !== digest.length) return false;
   return crypto.timingSafeEqual(
-    Buffer.from(signature),
-    Buffer.from(digest)
+    Buffer.from(signature, 'hex'),
+    Buffer.from(digest, 'hex')
   );
 }`)}
                         >
@@ -441,9 +443,10 @@ function verifyWebhookSignature(payload, signature, secret) {
 function verifyWebhookSignature(payload, signature, secret) {
   const hmac = crypto.createHmac('sha256', secret);
   const digest = hmac.update(payload).digest('hex');
+  if (!signature || signature.length !== digest.length) return false;
   return crypto.timingSafeEqual(
-    Buffer.from(signature),
-    Buffer.from(digest)
+    Buffer.from(signature, 'hex'),
+    Buffer.from(digest, 'hex')
   );
 }`}</code>
                         </pre>
@@ -456,14 +459,12 @@ function verifyWebhookSignature(payload, signature, secret) {
                 <div className="space-y-4">
                   <h3 className="font-semibold">Retry Policy</h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Failed webhook deliveries are automatically retried with exponential backoff:
+                    Failed webhook deliveries are retried up to 3 attempts with short backoff in the worker:
                   </p>
                   <ul className="list-disc list-inside text-sm text-gray-600 dark:text-gray-400 space-y-2">
-                    <li>1st retry: 5 minutes</li>
-                    <li>2nd retry: 15 minutes</li>
-                    <li>3rd retry: 30 minutes</li>
-                    <li>4th retry: 1 hour</li>
-                    <li>5th retry: 2 hours</li>
+                    <li>Attempt 1: immediate delivery attempt</li>
+                    <li>Attempt 2: short delay before retry</li>
+                    <li>Attempt 3: final retry with longer delay</li>
                   </ul>
                 </div>
               </CardContent>

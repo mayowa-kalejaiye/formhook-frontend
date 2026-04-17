@@ -181,46 +181,10 @@ export default function Login() {
   }, [user, loading, authReady, router, toast]);
 
   return (
-    <div className="min-h-screen grid grid-cols-1 md:grid-cols-2">
-      {/* Left marketing/design panel */}
-      <div className="hidden md:flex flex-col justify-center items-start p-12 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 text-white">
-        <div className="max-w-md">
-          <div className="inline-flex items-center gap-3 mb-6">
-            <div className="h-10 w-10 rounded-md bg-white/20 flex items-center justify-center border border-white/30">
-              <UserIcon />
-            </div>
-            <h2 className="text-2xl font-semibold">FormHook</h2>
-          </div>
-          <h1 className="text-3xl md:text-4xl font-bold leading-tight mb-4">Build beautiful, reliable forms — fast</h1>
-          <p className="text-sm md:text-base text-white/90 mb-6">FormHook helps you collect responses, run webhooks and analyze results without the pain. Lightweight, privacy-first, and easy to integrate.</p>
-
-          <ul className="space-y-3 mb-6">
-            <li className="flex items-start gap-3">
-              <span className="mt-1 inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/20">✓</span>
-              <span className="text-sm">Fast setup — publish forms in minutes</span>
-            </li>
-            <li className="flex items-start gap-3">
-              <span className="mt-1 inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/20">✓</span>
-              <span className="text-sm">Reliable webhooks & delivery analytics</span>
-            </li>
-            <li className="flex items-start gap-3">
-              <span className="mt-1 inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/20">✓</span>
-              <span className="text-sm">Privacy-first: you own the data</span>
-            </li>
-          </ul>
-
-          <div className="flex gap-3">
-            <a href="/signup" className="inline-block rounded-md bg-white text-indigo-700 px-4 py-2 font-semibold">Get started</a>
-            <a href="/signup" className="inline-block rounded-md border border-white/30 px-4 py-2 text-white/90">Start free</a>
-          </div>
-        </div>
-      </div>
-
-      {/* Right login panel */}
-          <div className="flex items-center justify-center p-6 bg-white dark:bg-black">
-            <div className="w-full max-w-md relative z-10">
+    <div className="min-h-screen flex items-center justify-center p-6 bg-zinc-50 dark:bg-black">
+      <div className="w-full max-w-md relative z-10">
           {mounted && <Toaster />}
-              <div className="p-6 space-y-6 bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-lg dark:shadow-zinc-900/50">
+        <div className="p-6 space-y-6 bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-lg dark:shadow-zinc-900/50">
             <div className="text-center space-y-3">
               <div className="inline-flex p-2 bg-zinc-100 dark:bg-zinc-900 rounded-md border border-zinc-200 dark:border-zinc-800">
                 <UserIcon />
@@ -307,7 +271,6 @@ export default function Login() {
               </p>
             </div>
           </div>
-        </div>
       </div>
     </div>
   );

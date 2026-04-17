@@ -190,17 +190,18 @@ const Hero3: React.FC = () => {
       {/* Full-bleed hero so it spans the full viewport width on mobile */}
       <section className="w-full min-h-[calc(100vh-6rem)] flex items-center justify-center py-12 lg:py-20">
         <div className="w-full px-4 sm:px-6 lg:px-6">
-          <div className="mx-auto" style={{ maxWidth: '90rem' }}>
+          <div className="mx-auto max-w-[90rem]">
             {/* Hero Content */}
             <main className="flex flex-col items-center justify-center">
           {/* Headline */}
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-center text-black dark:text-white leading-tight max-w-4xl mx-auto">
-            Ingest frontend events. <span className="text-blue-600 dark:text-blue-400">Deliver them reliably.</span>
+            <span className="block">Ingest frontend events.</span>
+            <span className="block text-blue-600 dark:text-blue-400">Deliver them reliably.</span>
           </h1>
           {/* Subtext */}
           <p className="mt-6 text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto text-center">
-            Use forms as the entry point, or send payloads programmatically. Point your <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded text-blue-600 dark:text-blue-400">&lt;form&gt;</code> or API call to FormHook.<br />
-            We handle validation, storage, routing, retries, and delivery visibility so your team can ship faster.
+            Start with forms as your entry point, or send payloads programmatically. Point your <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded text-blue-600 dark:text-blue-400">&lt;form&gt;</code> or API calls to FormHook.<br />
+            FormHook handles validation, storage, routing, retries, and delivery visibility so your team can ship faster with less backend overhead.
           </p>
 
           {/* CTA Buttons */}

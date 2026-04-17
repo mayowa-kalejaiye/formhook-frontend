@@ -119,12 +119,20 @@ interface Form {
   status: 'active' | 'draft' | 'inactive';
 }
 
+const normalizeFormStatus = (value?: string | null): 'active' | 'draft' | 'inactive' => {
+  const normalized = (value || '').toString().trim().toLowerCase();
+  if (normalized === 'draft') return 'draft';
+  if (normalized === 'inactive') return 'inactive';
+  return 'active';
+};
+
 function FormCard({ form, onEdit, onDelete, onView }: {
   form: Form;
   onEdit: (form: Form) => void;
   onDelete: (id: string) => void;
   onView: (id: string) => void;
 }) {
+  const normalizedStatus = normalizeFormStatus(form.status);
   const statusColors = {
     active: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300 dark:border dark:border-green-700',
     draft: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300 dark:border dark:border-yellow-700',
@@ -146,8 +154,8 @@ function FormCard({ form, onEdit, onDelete, onView }: {
               </CardDescription>
             </div>
           </div>
-          <Badge className={`${statusColors[form.status || 'active']} flex-shrink-0 self-start sm:self-auto`}>
-            {form.status || 'Active'}
+          <Badge className={`${statusColors[normalizedStatus]} flex-shrink-0 self-start sm:self-auto`}>
+            {normalizedStatus}
           </Badge>
         </div>
       </CardHeader>
@@ -276,8 +284,20 @@ function FormsPageContent() {
   // Filter and sort forms
   const filteredAndSortedForms = useMemo(() => {
     let filtered = forms.filter((form: Form) => {
-      const matchesSearch = form.name.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesStatus = statusFilter === 'all' || (form.status || 'active') === statusFilter;
+      const normalizedStatus = normalizeFormStatus(form.status);
+      const searchTerm = searchQuery.trim().toLowerCase();
+      const searchable = [
+        form.name,
+        form.description,
+        form.notification_email,
+        form.webhook_url,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+
+      const matchesSearch = !searchTerm || searchable.includes(searchTerm);
+      const matchesStatus = statusFilter === 'all' || normalizedStatus === statusFilter;
       return matchesSearch && matchesStatus;
     });
 
@@ -400,6 +420,15 @@ function FormsPageContent() {
 
   const handleView = (formId: string) => {
     router.push(`/forms/${formId}`);
+  };
+
+  const hasActiveFilters = searchQuery.trim().length > 0 || statusFilter !== 'all' || sortBy !== 'created' || sortOrder !== 'desc';
+
+  const clearFilters = () => {
+    setSearchQuery('');
+    setStatusFilter('all');
+    setSortBy('created');
+    setSortOrder('desc');
   };
 
   return (
@@ -540,6 +569,15 @@ function FormsPageContent() {
                   <List className="h-4 w-4" />
                 </Button>
               </div>
+
+              <Button
+                variant="outline"
+                onClick={clearFilters}
+                disabled={!hasActiveFilters}
+                className="w-full sm:w-auto"
+              >
+                Reset Filters
+              </Button>
             </div>
           </div>
 
@@ -697,8 +735,8 @@ function FormsPageContent() {
                                 </div>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">
-                                <Badge className={form.status === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' : form.status === 'draft' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300' : 'bg-slate-100 text-slate-800 dark:bg-slate-800/70 dark:text-slate-200'}>
-                                  {form.status || 'Active'}
+                                <Badge className={normalizeFormStatus(form.status) === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' : normalizeFormStatus(form.status) === 'draft' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300' : 'bg-slate-100 text-slate-800 dark:bg-slate-800/70 dark:text-slate-200'}>
+                                  {normalizeFormStatus(form.status)}
                                 </Badge>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 dark:text-slate-400">

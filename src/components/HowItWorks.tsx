@@ -13,7 +13,7 @@ const features = [
     description: "Send form payloads or frontend events to one endpoint and start ingesting immediately.",
     icon: Code,
     color: "bg-blue-600",
-    detail: `Example: action="https://formhook-frontend.vercel.app/forms/{formid}/submit"`
+    detail: `Example: action="https://formhookapp.vercel.app/forms/{formid}/submit"`
   },
   {
     id: 2,

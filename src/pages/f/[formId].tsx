@@ -320,8 +320,8 @@ export default function PublicFormPage() {
         <SEO
           title={form?.name || 'Form • FormHook'}
           description={form?.description || 'Submit to this form powered by FormHook.'}
-          image={`${(process.env.NEXT_PUBLIC_SITE_URL || 'https://formhook-frontend.vercel.app').replace(/\/$/, '')}/og-image-2.svg`}
-          url={`${(process.env.NEXT_PUBLIC_SITE_URL || 'https://formhook-frontend.vercel.app').replace(/\/$/, '')}/f/${formId || ''}`}
+          image={`${(process.env.NEXT_PUBLIC_SITE_URL || 'https://formhookapp.vercel.app').replace(/\/$/, '')}/og-image-2.svg`}
+          url={`${(process.env.NEXT_PUBLIC_SITE_URL || 'https://formhookapp.vercel.app').replace(/\/$/, '')}/f/${formId || ''}`}
         />
         <div className="container mx-auto px-4 py-16">
           <div className="max-w-2xl mx-auto">
@@ -425,8 +425,8 @@ export default function PublicFormPage() {
       <SEO
         title={form?.name || 'Form • FormHook'}
         description={form?.description || 'Submit to this form powered by FormHook.'}
-        image={`${(process.env.NEXT_PUBLIC_SITE_URL || 'https://formhook-frontend.vercel.app').replace(/\/$/, '')}/og-image-2.svg`}
-        url={`${(process.env.NEXT_PUBLIC_SITE_URL || 'https://formhook-frontend.vercel.app').replace(/\/$/, '')}/f/${formId || ''}`}
+        image={`${(process.env.NEXT_PUBLIC_SITE_URL || 'https://formhookapp.vercel.app').replace(/\/$/, '')}/og-image-2.svg`}
+        url={`${(process.env.NEXT_PUBLIC_SITE_URL || 'https://formhookapp.vercel.app').replace(/\/$/, '')}/f/${formId || ''}`}
       />
       
       {/* Header */}

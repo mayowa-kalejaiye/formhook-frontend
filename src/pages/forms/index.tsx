@@ -407,8 +407,8 @@ function FormsPageContent() {
       <SEO
         title="Your Forms — FormHook"
         description="Manage all your forms in one place. Create forms, configure webhooks, and view submission analytics."
-        image={`${(process.env.NEXT_PUBLIC_SITE_URL || 'https://formhook-frontend.vercel.app').replace(/\/$/, '')}/og-image-2.svg`}
-        url={`${(process.env.NEXT_PUBLIC_SITE_URL || 'https://formhook-frontend.vercel.app').replace(/\/$/, '')}/forms`}
+        image={`${(process.env.NEXT_PUBLIC_SITE_URL || 'https://formhookapp.vercel.app').replace(/\/$/, '')}/og-image-2.svg`}
+        url={`${(process.env.NEXT_PUBLIC_SITE_URL || 'https://formhookapp.vercel.app').replace(/\/$/, '')}/forms`}
       />
       <DashboardNav />
       <main className="w-full px-4 sm:px-6 lg:px-8 pt-16 md:pt-8 pb-8">

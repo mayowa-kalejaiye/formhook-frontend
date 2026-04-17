@@ -2,12 +2,12 @@
 
 ## Current Issue
 
-The frontend deployed at `https://formhook-frontend.vercel.app` is encountering CORS errors when trying to communicate with the backend at `https://formhook-backend.onrender.com`.
+The frontend deployed at `https://formhookapp.vercel.app` is encountering CORS errors when trying to communicate with the backend at `https://formhook-backend.onrender.com`.
 
 Error message:
 
 ```plaintext
-Access to XMLHttpRequest at 'https://formhook-backend.onrender.com/auth/login' from origin 'https://formhook-frontend.vercel.app' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+Access to XMLHttpRequest at 'https://formhook-backend.onrender.com/auth/login' from origin 'https://formhookapp.vercel.app' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.
 ```
 
 ## Required Backend Configuration
@@ -23,7 +23,7 @@ app = FastAPI()
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://formhook-frontend.vercel.app", "http://localhost:3000"],
+    allow_origins=["https://formhookapp.vercel.app", "http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],  # Allow all methods (GET, POST, PUT, DELETE, etc.)
     allow_headers=["*"],  # Allow all headers
@@ -41,7 +41,7 @@ const app = express();
 
 // CORS middleware configuration
 app.use(cors({
-  origin: ["https://formhook-frontend.vercel.app", "http://localhost:3000"],
+  origin: ["https://formhookapp.vercel.app", "http://localhost:3000"],
   credentials: true,  // Important for cookies/auth
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']

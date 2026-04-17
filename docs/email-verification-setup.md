@@ -17,7 +17,7 @@ The verification link in emails should either:
 
 1. **Point directly to the frontend**:
    ```
-   https://formhook-frontend.vercel.app/verify-email?token=<TOKEN>
+   https://formhookapp.vercel.app/verify-email?token=<TOKEN>
    ```
 
 2. **OR have the backend redirect to frontend**:
@@ -28,7 +28,7 @@ The verification link in emails should either:
    @app.get("/verify-email")
    async def redirect_verification(token: str):
        # Redirect to frontend verification page with the token
-       frontend_url = os.getenv("FRONTEND_URL", "https://formhook-frontend.vercel.app")
+       frontend_url = os.getenv("FRONTEND_URL", "https://formhookapp.vercel.app")
        redirect_url = f"{frontend_url}/verify-email?token={token}"
        return RedirectResponse(url=redirect_url)
    ```
@@ -51,7 +51,7 @@ If you prefer to handle verification directly on the backend:
                <head><title>Email Verified</title></head>
                <body>
                    <h1>Email Verified Successfully!</h1>
-                   <p>Your email has been verified. You can now <a href="https://formhook-frontend.vercel.app/login">login to your account</a>.</p>
+                   <p>Your email has been verified. You can now <a href="https://formhookapp.vercel.app/login">login to your account</a>.</p>
                </body>
            </html>
            """)
@@ -62,7 +62,7 @@ If you prefer to handle verification directly on the backend:
                <body>
                    <h1>Verification Failed</h1>
                    <p>{message}</p>
-                   <p><a href="https://formhook-frontend.vercel.app/resend-verification">Request a new verification email</a></p>
+                   <p><a href="https://formhookapp.vercel.app/resend-verification">Request a new verification email</a></p>
                </body>
            </html>
            """, status_code=400)
@@ -73,7 +73,7 @@ If you prefer to handle verification directly on the backend:
 For Option 1, make sure your backend has environment variables for the frontend URL:
 
 ```
-FRONTEND_URL=https://formhook-frontend.vercel.app
+FRONTEND_URL=https://formhookapp.vercel.app
 ```
 
 ## Email Template Update

@@ -18,8 +18,8 @@ export default function Home() {
       <SEO
         title="FormHook: Reliable Event Intake and Delivery for Developers"
         description="Capture frontend events and form payloads with one endpoint. FormHook handles validation, storage, routing, retries, and delivery visibility."
-        image={`${(process.env.NEXT_PUBLIC_SITE_URL || 'https://formhook-frontend.vercel.app').replace(/\/$/, '')}/og-image.png`}
-        url="https://formhook-frontend.vercel.app"
+        image={`${(process.env.NEXT_PUBLIC_SITE_URL || 'https://formhookapp.vercel.app').replace(/\/$/, '')}/og-image.png`}
+        url="https://formhookapp.vercel.app"
         type="website"
       />
       <Hero3 />

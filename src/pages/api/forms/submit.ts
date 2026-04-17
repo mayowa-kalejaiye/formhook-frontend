@@ -31,7 +31,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const headers: Record<string, string> = {
     'content-type': 'application/json',
-    'user-agent': req.headers['user-agent'] ? String(req.headers['user-agent']) : 'formhook-frontend-proxy',
+    'user-agent': req.headers['user-agent'] ? String(req.headers['user-agent']) : 'formhookapp-proxy',
   };
 
   // Forward Authorization header if the caller provided a per-form token

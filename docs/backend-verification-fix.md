@@ -24,7 +24,7 @@ import os
 @app.get("/verify-email")
 async def redirect_to_frontend(token: str):
     """Redirects email verification links to the frontend verification page"""
-    frontend_url = os.getenv("FRONTEND_URL", "https://formhook-frontend.vercel.app")
+    frontend_url = os.getenv("FRONTEND_URL", "https://formhookapp.vercel.app")
     redirect_url = f"{frontend_url}/verify-email?token={token}"
     return RedirectResponse(url=redirect_url)
 ```
@@ -35,7 +35,7 @@ async def redirect_to_frontend(token: str):
 // Add to your Express.js app
 app.get('/verify-email', (req, res) => {
   const { token } = req.query;
-  const frontendUrl = process.env.FRONTEND_URL || 'https://formhook-frontend.vercel.app';
+  const frontendUrl = process.env.FRONTEND_URL || 'https://formhookapp.vercel.app';
   res.redirect(`${frontendUrl}/verify-email?token=${token}`);
 });
 ```

@@ -18,8 +18,8 @@ export default function PricingPage() {
       <SEO
         title="Free Plan — FormHook"
         description="FormHook is free for everyone with clear monthly limits and no billing complexity."
-        image={`${(process.env.NEXT_PUBLIC_SITE_URL || 'https://formhook-frontend.vercel.app').replace(/\/$/, '')}/og-image-2.svg`}
-        url={`${(process.env.NEXT_PUBLIC_SITE_URL || 'https://formhook-frontend.vercel.app').replace(/\/$/, '')}/pricing`}
+        image={`${(process.env.NEXT_PUBLIC_SITE_URL || 'https://formhookapp.vercel.app').replace(/\/$/, '')}/og-image-2.svg`}
+        url={`${(process.env.NEXT_PUBLIC_SITE_URL || 'https://formhookapp.vercel.app').replace(/\/$/, '')}/pricing`}
       />
 
       <div className="pointer-events-none absolute inset-0">

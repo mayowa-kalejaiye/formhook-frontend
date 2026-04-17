@@ -14,7 +14,7 @@ type SEOProps = {
 };
 
 const DEFAULT_SITE = process.env.NEXT_PUBLIC_SITE_NAME || 'FormHook';
-const DEFAULT_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://formhook-frontend.vercel.app').replace(/\/$/, '');
+const DEFAULT_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://formhookapp.vercel.app').replace(/\/$/, '');
 const DEFAULT_TITLE = 'FormHook: Reliable Event Intake and Delivery for Developers';
 const DEFAULT_DESCRIPTION = 'Capture frontend events and form payloads with one endpoint. FormHook handles validation, storage, routing, retries, and delivery visibility.';
 const DEFAULT_KEYWORDS = [

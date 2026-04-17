@@ -29,8 +29,8 @@ export default function SubscriptionsPage() {
       <SEO
         title="Usage — FormHook"
         description="Review your free plan usage and current limits."
-        image={`${(process.env.NEXT_PUBLIC_SITE_URL || 'https://formhook-frontend.vercel.app').replace(/\/$/, '')}/og-image-2.svg`}
-        url={`${(process.env.NEXT_PUBLIC_SITE_URL || 'https://formhook-frontend.vercel.app').replace(/\/$/, '')}/subscriptions`}
+        image={`${(process.env.NEXT_PUBLIC_SITE_URL || 'https://formhookapp.vercel.app').replace(/\/$/, '')}/og-image-2.svg`}
+        url={`${(process.env.NEXT_PUBLIC_SITE_URL || 'https://formhookapp.vercel.app').replace(/\/$/, '')}/subscriptions`}
       />
 
       <main className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">

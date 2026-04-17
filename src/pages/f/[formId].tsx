@@ -37,6 +37,21 @@ interface FormErrors {
   [key: string]: string;
 }
 
+const getProgressWidthClass = (value: number) => {
+  if (value >= 100) return 'w-full';
+  if (value >= 90) return 'w-11/12';
+  if (value >= 80) return 'w-10/12';
+  if (value >= 70) return 'w-9/12';
+  if (value >= 60) return 'w-8/12';
+  if (value >= 50) return 'w-6/12';
+  if (value >= 40) return 'w-5/12';
+  if (value >= 30) return 'w-4/12';
+  if (value >= 20) return 'w-3/12';
+  if (value >= 10) return 'w-2/12';
+  if (value > 0) return 'w-1/12';
+  return 'w-0';
+};
+
 export default function PublicFormPage() {
   const router = useRouter();
   const { formId } = router.query;
@@ -421,7 +436,7 @@ export default function PublicFormPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_#dbeafe_0%,_#ffffff_38%,_#f5f3ff_70%,_#ecfeff_100%)] dark:bg-[radial-gradient(circle_at_top_left,_#0f172a_0%,_#111827_40%,_#1f2937_100%)]">
       <SEO
         title={form?.name || 'Form • FormHook'}
         description={form?.description || 'Submit to this form powered by FormHook.'}
@@ -430,23 +445,23 @@ export default function PublicFormPage() {
       />
       
       {/* Header */}
-      <header className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-b border-gray-200/50 dark:border-gray-700/50 sticky top-0 z-10">
+      <header className="bg-white/75 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200/60 dark:border-gray-700/50 sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 text-white">
+              <div className="p-2 rounded-xl bg-gradient-to-br from-cyan-500 via-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-400/30">
                 <Send className="h-6 w-6" />
               </div>
               <div>
                 <h1 className="text-xl font-bold text-gray-900 dark:text-white">
                   FormHook
                 </h1>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Secure Form Submissions</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Secure Forms, Fast Delivery</p>
               </div>
             </div>
             <Link 
               href="/login"
-              className="text-sm text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 flex items-center gap-2 transition-colors"
+              className="text-sm text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 flex items-center gap-2 transition-colors font-medium"
             >
               Create your own forms
               <ExternalLink className="h-4 w-4" />
@@ -456,16 +471,53 @@ export default function PublicFormPage() {
       </header>
 
       <div className="container mx-auto px-4 py-12">
-        <div className="max-w-3xl mx-auto">
-          <Card className="bg-white/95 dark:bg-gray-900/95 border-0 shadow-2xl backdrop-blur-sm overflow-hidden">
+        <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-[320px,1fr] gap-6 items-start">
+          <aside className="lg:sticky lg:top-24">
+            <Card className="bg-white/85 dark:bg-gray-900/80 border border-blue-100/70 dark:border-gray-700 shadow-xl backdrop-blur-sm overflow-hidden">
+              <CardContent className="p-6 space-y-5">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.2em] font-semibold text-blue-600 dark:text-blue-400">Public Form</p>
+                  <h2 className="mt-2 text-2xl font-bold text-gray-900 dark:text-white leading-tight">{form?.name || 'Form'}</h2>
+                  {form?.description && (
+                    <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">{form.description}</p>
+                  )}
+                </div>
+
+                <div className="rounded-xl border border-blue-100 dark:border-gray-700 bg-gradient-to-br from-white to-blue-50/60 dark:from-gray-900 dark:to-gray-800 p-4">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Completion</p>
+                  <p className="text-2xl font-semibold text-gray-900 dark:text-white mt-1">{completionPercentage}%</p>
+                  <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mt-3 overflow-hidden">
+                    <div className={`bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-600 h-2 rounded-full transition-all duration-300 ${getProgressWidthClass(completionPercentage)}`} />
+                  </div>
+                </div>
+
+                <div className="space-y-2 text-sm text-gray-600 dark:text-gray-300">
+                  <div className="flex items-start gap-2">
+                    <CheckCircle className="h-4 w-4 mt-0.5 text-emerald-500" />
+                    <span>Your draft is auto-saved while you type.</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <CheckCircle className="h-4 w-4 mt-0.5 text-emerald-500" />
+                    <span>Validation helps catch errors before submit.</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <CheckCircle className="h-4 w-4 mt-0.5 text-emerald-500" />
+                    <span>Submissions are handled securely by FormHook.</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </aside>
+
+          <Card className="bg-white/92 dark:bg-gray-900/92 border border-blue-100/70 dark:border-gray-700 shadow-2xl backdrop-blur-sm overflow-hidden">
             {/* Form Header */}
-            <CardHeader className="bg-gradient-to-r from-blue-50/80 to-purple-50/80 dark:from-blue-900/30 dark:to-purple-900/30 border-b border-gray-200 dark:border-gray-700 pb-6">
+            <CardHeader className="bg-gradient-to-r from-cyan-50/85 via-blue-50/85 to-indigo-50/85 dark:from-blue-900/30 dark:via-indigo-900/30 dark:to-slate-900/20 border-b border-gray-200 dark:border-gray-700 pb-6">
               <div className="space-y-3">
-                <CardTitle className="text-3xl font-bold text-gray-900 dark:text-white">
+                <CardTitle className="text-3xl md:text-4xl font-extrabold tracking-tight text-gray-900 dark:text-white">
                   {form?.name || 'Contact Form'}
                 </CardTitle>
                 {form?.description && (
-                  <CardDescription className="text-base text-gray-700 dark:text-gray-300">
+                  <CardDescription className="text-base text-gray-700 dark:text-gray-300 leading-relaxed">
                     {form.description}
                   </CardDescription>
                 )}
@@ -477,16 +529,12 @@ export default function PublicFormPage() {
                       <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
                         Form Progress
                       </p>
-                      <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">
+                      <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">
                         {completionPercentage}%
                       </span>
                     </div>
-                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                      {/* Dynamic progress bar width based on form completion */}
-                      <div 
-                        className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${completionPercentage}%` } as any}
-                      />
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
+                      <div className={`bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-600 h-2 rounded-full transition-all duration-300 ${getProgressWidthClass(completionPercentage)}`} />
                     </div>
                   </div>
                 )}
@@ -494,7 +542,7 @@ export default function PublicFormPage() {
             </CardHeader>
 
             {/* Form Fields */}
-            <CardContent className="p-8">
+            <CardContent className="p-8 md:p-10">
               <form onSubmit={handleSubmit} className="space-y-8">
                 {form?.fields && Array.isArray(form.fields) ? (
                   form.fields.map((field, index) => {
@@ -503,7 +551,7 @@ export default function PublicFormPage() {
                     const hasError = fieldError && isFieldTouched;
 
                     return (
-                      <div key={field.name || index} className="group">
+                      <div key={field.name || index} className="group rounded-xl border border-transparent hover:border-blue-100 dark:hover:border-gray-700 hover:bg-blue-50/30 dark:hover:bg-gray-800/30 p-3 -mx-3 transition-colors">
                         <div className="flex items-center justify-between mb-2">
                           <Label 
                             htmlFor={field.name} 
@@ -655,7 +703,7 @@ export default function PublicFormPage() {
                   <Button
                     type="submit"
                     disabled={submitting || !form?.fields?.length}
-                    className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-4 px-6 rounded-lg transition-all duration-200 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2 shadow-lg text-lg h-14"
+                    className="w-full bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-600 hover:from-cyan-700 hover:via-blue-700 hover:to-indigo-700 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-200 transform hover:scale-[1.01] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2 shadow-lg text-lg h-14"
                   >
                     {submitting ? (
                       <>

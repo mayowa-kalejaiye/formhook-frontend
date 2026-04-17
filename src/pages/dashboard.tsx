@@ -2132,16 +2132,30 @@ function DashboardPageImpl() {
 
         // Use recent_submissions safely
         if (summaryRes.recent_submissions && Array.isArray(summaryRes.recent_submissions) && summaryRes.recent_submissions.length > 0) {
+          const formNameById = new Map(
+            (Array.isArray(forms) ? forms : [])
+              .filter((f: any) => f?.id)
+              .map((f: any) => [String(f.id), f.name || 'Untitled Form'])
+          );
+
           const normalized = summaryRes.recent_submissions
             .map((r: any) => {
-              const formName = r.form_name ?? r.form?.name ?? r.form_title ?? r.formName ?? null;
+              const formId = r.form_id ?? r.form?._id ?? r.form?.id ?? null;
+              const resolvedFormName =
+                r.form_name ??
+                r.form?.name ??
+                r.form_title ??
+                r.formName ??
+                (formId ? formNameById.get(String(formId)) : null) ??
+                (formId ? `Form ${String(formId).slice(0, 8)}` : 'Untitled Form');
+
               const dateValue = r.date ?? r.created_at ?? r.timestamp ?? r.createdAt ?? r.submitted_at ?? null;
               const uaValue = getSubmissionUserAgent(r);
               const deviceKind = getSubmissionDeviceType(r, uaValue);
               return {
                 id: r.id ?? r._id ?? r.uuid ?? `sub-${Date.now()}-${Math.random()}`,
-                form_name: formName,
-                form_id: r.form_id ?? r.form?._id ?? r.form?.id ?? null,
+                form_name: resolvedFormName,
+                form_id: formId,
                 email: r.email ?? r.contact_email ?? r.submitted_by ?? r.data?.email ?? r.submission_data?.email ?? 'N/A',
                 date: dateValue,
                 status: r.status ?? (r.webhook_delivered === false ? 'failed' : 'success'),
@@ -2149,11 +2163,10 @@ function DashboardPageImpl() {
                 device_type: deviceKind,
                 user_agent: uaValue,
                 raw: r,
-                _hasValidFormName: !!formName,
                 _hasValidDate: !!dateValue && !isNaN(new Date(dateValue).getTime())
               };
             })
-            .filter((item: any) => item._hasValidFormName && item._hasValidDate);
+            .filter((item: any) => item._hasValidDate);
 
           setRecentSubmissions(normalized);
         } else {

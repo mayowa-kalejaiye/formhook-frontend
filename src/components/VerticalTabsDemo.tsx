@@ -41,6 +41,13 @@ interface Tab {
   icon: React.ComponentType<{ className?: string }>;
   content: string;
   badge?: number;
+  tone: {
+    badge: string;
+    tint: string;
+    text: string;
+    ring: string;
+    bar: string;
+  };
 }
 
 interface VerticalTabsProps {
@@ -67,25 +74,25 @@ export default function VerticalTabs({ tabs, className }: VerticalTabsProps) {
                 onClick={() => setActiveTab(tab.id)}
                 className={`group relative flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left transition-all duration-200 ${
                   isActive
-                    ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:text-white dark:ring-slate-700"
+                    ? `bg-white text-slate-900 shadow-sm ring-1 ${tab.tone.ring} dark:bg-slate-900 dark:text-white dark:ring-slate-700`
                     : "text-slate-600 hover:bg-white hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-900 dark:hover:text-slate-100"
                 }`}
               >
                 {isActive && (
                   <motion.div
                     layoutId="activeTab"
-                    className="absolute inset-0 rounded-2xl bg-slate-900/[0.03] dark:bg-white/[0.03]"
+                    className={`absolute inset-0 rounded-2xl ${tab.tone.tint}`}
                     transition={{ type: "spring", stiffness: 500, damping: 30 }}
                   />
                 )}
                 
                 <div className="relative z-10 flex items-center gap-3">
                   <Icon className={`h-5 w-5 transition-colors ${
-                    isActive ? "text-slate-900 dark:text-white" : "text-slate-500 group-hover:text-slate-700 dark:text-slate-400 dark:group-hover:text-slate-200"
+                    isActive ? tab.tone.text : "text-slate-500 group-hover:text-slate-700 dark:text-slate-400 dark:group-hover:text-slate-200"
                   }`} />
                   <span className="font-medium">{tab.title}</span>
                   {tab.badge && (
-                    <span className="ml-auto rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                    <span className={`ml-auto rounded-full px-2 py-0.5 text-xs font-medium ${tab.tone.badge}`}>
                       {tab.badge}
                     </span>
                   )}
@@ -113,7 +120,7 @@ export default function VerticalTabs({ tabs, className }: VerticalTabsProps) {
                 className="h-full"
               >
                 <div className="mb-5 flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-2xl bg-slate-900 text-white flex items-center justify-center shadow-sm dark:bg-white dark:text-slate-900">
+                  <div className={`h-10 w-10 rounded-2xl ${tab.tone.bar} text-white flex items-center justify-center shadow-sm`}>
                     <tab.icon className="h-5 w-5" />
                   </div>
                   <div>
@@ -124,6 +131,12 @@ export default function VerticalTabs({ tabs, className }: VerticalTabsProps) {
                       Step {tabs.findIndex((t) => t.id === tab.id) + 1} of {tabs.length}
                     </p>
                   </div>
+                </div>
+                <div className={`mb-4 inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${tab.tone.badge}`}>
+                  {tab.id === 'create-forms' && 'Start here'}
+                  {tab.id === 'collect-submissions' && 'Primary workflow'}
+                  {tab.id === 'setup-webhooks' && 'Automation layer'}
+                  {tab.id === 'analyze-data' && 'Visibility layer'}
                 </div>
                 <p className="max-w-2xl text-base leading-7 text-slate-600 dark:text-slate-300 break-words whitespace-normal">
                   {tab.content}
@@ -151,6 +164,13 @@ export function VerticalTabsDemo() {
       id: "create-forms",
       title: "Create Forms",
       icon: FormIcon,
+      tone: {
+        badge: "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300",
+        tint: "bg-blue-50/80 dark:bg-blue-500/10",
+        text: "text-blue-700 dark:text-blue-300",
+        ring: "ring-blue-100 dark:ring-blue-500/20",
+        bar: "bg-blue-600",
+      },
       content:
         "Spin up a new form in seconds using the FormHook dashboard or API. No backend required—just define your fields and get a unique endpoint for instant integration.",
     },
@@ -158,6 +178,13 @@ export function VerticalTabsDemo() {
       id: "collect-submissions",
       title: "Collect Submissions",
       icon: CollectIcon,
+      tone: {
+        badge: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300",
+        tint: "bg-emerald-50/80 dark:bg-emerald-500/10",
+        text: "text-emerald-700 dark:text-emerald-300",
+        ring: "ring-emerald-100 dark:ring-emerald-500/20",
+        bar: "bg-emerald-600",
+      },
       content:
         "Embed once and start collecting instantly. Every submission is securely stored, spam-filtered, and available in your dashboard in real time.",
     },
@@ -165,6 +192,13 @@ export function VerticalTabsDemo() {
       id: "setup-webhooks",
       title: "Setup Webhooks",
       icon: WebhookIcon,
+      tone: {
+        badge: "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300",
+        tint: "bg-amber-50/80 dark:bg-amber-500/10",
+        text: "text-amber-700 dark:text-amber-300",
+        ring: "ring-amber-100 dark:ring-amber-500/20",
+        bar: "bg-amber-600",
+      },
       content:
         "Connect your forms to external services. FormHook triggers webhooks on every submission, with automatic retry support for reliable delivery.",
     },
@@ -172,6 +206,13 @@ export function VerticalTabsDemo() {
       id: "analyze-data",
       title: "Analyze Data",
       icon: AnalyticsStepIcon,
+      tone: {
+        badge: "bg-violet-50 text-violet-700 dark:bg-violet-500/10 dark:text-violet-300",
+        tint: "bg-violet-50/80 dark:bg-violet-500/10",
+        text: "text-violet-700 dark:text-violet-300",
+        ring: "ring-violet-100 dark:ring-violet-500/20",
+        bar: "bg-violet-600",
+      },
       content:
         "Track submissions, conversion rates, and trends over time. Simple, actionable analytics help you understand your form’s performance at a glance.",
     },

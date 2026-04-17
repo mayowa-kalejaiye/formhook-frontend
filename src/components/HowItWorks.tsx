@@ -105,11 +105,11 @@ export default function OrbitCarousel() {
   const [activeIndex, setActiveIndex] = React.useState(0);
   const isMobile = useIsMobile();
 
-  const containerRadius = isMobile ? 120 : 200;
+  const containerRadius = isMobile ? 108 : 200;
   const profileSize = isMobile ? 60 : 84;
   const containerSize = containerRadius * 2 + 120;
-  const containerClass = isMobile ? 'w-[360px] h-[360px]' : 'w-[520px] h-[520px]';
-  const circleClass = isMobile ? 'w-[240px] h-[240px]' : 'w-[400px] h-[400px]';
+  const containerClass = isMobile ? 'w-[320px] h-[320px]' : 'w-[520px] h-[520px]';
+  const circleClass = isMobile ? 'w-[220px] h-[220px]' : 'w-[400px] h-[400px]';
   const profileClass = isMobile ? 'w-[60px] h-[60px]' : 'w-[84px] h-[84px]';
 
   const getRotation = React.useCallback(
@@ -132,13 +132,13 @@ export default function OrbitCarousel() {
   }, []);
 
   return (
-    <section className="py-12">
-      <div className="max-w-6xl mx-auto text-center px-4">
+    <section id="how-it-works" className="py-16 md:py-20 scroll-mt-24 md:scroll-mt-20">
+      <div className="max-w-6xl mx-auto text-center px-4 sm:px-6">
         <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-4">How FormHook Works</h2>
         <p className="text-lg text-gray-600 dark:text-gray-300 mb-8 max-w-3xl mx-auto">Use FormHook as your intake and delivery layer: capture events, route them reliably, and monitor every delivery from one place.</p>
 
-        <div className="flex flex-col items-center">
-          <div className={`${containerClass} relative`}> 
+        <div className="flex flex-col items-center justify-center">
+          <div className={`${containerClass} relative mx-auto`}> 
             <div className={`absolute rounded-full border border-gray-200 dark:border-gray-700 ${circleClass} top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2`} />
 
             {/* Active feature card */}
@@ -149,9 +149,9 @@ export default function OrbitCarousel() {
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.96 }}
                 transition={{ duration: 0.28 }}
-                  className="z-30 bg-white dark:bg-gray-950 rounded-xl p-4 md:p-6 w-64 md:w-72 text-center border border-gray-100 dark:border-gray-800 shadow-lg mx-auto absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 overflow-hidden"
+                  className="z-30 bg-white dark:bg-gray-950 rounded-xl p-4 md:p-6 w-[15.5rem] sm:w-64 md:w-72 text-center border border-gray-100 dark:border-gray-800 shadow-lg mx-auto absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 overflow-hidden"
               >
-                <div className={`w-16 h-16 md:w-20 md:h-20 rounded-full mx-auto -mt-10 md:-mt-12 border-4 border-white dark:border-gray-950 flex items-center justify-center ${features[activeIndex].color}`}>
+                <div className={`w-16 h-16 md:w-20 md:h-20 rounded-full mx-auto -mt-8 md:-mt-12 border-4 border-white dark:border-gray-950 flex items-center justify-center ${features[activeIndex].color}`}>
                   {React.createElement(features[activeIndex].icon, { size: isMobile ? 18 : 22, className: 'text-white' })}
                 </div>
                 <h3 className="mt-3 text-base md:text-lg font-bold text-gray-900 dark:text-white">{features[activeIndex].title}</h3>

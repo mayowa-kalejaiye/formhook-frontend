@@ -46,14 +46,11 @@ import { normalizeSubscriptionInfo } from '@/lib/subscription';
 import { 
   FileText, 
   BarChart3, 
-  Webhook, 
   Bell, 
   Users, 
-  Activity, 
   TrendingUp, 
   AlertTriangle, 
   Search, 
-  Plus, 
   Download, 
   RefreshCcw, 
   ExternalLink,
@@ -807,7 +804,7 @@ function RecentSubmissionsCard({ submissions, loading }: { submissions: any[]; l
         ) : (
           <div className="text-center py-12 space-y-4">
             <div className="bg-slate-100 dark:bg-slate-800 rounded-md p-6 w-24 h-24 flex items-center justify-center mx-auto">
-              <Activity className="h-12 w-12 text-slate-400 dark:text-slate-500" />
+              <Bell className="h-12 w-12 text-slate-400 dark:text-slate-500" />
             </div>
             <div>
               <p className="text-slate-900 dark:text-slate-100 text-lg font-semibold mb-1">No incoming events yet</p>

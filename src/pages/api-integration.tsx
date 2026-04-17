@@ -22,23 +22,26 @@ function APIIntegrationContent() {
   };
 
   return (
-    <div className="container mx-auto py-10 px-4 max-w-6xl">
+    <div className="container mx-auto max-w-6xl px-2 py-6 sm:px-4 sm:py-10">
       <div className="space-y-6">
         {/* Header */}
         <div className="space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight">API Integration Guide</h1>
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">API Integration Guide</h1>
           <p className="text-gray-500 dark:text-gray-400">
             Learn how to integrate FormHook with your website or application
           </p>
         </div>
 
         <Tabs defaultValue="quick-start" className="space-y-6">
-          <TabsList className="w-full overflow-x-auto whitespace-nowrap">
-            <TabsTrigger value="quick-start">Quick Start</TabsTrigger>
-            <TabsTrigger value="html">HTML Forms</TabsTrigger>
-            <TabsTrigger value="api">REST API</TabsTrigger>
-            <TabsTrigger value="webhooks">Webhooks</TabsTrigger>
-          </TabsList>
+          <div className="-mx-1 overflow-x-auto px-1 pb-1">
+            <TabsList className="inline-flex h-auto min-w-max gap-1 whitespace-nowrap rounded-lg p-1">
+              <TabsTrigger className="min-h-10 shrink-0 px-3 text-xs sm:text-sm" value="quick-start">Quick Start</TabsTrigger>
+              <TabsTrigger className="min-h-10 shrink-0 px-3 text-xs sm:text-sm" value="html">HTML Forms</TabsTrigger>
+              <TabsTrigger className="min-h-10 shrink-0 px-3 text-xs sm:text-sm" value="api">REST API</TabsTrigger>
+              <TabsTrigger className="min-h-10 shrink-0 px-3 text-xs sm:text-sm" value="webhooks">Webhooks</TabsTrigger>
+            </TabsList>
+          </div>
+          <p className="px-1 text-[11px] text-gray-500 dark:text-gray-400 sm:hidden">Scroll tabs horizontally to see all sections.</p>
 
           <TabsContent value="quick-start">
             <Card>
@@ -78,7 +81,7 @@ function APIIntegrationContent() {
                         <Button 
                           variant="outline" 
                           size="icon"
-                          className="absolute right-2 top-2"
+                          className="absolute right-1 top-1 h-8 w-8 sm:right-2 sm:top-2"
                           onClick={() => copyToClipboard(`<form action="${API_BASE_URL}/forms/your-form-id/submit" method="POST">
   <input type="email" name="email" required />
   <button type="submit">Subscribe</button>
@@ -86,7 +89,7 @@ function APIIntegrationContent() {
                         >
                           <Copy className="h-4 w-4" />
                         </Button>
-                        <pre className="text-sm language-html">
+                        <pre className="overflow-x-auto whitespace-pre rounded-md pr-12 text-xs sm:text-sm language-html">
                           <code>{`<form action="${API_BASE_URL}/forms/your-form-id/submit" method="POST">
   <input type="email" name="email" required />
   <button type="submit">Subscribe</button>
@@ -132,7 +135,7 @@ function APIIntegrationContent() {
                         <Button 
                           variant="outline" 
                           size="icon"
-                          className="absolute right-2 top-2"
+                          className="absolute right-1 top-1 h-8 w-8 sm:right-2 sm:top-2"
                           onClick={() => copyToClipboard(`<form 
   action="${API_BASE_URL}/forms/your-form-id/submit" 
   method="POST"
@@ -147,7 +150,7 @@ function APIIntegrationContent() {
                         >
                           <Copy className="h-4 w-4" />
                         </Button>
-                        <pre className="text-sm language-html">
+                        <pre className="overflow-x-auto whitespace-pre rounded-md pr-12 text-xs sm:text-sm language-html">
                           <code>{`<form 
   action="${API_BASE_URL}/forms/your-form-id/submit" 
   method="POST"
@@ -177,7 +180,7 @@ function APIIntegrationContent() {
                         <Button 
                           variant="outline" 
                           size="icon"
-                          className="absolute right-2 top-2"
+                          className="absolute right-1 top-1 h-8 w-8 sm:right-2 sm:top-2"
                           onClick={() => copyToClipboard(`<form action="${API_BASE_URL}/forms/your-form-id/submit" method="POST">
   <input type="hidden" name="_success_url" value="https://your-site.com/thank-you" />
   <input type="hidden" name="_error_url" value="https://your-site.com/error" />
@@ -186,7 +189,7 @@ function APIIntegrationContent() {
                         >
                           <Copy className="h-4 w-4" />
                         </Button>
-                        <pre className="text-sm language-html">
+                        <pre className="overflow-x-auto whitespace-pre rounded-md pr-12 text-xs sm:text-sm language-html">
                           <code>{`<form action="${API_BASE_URL}/forms/your-form-id/submit" method="POST">
   <input type="hidden" name="_success_url" value="https://your-site.com/thank-you" />
   <input type="hidden" name="_error_url" value="https://your-site.com/error" />
@@ -210,7 +213,7 @@ function APIIntegrationContent() {
                         <Button 
                           variant="outline" 
                           size="icon"
-                          className="absolute right-2 top-2"
+                          className="absolute right-1 top-1 h-8 w-8 sm:right-2 sm:top-2"
                           onClick={() => copyToClipboard(`const form = document.querySelector('form');
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -234,7 +237,7 @@ form.addEventListener('submit', async (e) => {
                         >
                           <Copy className="h-4 w-4" />
                         </Button>
-                        <pre className="text-sm language-javascript">
+                        <pre className="overflow-x-auto whitespace-pre rounded-md pr-12 text-xs sm:text-sm language-javascript">
                           <code>{`const form = document.querySelector('form');
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -285,12 +288,12 @@ form.addEventListener('submit', async (e) => {
                         <Button 
                           variant="outline" 
                           size="icon"
-                          className="absolute right-2 top-2"
+                          className="absolute right-1 top-1 h-8 w-8 sm:right-2 sm:top-2"
                           onClick={() => copyToClipboard(`Authorization: Bearer your-jwt-or-form-token`)}
                         >
                           <Copy className="h-4 w-4" />
                         </Button>
-                        <pre className="text-sm">
+                        <pre className="overflow-x-auto whitespace-pre rounded-md pr-12 text-xs sm:text-sm">
                           <code>Authorization: Bearer your-jwt-or-form-token</code>
                         </pre>
                       </div>
@@ -312,7 +315,7 @@ form.addEventListener('submit', async (e) => {
                         <Button 
                           variant="outline" 
                           size="icon"
-                          className="absolute right-2 top-2"
+                          className="absolute right-1 top-1 h-8 w-8 sm:right-2 sm:top-2"
                           onClick={() => copyToClipboard(`curl -X POST \\
   ${API_BASE_URL}/forms/your-form-id/submit \\
   -H "Authorization: Bearer your-form-token-if-required" \\
@@ -325,7 +328,7 @@ form.addEventListener('submit', async (e) => {
                         >
                           <Copy className="h-4 w-4" />
                         </Button>
-                        <pre className="text-sm">
+                        <pre className="overflow-x-auto whitespace-pre rounded-md pr-12 text-xs sm:text-sm">
                           <code>{`curl -X POST \\
   ${API_BASE_URL}/forms/your-form-id/submit \\
   -H "Authorization: Bearer your-form-token-if-required" \\
@@ -355,14 +358,14 @@ form.addEventListener('submit', async (e) => {
                         <Button 
                           variant="outline" 
                           size="icon"
-                          className="absolute right-2 top-2"
+                          className="absolute right-1 top-1 h-8 w-8 sm:right-2 sm:top-2"
                           onClick={() => copyToClipboard(`curl \\
   ${API_BASE_URL}/forms/your-form-id/submissions \\
   -H "Authorization: Bearer your-jwt"`)}
                         >
                           <Copy className="h-4 w-4" />
                         </Button>
-                        <pre className="text-sm">
+                        <pre className="overflow-x-auto whitespace-pre rounded-md pr-12 text-xs sm:text-sm">
                           <code>{`curl \\
   ${API_BASE_URL}/forms/your-form-id/submissions \\
   -H "Authorization: Bearer your-jwt"`}</code>
@@ -394,7 +397,7 @@ form.addEventListener('submit', async (e) => {
                     <Info className="h-4 w-4" />
                     <AlertTitle>Webhook Payload Example</AlertTitle>
                     <AlertDescription>
-                      <pre className="text-sm mt-2">
+                      <pre className="mt-2 overflow-x-auto whitespace-pre rounded-md text-xs sm:text-sm">
                         <code>{`{
   "form_id": "your-form-id",
   "submission_id": "sub_123abc",
@@ -422,7 +425,7 @@ form.addEventListener('submit', async (e) => {
                         <Button 
                           variant="outline" 
                           size="icon"
-                          className="absolute right-2 top-2"
+                          className="absolute right-1 top-1 h-8 w-8 sm:right-2 sm:top-2"
                           onClick={() => copyToClipboard(`const crypto = require('crypto');
 
 function verifyWebhookSignature(payload, signature, secret) {
@@ -437,7 +440,7 @@ function verifyWebhookSignature(payload, signature, secret) {
                         >
                           <Copy className="h-4 w-4" />
                         </Button>
-                        <pre className="text-sm">
+                        <pre className="overflow-x-auto whitespace-pre rounded-md pr-12 text-xs sm:text-sm">
                           <code>{`const crypto = require('crypto');
 
 function verifyWebhookSignature(payload, signature, secret) {
@@ -481,7 +484,7 @@ export default function APIIntegrationPage() {
     <AuthLayout>
       <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-900 md:ml-56 transition-all duration-300 ease-in-out">
         <DashboardNav />
-        <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-8 pt-8 pb-4">
+        <main className="flex-1 w-full max-w-7xl mx-auto px-3 pt-6 pb-4 sm:px-8 sm:pt-8">
           <APIIntegrationContent />
         </main>
       </div>

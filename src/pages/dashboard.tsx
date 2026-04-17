@@ -24,7 +24,6 @@ import { getDashboardSummary, getSubmissions, getFormAnalytics, getFormGeoAnalyt
 import MetricCard from '../components/dashboard/MetricCard';
 import WelcomeBlock from '../components/dashboard/WelcomeBlock';
 import DashboardSummaryWidget from '../components/dashboard/DashboardSummaryWidget';
-import RecentActivities from '../components/dashboard/RecentActivities';
 import DashboardNav from '../components/DashboardNav';
 import BottomGradientRadial from '../components/BottomGradientRadial';
 import { useNotifications } from '../context/NotificationContext';
@@ -1306,6 +1305,61 @@ function DashboardContent({
     };
   }, [interactiveAnalytics, totalSubmissions, webhookSuccessRate, forms]);
 
+  const primaryForm = Array.isArray(forms)
+    ? [...forms].sort((a, b) => (b?.submission_count || 0) - (a?.submission_count || 0))[0] || null
+    : null;
+
+  const recommendedActions = useMemo(() => {
+    const actions: Array<{ title: string; detail: string; href: string; label: string }> = [];
+
+    if (!forms || forms.length === 0) {
+      actions.push({
+        title: 'Create your first form',
+        detail: 'Start collecting submissions and unlock the dashboard signals.',
+        href: '/forms/new',
+        label: 'Create form',
+      });
+    }
+
+    if (totalSubmissions === 0) {
+      actions.push({
+        title: 'Embed a live endpoint',
+        detail: 'The dashboard becomes more useful once the first submissions arrive.',
+        href: '/forms/new',
+        label: 'Set up form',
+      });
+    }
+
+    if (webhookSuccessRate < 95) {
+      actions.push({
+        title: 'Inspect webhook delivery',
+        detail: 'Delivery health is below the ideal threshold and should be reviewed.',
+        href: '/webhooks',
+        label: 'Review webhooks',
+      });
+    }
+
+    if (primaryForm) {
+      actions.push({
+        title: `Open ${primaryForm.name}`,
+        detail: 'Review the form that is generating the most traffic right now.',
+        href: `/forms/${primaryForm.id}`,
+        label: 'View form',
+      });
+    }
+
+    if (actions.length === 0) {
+      actions.push({
+        title: 'Review submissions',
+        detail: 'Check raw payloads and confirm the pipeline is working end to end.',
+        href: '/submissions',
+        label: 'Open submissions',
+      });
+    }
+
+    return actions.slice(0, 4);
+  }, [forms, primaryForm, totalSubmissions, webhookSuccessRate]);
+
   const reliabilityTone = submissionSummary.reliability.score >= 85
     ? 'text-emerald-600'
     : submissionSummary.reliability.score >= 60
@@ -1348,102 +1402,40 @@ function DashboardContent({
         </div>
 
         {/* Recent Activities - Detailed View */}
-        <RecentActivities 
-          activities={recentSubmissions.map((sub: any) => {
-            const submissionDate = new Date(sub.date || sub.created_at || sub.timestamp);
-            
-            // Ensure status is one of the valid values
-            let validStatus: 'success' | 'failed' | 'pending' = 'success';
-            if (sub.status === 'failed' || sub.status === 'pending' || sub.status === 'success') {
-              validStatus = sub.status;
-            } else if (sub.webhook_delivered === false || sub.error) {
-              validStatus = 'failed';
-            }
-
-            const userAgent = sub.user_agent || getSubmissionUserAgent(sub.raw);
-            const deviceType = sub.device_type || getSubmissionDeviceType(sub.raw, userAgent);
-            
-            return {
-              id: sub.id,
-              form_name: sub.form_name,
-              form_id: sub.form_id,
-              email: sub.email || 'N/A',
-              date: submissionDate.toISOString(),
-              time: submissionDate.toLocaleTimeString('en-US', { 
-                hour: '2-digit', 
-                minute: '2-digit',
-                hour12: true 
-              }),
-              status: validStatus,
-              submission_data: sub.data || sub.submission_data,
-              device_type: deviceType,
-              user_agent: userAgent,
-            };
-          })}
-          loading={loading || recentLoading}
-        />
-
-        {/* Quick Actions and System Health - NOW BELOW RECENT SUBMISSIONS */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Quick Actions Panel */}
+          <MemoRecentSubmissionsCard submissions={recentSubmissions} loading={loading || recentLoading} />
+
           <Card className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl rounded-2xl backdrop-blur-sm">
             <CardHeader>
               <CardTitle className="text-xl font-bold text-slate-900 dark:text-slate-100">
-                Quick Actions
+                Recommended Actions
               </CardTitle>
               <CardDescription className="text-gray-600 dark:text-gray-400">
-                Common tasks and shortcuts
+                The next steps that will move the product forward fastest
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 gap-3">
-                <Button asChild variant="outline" className="justify-start h-16 border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900">
-                  <Link href="/forms/new" className="flex items-center gap-3">
+            <CardContent className="space-y-3">
+              {recommendedActions.map((action) => (
+                <Button
+                  key={action.title}
+                  asChild
+                  variant="outline"
+                  className="justify-start min-h-16 border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900"
+                >
+                  <Link href={action.href} className="flex items-center gap-3">
                     <div className="p-2 border rounded-lg">
-                      <Plus className="h-5 w-5" />
+                      <Target className="h-5 w-5" />
                     </div>
-                    <div className="flex flex-col items-start">
-                      <span className="font-semibold text-gray-900 dark:text-gray-100">New Form</span>
-                      <span className="text-xs text-gray-500 dark:text-gray-400">Create a new form endpoint</span>
+                    <div className="flex flex-col items-start text-left">
+                      <span className="font-semibold text-gray-900 dark:text-gray-100">{action.title}</span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">{action.detail}</span>
                     </div>
                   </Link>
                 </Button>
-                <Button asChild variant="outline" className="justify-start h-16 border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900">
-                  <Link href="/submissions" className="flex items-center gap-3">
-                    <div className="p-2 border rounded-lg">
-                      <Activity className="h-5 w-5" />
-                    </div>
-                    <div className="flex flex-col items-start">
-                      <span className="font-semibold text-gray-900 dark:text-gray-100">View Submissions</span>
-                      <span className="text-xs text-gray-500 dark:text-gray-400">Browse all form submissions</span>
-                    </div>
-                  </Link>
-                </Button>
-                <Button asChild variant="outline" className="justify-start h-16 border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900">
-                  <Link href="/analytics" className="flex items-center gap-3">
-                    <div className="p-2 border rounded-lg">
-                      <BarChart3 className="h-5 w-5" />
-                    </div>
-                    <div className="flex flex-col items-start">
-                      <span className="font-semibold text-gray-900 dark:text-gray-100">Analytics</span>
-                      <span className="text-xs text-gray-500 dark:text-gray-400">View detailed form analytics</span>
-                    </div>
-                  </Link>
-                </Button>
-                <Button asChild variant="outline" className="justify-start h-16 border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900">
-                  <Link href="/webhooks" className="flex items-center gap-3">
-                    <div className="p-2 border rounded-lg">
-                      <Webhook className="h-5 w-5" />
-                    </div>
-                    <div className="flex flex-col items-start">
-                      <span className="font-semibold text-gray-900 dark:text-gray-100">Webhooks</span>
-                      <span className="text-xs text-gray-500 dark:text-gray-400">Configure form webhooks</span>
-                    </div>
-                  </Link>
-                </Button>
-              </div>
+              ))}
             </CardContent>
           </Card>
+        </div>
 
           {/* System Health Panel */}
           <Card className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl rounded-2xl backdrop-blur-sm">
@@ -1649,8 +1641,8 @@ function DashboardContent({
           <Card className="pro-card">
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle className="text-xl font-semibold text-slate-900 dark:text-slate-100">Traffic Breakdown</CardTitle>
-                <CardDescription className="text-slate-600 dark:text-slate-400">Countries, devices, and operating systems</CardDescription>
+                <CardTitle className="text-xl font-semibold text-slate-900 dark:text-slate-100">Audience Snapshot</CardTitle>
+                <CardDescription className="text-slate-600 dark:text-slate-400">A sample of countries, devices, and operating systems from recent submissions</CardDescription>
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -1974,7 +1966,6 @@ function DashboardContent({
           <p className="text-center text-sm text-slate-500 dark:text-slate-400">
             © {new Date().getFullYear()} FormHook. All rights reserved.
           </p>
-        </div>
         </div>
       </div>
       <ToastView ref={toastViewRef} />

@@ -38,11 +38,11 @@ export default function NavigationControls() {
   };
 
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex min-w-0 items-center gap-1.5 sm:gap-3">
       <Button
         variant="ghost"
         size="icon"
-        className="h-8 w-8 text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800"
+        className="h-7 w-7 sm:h-8 sm:w-8 text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800"
         onClick={() => router.back()}
       >
         <ChevronLeft className="h-4 w-4" />
@@ -50,16 +50,16 @@ export default function NavigationControls() {
       <Button
         variant="ghost"
         size="icon"
-        className="h-8 w-8 text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800"
+        className="h-7 w-7 sm:h-8 sm:w-8 text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800"
         onClick={() => window.history.forward()}
       >
         <ChevronRight className="h-4 w-4" />
       </Button>
       
-      <div className="flex items-center text-sm ml-2">
-        <span className="font-medium text-slate-900 dark:text-slate-100">FormHook</span>
-        <ChevronRight className="h-4 w-4 mx-1 text-slate-400" />
-        <span className="text-slate-500 dark:text-slate-400">{getPageTitle()}</span>
+      <div className="hidden min-w-0 items-center text-sm sm:flex sm:ml-1 lg:ml-2">
+        <span className="hidden font-medium text-slate-900 dark:text-slate-100 lg:inline">FormHook</span>
+        <ChevronRight className="hidden h-4 w-4 mx-1 text-slate-400 lg:inline" />
+        <span className="truncate text-slate-500 dark:text-slate-400 max-w-[7.5rem] md:max-w-[10rem] lg:max-w-[16rem]">{getPageTitle()}</span>
       </div>
     </div>
   );

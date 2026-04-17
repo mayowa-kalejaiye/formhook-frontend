@@ -146,11 +146,11 @@ export default function DashboardHeader() {
   };
 
   return (
-    <header className="fixed top-14 md:top-0 left-0 right-0 z-40 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 md:ml-64">
-      <div className="flex h-16 items-center justify-between px-6">
+    <header className="fixed top-14 md:top-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur border-b border-slate-200 dark:border-slate-800 md:ml-64">
+      <div className="flex h-14 sm:h-16 items-center justify-between px-3 sm:px-4 md:px-6 gap-2 sm:gap-4">
         <NavigationControls />
 
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
           <div className="hidden lg:flex min-w-0 max-w-sm flex-col items-end text-xs text-slate-500 mr-4">
           <span className="text-sm font-semibold text-slate-700 dark:text-slate-100">{planLabel || 'Free'}</span>
           <div className="flex w-full flex-wrap items-center justify-end gap-x-2 gap-y-1">
@@ -161,10 +161,10 @@ export default function DashboardHeader() {
           </div>
           </div>
 
-          <div className="flex items-center gap-6 mr-6">
+          <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
             <Link
             href="/webhooks"
-            className="relative inline-flex items-center text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 rounded-full p-2 transition-colors"
+            className="hidden lg:inline-flex relative items-center text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 rounded-full p-2 transition-colors"
             title="Failed Webhooks"
           >
             <AlertTriangle className="h-5 w-5" />
@@ -172,7 +172,7 @@ export default function DashboardHeader() {
           <div className="relative">
             <Link 
               href="/notifications" 
-              className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+              className="inline-flex items-center justify-center h-8 w-8 sm:h-9 sm:w-9 rounded-full text-gray-500 hover:text-gray-700 hover:bg-slate-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-slate-800 transition-colors"
               title="Notifications"
             >
               <Bell className="h-5 w-5" />
@@ -183,10 +183,10 @@ export default function DashboardHeader() {
               </span>
             )}
           </div>
-          <div className="relative">
+          <div className="relative hidden sm:block">
             <Link 
               href="/submissions" 
-              className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+              className="inline-flex items-center justify-center h-9 w-9 rounded-full text-gray-500 hover:text-gray-700 hover:bg-slate-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-slate-800 transition-colors"
               title="Submissions"
             >
               <Inbox className="h-5 w-5" />
@@ -201,11 +201,11 @@ export default function DashboardHeader() {
           <div className="flex items-center gap-3">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-2 px-2 py-1.5 rounded-full border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2">
+                <button className="flex items-center gap-1 sm:gap-2 px-1.5 sm:px-2 py-1.5 rounded-full border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2">
                   <div className={`h-7 w-7 rounded-full ${getAvatarColor(user?.email || '')} flex items-center justify-center text-white text-sm font-semibold`}>
                     {getInitials(user?.email || '')}
                   </div>
-                  <ChevronDown className="h-4 w-4 text-gray-400" />
+                  <ChevronDown className="hidden sm:block h-4 w-4 text-gray-400" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56 bg-white dark:bg-gray-800 text-slate-900 dark:text-slate-100">
@@ -243,18 +243,19 @@ export default function DashboardHeader() {
                 <Button 
                   variant="default" 
                   size="sm" 
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-1.5 text-sm"
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-2 sm:px-3 md:px-4 py-2 rounded-lg flex items-center gap-1 text-xs sm:text-sm"
                   disabled={isExporting}
                 >
                   {isExporting ? (
                     <>
                       <Download className="h-3.5 w-3.5 animate-pulse" />
-                      Exporting...
+                      <span className="hidden sm:inline">Exporting...</span>
                     </>
                   ) : (
                     <>
-                      Share
-                      <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+                      <span className="hidden sm:inline">Share</span>
+                      <Download className="h-3.5 w-3.5 sm:hidden" />
+                      <ChevronDown className="hidden sm:block h-3.5 w-3.5 opacity-60" />
                     </>
                   )}
                 </Button>

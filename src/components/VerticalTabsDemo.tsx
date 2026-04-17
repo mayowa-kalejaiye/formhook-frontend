@@ -52,10 +52,11 @@ export default function VerticalTabs({ tabs, className }: VerticalTabsProps) {
   const [activeTab, setActiveTab] = useState(tabs[0].id);
 
   return (
-    <div className={`flex flex-col md:flex-row h-auto md:h-80 w-full max-w-4xl rounded-lg border border-slate-200/20 bg-white/80 shadow-lg backdrop-blur-md dark:border-slate-700/30 dark:bg-black/40 ${className || ''}`}>
-      {/* Sidebar */}
-  <div className="w-full md:w-64 border-b md:border-b-0 md:border-r border-slate-200/20 bg-slate-50/50 p-4 backdrop-blur-sm dark:border-slate-700/30 dark:bg-black/20">
-        <div className="space-y-2">
+    <div className={`w-full max-w-5xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.12)] dark:border-slate-800 dark:bg-slate-950 ${className || ''}`}>
+      <div className="grid gap-0 md:grid-cols-[260px_minmax(0,1fr)]">
+        {/* Sidebar */}
+        <div className="border-b border-slate-200 bg-slate-50/90 p-3 backdrop-blur dark:border-slate-800 dark:bg-slate-900/60 md:border-b-0 md:border-r">
+          <div className="space-y-2">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -64,27 +65,27 @@ export default function VerticalTabs({ tabs, className }: VerticalTabsProps) {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`group relative flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-all duration-200 ${
+                className={`group relative flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left transition-all duration-200 ${
                   isActive
-                    ? "bg-white/80 text-blue-600 shadow-sm backdrop-blur-sm dark:bg-black/60 dark:text-blue-400 dark:shadow-blue-500/10"
-                    : "text-slate-600 hover:bg-white/60 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-black/40 dark:hover:text-slate-100"
+                    ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:text-white dark:ring-slate-700"
+                    : "text-slate-600 hover:bg-white hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-900 dark:hover:text-slate-100"
                 }`}
               >
                 {isActive && (
                   <motion.div
                     layoutId="activeTab"
-                    className="absolute inset-0 rounded-lg bg-blue-50/80 backdrop-blur-sm dark:bg-blue-500/10 dark:backdrop-blur-md"
+                    className="absolute inset-0 rounded-2xl bg-slate-900/[0.03] dark:bg-white/[0.03]"
                     transition={{ type: "spring", stiffness: 500, damping: 30 }}
                   />
                 )}
                 
                 <div className="relative z-10 flex items-center gap-3">
                   <Icon className={`h-5 w-5 transition-colors ${
-                    isActive ? "text-blue-600 dark:text-blue-400" : "text-slate-500 group-hover:text-slate-700 dark:text-slate-400 dark:group-hover:text-slate-200"
+                    isActive ? "text-slate-900 dark:text-white" : "text-slate-500 group-hover:text-slate-700 dark:text-slate-400 dark:group-hover:text-slate-200"
                   }`} />
                   <span className="font-medium">{tab.title}</span>
                   {tab.badge && (
-                    <span className="ml-auto rounded-full bg-blue-100/80 px-2 py-0.5 text-xs font-medium text-blue-600 backdrop-blur-sm dark:bg-blue-500/20 dark:text-blue-400 dark:backdrop-blur-md">
+                    <span className="ml-auto rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                       {tab.badge}
                     </span>
                   )}
@@ -93,10 +94,11 @@ export default function VerticalTabs({ tabs, className }: VerticalTabsProps) {
             );
           })}
         </div>
-      </div>
 
-      {/* Content */}
-  <div className="flex-1 p-6 overflow-auto">
+        </div>
+
+        {/* Content */}
+        <div className="min-w-0 p-6 sm:p-8 lg:p-10 overflow-auto">
         <AnimatePresence mode="wait">
           {tabs.map((tab) => {
             if (activeTab !== tab.id) return null;
@@ -110,16 +112,27 @@ export default function VerticalTabs({ tabs, className }: VerticalTabsProps) {
                 transition={{ duration: 0.2 }}
                 className="h-full"
               >
-                <h2 className="mb-4 text-2xl font-bold text-slate-900 dark:text-slate-100 break-words">
-                  {tab.title}
-                </h2>
-                <p className="text-slate-600 dark:text-slate-300 break-words whitespace-normal">
+                <div className="mb-5 flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-2xl bg-slate-900 text-white flex items-center justify-center shadow-sm dark:bg-white dark:text-slate-900">
+                    <tab.icon className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 break-words">
+                      {tab.title}
+                    </h2>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                      Step {tabs.findIndex((t) => t.id === tab.id) + 1} of {tabs.length}
+                    </p>
+                  </div>
+                </div>
+                <p className="max-w-2xl text-base leading-7 text-slate-600 dark:text-slate-300 break-words whitespace-normal">
                   {tab.content}
                 </p>
               </motion.div>
             );
           })}
         </AnimatePresence>
+      </div>
       </div>
     </div>
   );
@@ -146,7 +159,7 @@ export function VerticalTabsDemo() {
       title: "Collect Submissions",
       icon: CollectIcon,
       content:
-        "Embed your form anywhere. All submissions are securely stored and instantly viewable in your dashboard, with spam filtering and real-time updates.",
+        "Embed once and start collecting instantly. Every submission is securely stored, spam-filtered, and available in your dashboard in real time.",
     },
     {
       id: "setup-webhooks",

@@ -200,8 +200,7 @@ const Hero3: React.FC = () => {
           </h1>
           {/* Subtext */}
           <p className="mt-6 text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto text-center">
-            Start with forms as your entry point, or send payloads programmatically. Point your <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded text-blue-600 dark:text-blue-400">&lt;form&gt;</code> or API calls to FormHook.<br />
-            FormHook handles validation, storage, routing, retries, and delivery visibility so your team can ship faster with less backend overhead.
+            Connect a <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded text-blue-600 dark:text-blue-400">&lt;form&gt;</code> or API call to FormHook. We handle validation, storage, routing, retries, and delivery tracking.
           </p>
 
           {/* CTA Buttons */}

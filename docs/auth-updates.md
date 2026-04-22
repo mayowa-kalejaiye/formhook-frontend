@@ -9,7 +9,7 @@ The backend team has made several improvements to the authentication system:
 1. **Multiple login endpoints** - Added flexibility with three login methods:
    - `/auth/login` - Standard login endpoint
    - `/auth/email-login` - Email-focused login
-   - `/auth/token` - Token-based login (for password reset, magic links)
+   - `/auth/token` - OAuth2-compatible token endpoint (username/password form flow)
 
 2. **Better error handling** - More detailed error messages and improved status codes
 
@@ -32,9 +32,9 @@ The backend team has made several improvements to the authentication system:
 
 ### 3. New Pages
 
-- Added `/reset-password` page that handles token-based logins
+- Added `/reset-password` page that handles password reset confirmation
 - Added `/forgot-password` page for requesting password resets
-- Added API route `/api/token-login` to handle token logins
+- Added API route `/api/token-login` as a legacy bridge for reset-token redirects
 
 ### 4. Proxy API Implementation
 
@@ -57,8 +57,9 @@ The backend team has made several improvements to the authentication system:
 2. User enters email on the forgot-password page
 3. Backend sends an email with a reset link
 4. User clicks the link which contains a token
-5. Frontend uses the token to log in via `/auth/token`
-6. On success, user is automatically logged in
+5. Frontend opens `/reset-password?token=...`
+6. User sets a new password
+7. Previous JWT sessions are revoked automatically
 
 ## Environment Detection
 

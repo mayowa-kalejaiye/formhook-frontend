@@ -1,21 +1,21 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 
 /**
- * Token Login Proxy API
+ * Reset Token Proxy API
  * 
- * This endpoint serves as a proxy for token-based logins (password reset, magic links, etc.)
- * It receives token login requests and redirects to the frontend's token login page.
+ * This endpoint exists for legacy reset-token links and redirects to the
+ * frontend password reset page.
  */
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
   const { token } = req.query;
   
   if (!token) {
-    return res.status(400).json({ error: 'No login token provided' });
+    return res.status(400).json({ error: 'No reset token provided' });
   }
   
   // Log for debugging
-  console.log(`Received token login request with token: ${token}`);
+  console.log(`Received reset token request with token: ${token}`);
   
-  // Redirect to the frontend token login page with the token
+  // Redirect to the frontend reset-password page with the token
   return res.redirect(302, `/reset-password?token=${token}`);
 }

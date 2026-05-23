@@ -654,13 +654,13 @@ export default function FormSettingsPage() {
   // --- Embed Snippet ---
   const embedSnippet = () => {
     if (!form || !form.fields) {
-      return `<form action="https://formhook-backend.onrender.com/forms/${form?.id || 'FORM_ID'}/submit" method="POST">
+      return `<form action="https://formhook-backend-rnvw.onrender.com/forms/${form?.id || 'FORM_ID'}/submit" method="POST">
   <!-- No fields defined yet -->
   <button type="submit">Submit</button>
 </form>`;
     }
 
-    let snippet = `<form action="https://formhook-backend.onrender.com/forms/${form.id}/submit" method="POST">\n`;
+    let snippet = `<form action="https://formhook-backend-rnvw.onrender.com/forms/${form.id}/submit" method="POST">\n`;
     
     // Add authentication note if required
     if (requireToken && token) {
